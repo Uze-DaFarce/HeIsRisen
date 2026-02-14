@@ -1,0 +1,14 @@
+body {
+    background-color: black; /* Set the entire page background to black */
+    margin: 0; /* Remove default margins */
+    padding: 0; /* Remove default padding */
+}
+
+
+#game {    
+    /* Replace with your actual container class */
+    background-color: black; /* Ensure container matches */
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    display: flex; /* Optional: for layout control */
+}
