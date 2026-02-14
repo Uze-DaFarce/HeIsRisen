@@ -37,7 +37,7 @@
       },
       {
         "name": "Aires Zodiac Sign",
-        "filename": "assets/symbols/pagan/aries.png",      
+        "filename": "assets/symbols/pagan/aires.png",      
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Astrology can lead to idolatry, as it often places the stars above God. The Bible teaches us that God is sovereign over all creation, including the stars and their movements."
@@ -101,7 +101,7 @@
       },
       {
         "name": "Hecates Wheel Wiccan Symbol",
-        "filename": "assets/symbols/pagan/hectates-wheel-wiccan.png",
+        "filename": "assets/symbols/pagan/hecates-wheel-wiccan.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Hecate's Wheel is a symbol of the goddess Hecate, representing the worship of false gods. The Bible warns against idolatry and calls us to worship the one true God."
@@ -115,7 +115,7 @@
       },
       {
         "name": "Celtic Knot",
-        "filename": "assets/symbols/pagan/knotty-celtic.png",
+        "filename": "assets/symbols/pagan/knotty-celt.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Celtic knots symbolize eternity and interconnectedness, but they can lead to idolatry if they replace the worship of the true God. The Bible teaches that our understanding of eternity comes from God."
@@ -193,7 +193,7 @@
       },
       {
         "name": "Triquertra Symbol",
-        "filename": "assets/symbols/pagan/triquetra.png",
+        "filename": "assets/symbols/pagan/triquertra.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "The Triquetra symbol represents the interconnectedness of mind, body, and spirit, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of ourselves comes from God."
@@ -375,7 +375,7 @@
       },
       {
         "name": "Star",
-        "filename": "assets/symbols/christian/assets/symbols/christian/star.png",
+        "filename": "assets/symbols/christian/star.png",
         "category": "Christian",
         "scripture": "Matthew 2:2",
         "explanation": "The star guided three wise men to Jesus, symbolizing divine guidance."
