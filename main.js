@@ -1,4 +1,5 @@
 // Define all scene classes first
+const TOTAL_EGGS = 60;
 
 class MainMenu extends Phaser.Scene {
   constructor() {
@@ -31,7 +32,7 @@ class MainMenu extends Phaser.Scene {
 
     console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
-    
+
     if (symbolsData) {
       console.log('MainMenu: Found symbols data in cache:', symbolsData);
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
@@ -72,14 +73,36 @@ class MapScene extends Phaser.Scene {
   create() {
     this.input.setDefaultCursor('none');
     const mapSections = this.cache.json.get('map_sections');
-    const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: 57 }, (_, i) => i + 1));
+
+    // Distribute eggs randomly (3-8 per section) while summing to TOTAL_EGGS
+    const eggCounts = [];
+    let remainingEggs = TOTAL_EGGS;
+    const numSections = mapSections.length;
+
+    for (let i = 0; i < numSections - 1; i++) {
+        // Calculate max possible for this section to leave at least 3 for remaining sections
+        const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
+        // Calculate min possible for this section to leave at most 8 for remaining sections
+        const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
+
+        const max = Math.min(8, maxPossible);
+        const min = Math.max(3, minPossible);
+
+        const count = Phaser.Math.Between(min, max);
+        eggCounts.push(count);
+        remainingEggs -= count;
+    }
+    eggCounts.push(remainingEggs); // Last section gets the rest
+
+    const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: TOTAL_EGGS }, (_, i) => i + 1));
     const sections = mapSections.map(section => ({ name: section.name, eggs: [] }));
+
     let eggIndex = 0;
     sections.forEach((section, index) => {
-      const numEggs = index < 2 ? 6 : 5;
-      section.eggs = eggs.slice(eggIndex, eggIndex + numEggs);
-      eggIndex += numEggs;
+      section.eggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
+      eggIndex += eggCounts[index];
     });
+
     this.registry.set('sections', sections);
     if (!this.registry.has('foundEggs')) {
       this.registry.set('foundEggs', []);
@@ -102,7 +125,7 @@ class MapScene extends Phaser.Scene {
       .setInteractive().on('pointerdown', () => this.scene.start('EggZamRoom'));
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
     const foundEggs = this.registry.get('foundEggs').length;
-    this.add.text(50, 98, `${foundEggs}/57`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
+    this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
   }
 
@@ -171,20 +194,7 @@ class SectionHunt extends Phaser.Scene {
       console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
     }
   }
-  collectEgg(egg) {
-    const foundEggs = this.registry.get('foundEggs');
-    const eggData = {
-      eggId: egg.getData('eggId'),
-      symbolData: egg.getData('symbolDetails'), // category: "Christian" or "Pagan",
-      categorized: false, // Track if the egg has been categorized
-    }
-    // Check for duplicates based on eggId
-    if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
-      foundEggs.push(eggData);
-      this.registry.set('foundEggs', foundEggs);
-      console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
-    }
-  }
+
   create() {
     this.input.setDefaultCursor('none');
     this.cameras.main.setBounds(0, 0, 1280, 720);
@@ -246,7 +256,7 @@ class SectionHunt extends Phaser.Scene {
             }
             const foundEggs = this.registry.get('foundEggs').length;
             if (this.scoreText) {
-              this.scoreText.setText(`${foundEggs}/57`);
+              this.scoreText.setText(`${foundEggs}/${TOTAL_EGGS}`);
             } else {
               console.warn('scoreText not found when updating score.');
             }
@@ -271,7 +281,7 @@ class SectionHunt extends Phaser.Scene {
       }).setDepth(4).setScrollFactor(0);
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
     const foundEggs = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50, 98, `${foundEggs}/57`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
+    this.scoreText = this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
     this.zoomedView = this.add.renderTexture(0, 0, 200, 200).setDepth(2).setScrollFactor(0);
     this.maskGraphics = this.add.graphics().fillCircle(50, 50, 50).setScrollFactor(0);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
@@ -316,7 +326,7 @@ class SectionHunt extends Phaser.Scene {
     });
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText.setText(`${foundEggsCount}/57`);
+    this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
   }
 }
 
@@ -338,7 +348,7 @@ class EggZamRoom extends Phaser.Scene {
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
     this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
 
-    for (let i = 1; i <= 57; i++) {
+    for (let i = 1; i <= TOTAL_EGGS; i++) {
       this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
     }
 
@@ -400,7 +410,7 @@ class EggZamRoom extends Phaser.Scene {
       .setDepth(4)
       .setScrollFactor(0);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50, 98, `${foundEggsCount}/57`, {
+    this.scoreText = this.add.text(50, 98, `${foundEggsCount}/${TOTAL_EGGS}`, {
       fontSize: '42px',
       fill: '#000',
       fontStyle: 'bold',
@@ -408,7 +418,7 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6
     }).setDepth(5);
-    console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/57`);
+    console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/${TOTAL_EGGS}`);
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
@@ -534,7 +544,7 @@ class EggZamRoom extends Phaser.Scene {
   update() {
     const foundEggsCount = this.registry.get('foundEggs').length;
     if (this.scoreText) {
-      this.scoreText.setText(`${foundEggsCount}/57`);
+      this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
     }
     this.fingerCursor.setPosition(this.input.x, this.input.y);
   }

@@ -12,7 +12,7 @@ class MainMenu extends Phaser.Scene {
   preload() {
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
-    this.load.image('title-page', 'assets/title-page.png');
+    this.load.svg('title-page', 'assets/title-page.svg');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
       console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
@@ -59,13 +59,17 @@ class MainMenu extends Phaser.Scene {
     }
     this.registry.set('symbols', symbolsData);
 
-    // Randomly assign 3-7 eggs per section, totaling TOTAL_EGGS
+    // Randomly assign 3-8 eggs per section, totaling TOTAL_EGGS
     const eggCounts = [];
     let remainingEggs = TOTAL_EGGS;
     const numSections = mapSections.length;
     for (let i = 0; i < numSections - 1; i++) {
-      const maxEggs = Math.min(7, remainingEggs - (numSections - i - 1) * 3);
-      const minEggs = Math.max(3, remainingEggs - (numSections - i - 1) * 7);
+      const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
+      const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
+
+      const maxEggs = Math.min(8, maxPossible);
+      const minEggs = Math.max(3, minPossible);
+
       const count = Phaser.Math.Between(minEggs, maxEggs);
       eggCounts.push(count);
       remainingEggs -= count;
@@ -319,7 +323,7 @@ class SectionHunt extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image(this.sectionName, `assets/map/sections/${this.sectionName}.png`);
+    this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
     for (let i = 1; i <= TOTAL_EGGS; i++) {
       this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
     }
@@ -516,28 +520,28 @@ class SectionHunt extends Phaser.Scene {
   update() {
     const pointer = this.input.activePointer;
     const scale = this.scale;
-  
+
     // MODIFIED: Changed offset to look down and right
     const offset = 45 * scale;
     const rtX = pointer.x - offset + 75 * scale; // Changed from +offset -75 to -offset +75
     const rtY = pointer.y - offset + 53 * scale; // Changed from +offset -53 to -offset +53
     this.zoomedView.setPosition(rtX, rtY);
     this.maskGraphics.setPosition(rtX, rtY);
-  
+
     const zoom = 2;
     const zoomedWidth = (200 * scale) / zoom;
     const zoomedHeight = (200 * scale) / zoom;
-  
+
     const centerX = pointer.x - offset; // Changed from +offset to -offset
     const centerY = pointer.y - offset; // Changed from +offset to -offset
     const worldCenter = this.cameras.main.getWorldPoint(centerX, centerY);
     const scrollX = worldCenter.x - zoomedWidth / 2;
     const scrollY = worldCenter.y - zoomedHeight / 2;
-  
+
     const magnifierRadius = 50 * scale;
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
-  
+
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
         const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
@@ -548,7 +552,7 @@ class SectionHunt extends Phaser.Scene {
         }
       }
     });
-  
+
     this.zoomedView.clear();
     this.zoomedView.beginDraw();
     this.zoomedView.batchDraw(this.sectionImage, -scrollX, -scrollY, 1 / zoom);
@@ -561,12 +565,12 @@ class SectionHunt extends Phaser.Scene {
       }
     });
     this.zoomedView.endDraw();
-  
+
     if (this.magnifyingGlass) {
       this.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
       this.magnifyingGlass.setPosition(pointer.x, pointer.y);
     }
-  
+
     const foundEggsCount = this.registry.get('foundEggs').length;
     this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
   }
