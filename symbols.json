@@ -36,7 +36,7 @@
         "explanation": "Idols like serpent statues lead us away from God. The Bible warns against creating and worshiping images, as they can distract us from the true worship of the Creator"
       },
       {
-        "name": "Aires Zodiac Sign",
+        "name": "Aries Zodiac Sign",
         "filename": "assets/symbols/pagan/aries.png",      
         "category": "Pagan",
         "scripture": "Romans 1:25",
@@ -192,7 +192,7 @@
         "explanation": "Tiki idols were used in pagan worship, representing false gods. The Bible warns against creating and worshiping images that distract us from the true worship of the Creator."
       },
       {
-        "name": "Triquertra Symbol",
+        "name": "Triquetra Symbol",
         "filename": "assets/symbols/pagan/triquetra.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
@@ -375,17 +375,10 @@
       },
       {
         "name": "Star",
-        "filename": "assets/symbols/christian/assets/symbols/christian/star.png",
+        "filename": "assets/symbols/christian/star.png",
         "category": "Christian",
         "scripture": "Matthew 2:2",
         "explanation": "The star guided three wise men to Jesus, symbolizing divine guidance."
-      },
-      {
-        "name": "Rainbow",
-        "filename": "assets/symbols/christian/rainbow.png",
-        "category": "Christian",
-        "scripture": "Genesis 9:13",
-        "explanation": "The rainbow symbolizes God’s promise to Noah, representing hope and faithfulness."
       },
       {
         "name": "Temple of Jerusalem",
@@ -393,6 +386,41 @@
         "category": "Christian",
         "scripture": "Matthew 21:12",
         "explanation": "The Temple of Jerusalem represents God’s dwelling place among His people, symbolizing worship and sacrifice."
+      },
+      {
+        "name": "Pentagram",
+        "filename": "assets/symbols/pagan/pentagram.png",
+        "category": "Pagan",
+        "scripture": "Romans 1:25",
+        "explanation": "The Pentagram is often associated with modern paganism and witchcraft, representing the elements. It can lead to idolatry if it replaces the worship of the true God."
+      },
+      {
+        "name": "Crown of Thorns",
+        "filename": "assets/symbols/christian/crown-thorns.png",
+        "category": "Christian",
+        "scripture": "Matthew 27:29",
+        "explanation": "The crown of thorns symbolizes Jesus’ suffering and kingship, worn during His crucifixion."
+      },
+      {
+        "name": "Ten Commandments",
+        "filename": "assets/symbols/christian/commandments.png",
+        "category": "Christian",
+        "scripture": "Exodus 20:1-17",
+        "explanation": "The Ten Commandments represent God’s moral law given to Moses for His people."
+      },
+      {
+        "name": "Anchor",
+        "filename": "assets/symbols/christian/anchor.png",
+        "category": "Christian",
+        "scripture": "Hebrews 6:19",
+        "explanation": "The anchor symbolizes hope in Christ, which is a sure and steadfast anchor of the soul."
+      },
+      {
+        "name": "Lily",
+        "filename": "assets/symbols/christian/lily.png",
+        "category": "Christian",
+        "scripture": "Song of Solomon 2:1",
+        "explanation": "The lily symbolizes purity and the resurrection of Jesus, often associated with Easter."
       }
       ]
   }
