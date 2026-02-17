@@ -24,4 +24,4 @@ The policy is defined in the `<meta>` tag in `index.html` and `m/index.html`:
 - `connect-src 'self'`: Allow XHR/Fetch requests only to the application origin (for loading JSON data).
 - `worker-src 'self' blob:`: Allow web workers from the application origin and blobs.
 
-If you encounter issues running the game, ensure your environment supports these directives.
+If you encounter issues running the game, ensure your environment supports these directives. The CSP specifically permits `blob:` schemes for worker scripts as required by Phaser.
