@@ -161,8 +161,27 @@ class MainMenu extends Phaser.Scene {
         .setDisplaySize(50 * scale, 75 * scale);
     }
 
+    // NEW: Add blinking "Tap to Start" text for UX guidance
+    const startText = this.add.text(this.game.config.width / 2, 650 * scale, 'Tap to Start', {
+      fontSize: `${48 * scale}px`,
+      fill: '#ffffff',
+      fontStyle: 'bold',
+      fontFamily: 'Comic Sans MS',
+      stroke: '#000000',
+      strokeThickness: 6 * scale
+    }).setOrigin(0.5);
+
+    this.tweens.add({
+      targets: startText,
+      alpha: 0,
+      duration: 1000,
+      ease: 'Power1',
+      yoyo: true,
+      repeat: -1
+    });
+
     // Handle both mouse and touch input, request fullscreen on first click
-    this.input.once('pointerdown', () => {
+    const startGame = () => {
       const canvas = this.game.canvas;
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
       if (isMobile) {
@@ -184,7 +203,11 @@ class MainMenu extends Phaser.Scene {
         }
       }
       this.scene.start('MapScene');
-    });
+    };
+
+    this.input.once('pointerdown', startGame);
+    this.input.keyboard.once('keydown-SPACE', startGame);
+    this.input.keyboard.once('keydown-ENTER', startGame);
 
     // NEW: Optional "Reset Game" button
     /*
