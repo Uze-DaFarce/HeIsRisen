@@ -27,27 +27,6 @@ class MainMenu extends Phaser.Scene {
     this.add.text(520, 0, `He Is Risen!`, { fontSize: '126px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 20 });
     this.add.text(0, 522, `Hunt with P.A.L.`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
     this.add.text(0, 580, `for the Meaning of Easter`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
-
-    const startText = this.add.text(640, 680, 'Press SPACE to Start', {
-      fontSize: '48px',
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      fontFamily: 'Comic Sans MS',
-      stroke: '#000000',
-      strokeThickness: 6
-    }).setOrigin(0.5);
-
-    this.tweens.add({
-      targets: startText,
-      alpha: 0.2,
-      duration: 800,
-      yoyo: true,
-      repeat: -1
-    });
-
-    this.input.keyboard.on('keydown-SPACE', () => this.scene.start('MapScene'));
-    this.input.keyboard.on('keydown-ENTER', () => this.scene.start('MapScene'));
-
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
     this.input.on('pointerdown', () => this.scene.start('MapScene'));
 
