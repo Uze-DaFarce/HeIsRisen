@@ -142,8 +142,10 @@ class MapScene extends Phaser.Scene {
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
     });
-    this.add.image(0, 200, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
+    const eggsAmminHaul = this.add.image(0, 200, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
       .setInteractive().on('pointerdown', () => this.scene.start('EggZamRoom'));
+    addButtonInteraction(this, eggsAmminHaul);
+
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
     const foundEggs = this.registry.get('foundEggs').length;
     this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
@@ -296,16 +298,20 @@ class SectionHunt extends Phaser.Scene {
       });
       this.eggs.add(egg);
     });
-    this.add.image(0, 200, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150, 131)
+    const eggZitButton = this.add.image(0, 200, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150, 131)
       .setInteractive().on('pointerdown', () => {
         console.log('Click on eggZitButton');
         this.scene.start('MapScene');
       }).setDepth(4).setScrollFactor(0);
-    this.add.image(0, 350, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
+    addButtonInteraction(this, eggZitButton);
+
+    const eggsAmminHaul = this.add.image(0, 350, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
       .setInteractive().on('pointerdown', () => {
         console.log('Click on eggsAmminHaul');
         this.scene.start('EggZamRoom');
       }).setDepth(4).setScrollFactor(0);
+    addButtonInteraction(this, eggsAmminHaul);
+
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
     const foundEggs = this.registry.get('foundEggs').length;
     this.scoreText = this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
@@ -426,13 +432,14 @@ class EggZamRoom extends Phaser.Scene {
       .setAlpha(0);
     console.log('EggZamRoom: Added symbol-result-summary-diag at (200, 50)');
 
-    this.add.image(0, 200, 'egg-zit-button')
+    const eggZitButton = this.add.image(0, 200, 'egg-zit-button')
       .setOrigin(0, 0)
       .setDisplaySize(150, 131)
       .setInteractive()
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4)
       .setScrollFactor(0);
+    addButtonInteraction(this, eggZitButton);
     console.log('EggZamRoom: Added egg-zit-button at (0, 200)');
 
     this.add.image(0, 0, 'score')
@@ -580,13 +587,46 @@ class EggZamRoom extends Phaser.Scene {
     this.fingerCursor.setPosition(this.input.x, this.input.y);
   }
 }
+
+/**
+ * Adds a "pop" animation to a game object on hover.
+ * @param {Phaser.Scene} scene - The scene the object belongs to.
+ * @param {Phaser.GameObjects.GameObject} button - The game object to animate.
+ */
+function addButtonInteraction(scene, button) {
+  const originalScaleX = button.scaleX;
+  const originalScaleY = button.scaleY;
+
+  button.on('pointerover', () => {
+    scene.tweens.killTweensOf(button);
+    scene.tweens.add({
+      targets: button,
+      scaleX: originalScaleX * 1.1,
+      scaleY: originalScaleY * 1.1,
+      duration: 100,
+      ease: 'Power1'
+    });
+  });
+
+  button.on('pointerout', () => {
+    scene.tweens.killTweensOf(button);
+    scene.tweens.add({
+      targets: button,
+      scaleX: originalScaleX,
+      scaleY: originalScaleY,
+      duration: 100,
+      ease: 'Power1'
+    });
+  });
+}
+
 // Game configuration
 const config = {
   type: Phaser.AUTO,
   width: 1280,
   height: 720,
   scene: [MainMenu, MapScene, SectionHunt, EggZamRoom],
-  parent: 'game-container',
+  parent: 'game',
   backgroundColor: '#000000',
 };
 
