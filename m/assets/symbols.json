@@ -36,8 +36,8 @@
         "explanation": "Idols like serpent statues lead us away from God. The Bible warns against creating and worshiping images, as they can distract us from the true worship of the Creator"
       },
       {
-        "name": "Aires Zodiac Sign",
-        "filename": "assets/symbols/pagan/aires.png",      
+        "name": "Aries Zodiac Sign",
+        "filename": "assets/symbols/pagan/aries.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Astrology can lead to idolatry, as it often places the stars above God. The Bible teaches us that God is sovereign over all creation, including the stars and their movements."
@@ -54,7 +54,7 @@
         "filename": "assets/symbols/pagan/ankh.png",
         "category": "Pagan",
         "scripture": "Exodus 20:4",
-        "explanation": "The ankh is a symbol of life in pagan cultures, but it can lead to idolatry. The Bible teaches that true life comes from God alone."        
+        "explanation": "The ankh is a symbol of life in pagan cultures, but it can lead to idolatry. The Bible teaches that true life comes from God alone."
       },
       {
         "name": "Aztec Temple",
@@ -69,7 +69,7 @@
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Celtic runes were used in pagan rituals, often leading to idolatry. The Bible teaches that we should not seek power or knowledge from anything other than God."
-        
+
       },
       {
         "name": "Celtic Tree of Life",
@@ -125,7 +125,7 @@
         "filename": "assets/symbols/pagan/moon-celtic.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
-        "explanation": "The Celtic Moon symbolizes the cycles of nature, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of nature comes from God."  
+        "explanation": "The Celtic Moon symbolizes the cycles of nature, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of nature comes from God."
       },
       {
         "name": "Mystical Eye",
@@ -192,8 +192,8 @@
         "explanation": "Tiki idols were used in pagan worship, representing false gods. The Bible warns against creating and worshiping images that distract us from the true worship of the Creator."
       },
       {
-        "name": "Triquertra Symbol",
-        "filename": "assets/symbols/pagan/triquertra.png",
+        "name": "Triquetra Symbol",
+        "filename": "assets/symbols/pagan/triquetra.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "The Triquetra symbol represents the interconnectedness of mind, body, and spirit, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of ourselves comes from God."
@@ -202,50 +202,15 @@
         "name": "Valknut Symbol",
         "filename": "assets/symbols/pagan/valknut.png",
         "category": "Pagan",
-        "scripture": "Romans 1:25", 
+        "scripture": "Romans 1:25",
         "explanation": "The Valknut symbol represents the connection between life and death in Norse mythology, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of life and death comes from God."
       },
       {
-        "name": "Buuddhism Symbol",
-        "filename": "assets/symbols/pagan/buddhism.png",
-        "category": "Pagan",
-        "scripture": "Deuteronomy 6:4, Isaiah 45:5", 
-        "explanation": "Buddhism denies the one true God, emphasizing the importance of personal effort and wisdom to attain enlightenment. The Bible teaches we are sinners in a world corrupted by sin. Salvation, wisdom, and truth come from the one true God, any inherent goodness comes from Him alone"
-      },
-      {
         "name": "Cross",
-        "filename": "assets/symbols/christian/cross.png",   
+        "filename": "assets/symbols/christian/cross.png",
         "category": "Christian",
         "scripture": "1 Corinthians 1:18",
         "explanation": "The cross represents Jesus’ sacrifice for our sins. It is a symbol of hope and redemption."
-      },
-      {
-        "name": "Crown of Thorns",
-        "filename": "assets/symbols/christian/thorn-crown.png",   
-        "category": "Christian",
-        "scripture": "John 19:2",
-        "explanation": "In Christianity, the crown of thorns, worn by Jesus during his crucifixion, symbolizes several key aspects of his life and teachings, including suffering, sacrifice, humility, and redemption. It also serves as a powerful reminder of the ultimate price paid for humanity's sins."
-      },
-      {
-        "name": "Anchor Symbol",
-        "filename": "assets/symbols/christian/anchor.png",
-        "category": "Christian",
-        "scripture": "Hebrews 6:19",
-        "explanation": "The anchor symbolizes hope and stability in Christ. It reminds us that our faith is secure in Him."
-      },
-      {
-        "name": "Crown",
-        "filename": "assets/symbols/christian/crown.png",
-        "category": "Christian",
-        "scripture": "Revelation 2:10",
-        "explanation": "The crown symbolizes victory and eternal life in Christ. It represents the reward for faithfulness."
-      },
-      {
-        "name": "Signet Ring",
-        "filename": "assets/symbols/christian/signet-ring.png",
-        "category": "Christian",
-        "scripture": "Haggai 2:23, Daniel 6:17, Jeremiah 22:24",
-        "explanation": "The signet ring symbolizes authority and belonging to God’s family. It represents our identity as children of God."
       },
       {
         "name": "Empty Tomb",
@@ -329,7 +294,7 @@
         "filename": "assets/symbols/christian/beth-star.png",
         "category": "Christian",
         "scripture": "Matthew 2:2",
-        "explanation": "The Star of Bethlehem guided the wise men to Jesus’ birthplace, symbolizing divine guidance." 
+        "explanation": "The Star of Bethlehem guided the wise men to Jesus’ birthplace, symbolizing divine guidance."
       },
       {
         "name": "Bible",
@@ -374,11 +339,11 @@
         "explanation": "The rainbow symbolizes God’s covenant with Noah, representing His promise never to flood the earth again."
       },
       {
-        "name": "Christian Flag",
-        "filename": "assets/symbols/christian/christian-flag.png",
+        "name": "Star of David",
+        "filename": "assets/symbols/christian/star-david.png",
         "category": "Christian",
-        "scripture": "Matthew 28:19-20",
-        "explanation": "The Christian flag represents the Christian faith and the mission to spread the Gospel."
+        "scripture": "Matthew 2:2",
+        "explanation": "The Star of David symbolizes the Jewish faith and God’s covenant with His people."
       },
       {
         "name": "Manger",
@@ -421,6 +386,41 @@
         "category": "Christian",
         "scripture": "Matthew 21:12",
         "explanation": "The Temple of Jerusalem represents God’s dwelling place among His people, symbolizing worship and sacrifice."
+      },
+      {
+        "name": "Pentagram",
+        "filename": "assets/symbols/pagan/pentagram.png",
+        "category": "Pagan",
+        "scripture": "Romans 1:25",
+        "explanation": "The Pentagram is often associated with modern paganism and witchcraft, representing the elements. It can lead to idolatry if it replaces the worship of the true God."
+      },
+      {
+        "name": "Crown of Thorns",
+        "filename": "assets/symbols/christian/crown-thorns.png",
+        "category": "Christian",
+        "scripture": "Matthew 27:29",
+        "explanation": "The crown of thorns symbolizes Jesus’ suffering and kingship, worn during His crucifixion."
+      },
+      {
+        "name": "Ten Commandments",
+        "filename": "assets/symbols/christian/commandments.png",
+        "category": "Christian",
+        "scripture": "Exodus 20:1-17",
+        "explanation": "The Ten Commandments represent God’s moral law given to Moses for His people."
+      },
+      {
+        "name": "Anchor",
+        "filename": "assets/symbols/christian/anchor.png",
+        "category": "Christian",
+        "scripture": "Hebrews 6:19",
+        "explanation": "The anchor symbolizes hope in Christ, which is a sure and steadfast anchor of the soul."
+      },
+      {
+        "name": "Lily",
+        "filename": "assets/symbols/christian/lily.png",
+        "category": "Christian",
+        "scripture": "Song of Solomon 2:1",
+        "explanation": "The lily symbolizes purity and the resurrection of Jesus, often associated with Easter."
       }
       ]
   }

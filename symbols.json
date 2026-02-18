@@ -37,7 +37,7 @@
       },
       {
         "name": "Aries Zodiac Sign",
-        "filename": "assets/symbols/pagan/aries.png",      
+        "filename": "assets/symbols/pagan/aries.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Astrology can lead to idolatry, as it often places the stars above God. The Bible teaches us that God is sovereign over all creation, including the stars and their movements."
@@ -54,7 +54,7 @@
         "filename": "assets/symbols/pagan/ankh.png",
         "category": "Pagan",
         "scripture": "Exodus 20:4",
-        "explanation": "The ankh is a symbol of life in pagan cultures, but it can lead to idolatry. The Bible teaches that true life comes from God alone."        
+        "explanation": "The ankh is a symbol of life in pagan cultures, but it can lead to idolatry. The Bible teaches that true life comes from God alone."
       },
       {
         "name": "Aztec Temple",
@@ -69,7 +69,7 @@
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Celtic runes were used in pagan rituals, often leading to idolatry. The Bible teaches that we should not seek power or knowledge from anything other than God."
-        
+
       },
       {
         "name": "Celtic Tree of Life",
@@ -101,7 +101,7 @@
       },
       {
         "name": "Hecates Wheel Wiccan Symbol",
-        "filename": "assets/symbols/pagan/hectates-wheel-wiccan.png",
+        "filename": "assets/symbols/pagan/hecates-wheel-wiccan.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Hecate's Wheel is a symbol of the goddess Hecate, representing the worship of false gods. The Bible warns against idolatry and calls us to worship the one true God."
@@ -115,7 +115,7 @@
       },
       {
         "name": "Celtic Knot",
-        "filename": "assets/symbols/pagan/knotty-celtic.png",
+        "filename": "assets/symbols/pagan/knotty-celt.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
         "explanation": "Celtic knots symbolize eternity and interconnectedness, but they can lead to idolatry if they replace the worship of the true God. The Bible teaches that our understanding of eternity comes from God."
@@ -125,7 +125,7 @@
         "filename": "assets/symbols/pagan/moon-celtic.png",
         "category": "Pagan",
         "scripture": "Romans 1:25",
-        "explanation": "The Celtic Moon symbolizes the cycles of nature, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of nature comes from God."  
+        "explanation": "The Celtic Moon symbolizes the cycles of nature, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of nature comes from God."
       },
       {
         "name": "Mystical Eye",
@@ -202,12 +202,12 @@
         "name": "Valknut Symbol",
         "filename": "assets/symbols/pagan/valknut.png",
         "category": "Pagan",
-        "scripture": "Romans 1:25", 
+        "scripture": "Romans 1:25",
         "explanation": "The Valknut symbol represents the connection between life and death in Norse mythology, but it can lead to idolatry if it replaces the worship of the true God. The Bible teaches that our understanding of life and death comes from God."
       },
       {
         "name": "Cross",
-        "filename": "assets/symbols/christian/cross.png",   
+        "filename": "assets/symbols/christian/cross.png",
         "category": "Christian",
         "scripture": "1 Corinthians 1:18",
         "explanation": "The cross represents Jesus’ sacrifice for our sins. It is a symbol of hope and redemption."
@@ -294,7 +294,7 @@
         "filename": "assets/symbols/christian/beth-star.png",
         "category": "Christian",
         "scripture": "Matthew 2:2",
-        "explanation": "The Star of Bethlehem guided the wise men to Jesus’ birthplace, symbolizing divine guidance." 
+        "explanation": "The Star of Bethlehem guided the wise men to Jesus’ birthplace, symbolizing divine guidance."
       },
       {
         "name": "Bible",
