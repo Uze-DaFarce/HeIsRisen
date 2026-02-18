@@ -152,7 +152,10 @@ class SectionHunt extends Phaser.Scene {
       return;
     }
     section.eggs.forEach(eggId => {
-      this.load.image(`egg-${eggId}`, `assets/eggs/egg-${eggId}.png`);
+      // Bolt Optimization: Prevent redundant loading if texture exists
+      if (!this.textures.exists(`egg-${eggId}`)) {
+        this.load.image(`egg-${eggId}`, `assets/eggs/egg-${eggId}.png`);
+      }
     });
     const symbolsData = this.registry.get('symbols');
     if (symbolsData && symbolsData.symbols) {
@@ -160,8 +163,11 @@ class SectionHunt extends Phaser.Scene {
       symbolsData.symbols.forEach(symbol => {
         if (symbol.filename) {
           const textureKey = symbol.filename;
-          const imagePath = symbolBasePath + symbol.filename;
-          this.load.image(textureKey, imagePath);
+          // Bolt Optimization: Prevent redundant loading if texture exists
+          if (!this.textures.exists(textureKey)) {
+            const imagePath = symbolBasePath + symbol.filename;
+            this.load.image(textureKey, imagePath);
+          }
         } else {
           console.warn('Symbol definition missing filename:', symbol);
         }
@@ -349,14 +355,18 @@ class EggZamRoom extends Phaser.Scene {
     this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
 
     for (let i = 1; i <= TOTAL_EGGS; i++) {
-      this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
+      // Bolt Optimization: Prevent redundant loading if texture exists
+      if (!this.textures.exists(`egg-${i}`)) {
+        this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
+      }
     }
 
     const symbolsData = this.registry.get('symbols');
     if (symbolsData && symbolsData.symbols) {
       const symbolBasePath = ''; // Path is already in the filename
       symbolsData.symbols.forEach(symbol => {
-        if (symbol.filename) {
+        // Bolt Optimization: Prevent redundant loading if texture exists
+        if (symbol.filename && !this.textures.exists(symbol.filename)) {
           this.load.image(symbol.filename, symbolBasePath + symbol.filename);
         }
       });
