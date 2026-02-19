@@ -17,12 +17,12 @@ class MusicScene extends Phaser.Scene {
       // console.log('MusicScene: Background music resumed');
     }
 
-    // Schedule ambient1 to play randomly every 1-3 minutes
+    // Schedule ambient1 to play randomly every 3-7 minutes
     this.scheduleAmbientSound();
   }
 
   scheduleAmbientSound() {
-    const delay = Phaser.Math.Between(60000, 180000); // 1-3 minutes in ms
+    const delay = Phaser.Math.Between(180000, 420000); // 3-7 minutes in ms
     // console.log(`MusicScene: Scheduling ambient1 in ${delay}ms`);
     this.time.delayedCall(delay, () => {
       this.sound.play('ambient1', { volume: 0.5 });
@@ -120,8 +120,7 @@ class MainMenu extends Phaser.Scene {
     this.add.text(0, 522, `Hunt with P.A.L.`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
     this.add.text(0, 580, `for the Meaning of Easter`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
 
-    // Modified start text instructions
-    const startText = this.add.text(640, 680, 'Click to Start', {
+    const startText = this.add.text(640, 680, 'Press SPACE to Start', {
       fontSize: '48px',
       fill: '#ffffff',
       fontStyle: 'bold',
@@ -155,24 +154,9 @@ class MainMenu extends Phaser.Scene {
     this.input.keyboard.on('keydown-ENTER', startGame);
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
+    this.input.on('pointerdown', startGame);
 
-    // Instead of starting game on any pointerdown, make startText interactive
-    startText.setInteractive({ useHandCursor: true }).on('pointerdown', startGame);
-
-    // Play intro music immediately
     this.sound.play('intro-music', { loop: true, volume: 0.5 });
-
-    // Ensure audio context is resumed on any interaction if locked
-    if (this.sound.locked) {
-        this.input.once('pointerdown', () => {
-            // This just ensures audio context is resumed, the music should be playing already (in paused state)
-            // or we can ensure it plays
-            const introMusic = this.sound.get('intro-music');
-            if (introMusic && !introMusic.isPlaying) {
-                introMusic.play({ loop: true, volume: 0.5 });
-            }
-        });
-    }
 
     // console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
@@ -264,18 +248,9 @@ class MapScene extends Phaser.Scene {
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
     });
-
     const eggsAmminHaul = this.add.image(0, 200, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
-      .setInteractive();
-
+      .setInteractive().on('pointerdown', () => this.scene.start('EggZamRoom'));
     addButtonInteraction(this, eggsAmminHaul, 'menu-click');
-
-    // Delayed transition to allow sound and animation to play
-    eggsAmminHaul.on('pointerdown', () => {
-         this.time.delayedCall(100, () => {
-             this.scene.start('EggZamRoom');
-         });
-    });
 
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
     const foundEggs = this.registry.get('foundEggs').length;
@@ -400,14 +375,6 @@ class SectionHunt extends Phaser.Scene {
         this.scene.start('EggZamRoom');
       }).setDepth(4).setScrollFactor(0);
     addButtonInteraction(this, eggsAmminHaul, 'menu-click');
-
-    // Delayed transition to allow sound and animation to play
-    eggsAmminHaul.on('pointerdown', () => {
-        // console.log('Click on eggsAmminHaul');
-        this.time.delayedCall(100, () => {
-             this.scene.start('EggZamRoom');
-        });
-    });
 
     this.sound.play('drive2', { volume: 0.5 });
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
@@ -689,14 +656,9 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
   });
 
   button.on('pointerdown', () => {
-    // Try to play sound via MusicScene if available to ensure persistence
-    const musicScene = scene.scene.get('MusicScene');
-    if (musicScene && musicScene.scene.isActive()) {
-        musicScene.playSFX(soundKey);
-    } else if (soundKey && scene.sound.get(soundKey)) {
-        scene.sound.play(soundKey, { volume: 0.5 });
+    if (soundKey && scene.sound.get(soundKey)) {
+      scene.sound.play(soundKey, { volume: 0.5 });
     }
-
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
