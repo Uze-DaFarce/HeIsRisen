@@ -7,23 +7,23 @@ class MusicScene extends Phaser.Scene {
   }
 
   create() {
-    console.log('MusicScene: checking background music');
+    // console.log('MusicScene: checking background music');
     const music = this.sound.get('background-music');
     if (!music) {
       this.sound.add('background-music', { loop: true, volume: 0.5 }).play();
-      console.log('MusicScene: Background music started');
+      // console.log('MusicScene: Background music started');
     } else if (!music.isPlaying) {
       music.play();
-      console.log('MusicScene: Background music resumed');
+      // console.log('MusicScene: Background music resumed');
     }
 
-    // Schedule ambient1 to play randomly every 3-7 minutes
+    // Schedule ambient1 to play randomly every 1-3 minutes
     this.scheduleAmbientSound();
   }
 
   scheduleAmbientSound() {
-    const delay = Phaser.Math.Between(180000, 420000); // 3-7 minutes in ms
-    console.log(`MusicScene: Scheduling ambient1 in ${delay}ms`);
+    const delay = Phaser.Math.Between(60000, 180000); // 1-3 minutes in ms
+    // console.log(`MusicScene: Scheduling ambient1 in ${delay}ms`);
     this.time.delayedCall(delay, () => {
       this.sound.play('ambient1', { volume: 0.5 });
       this.scheduleAmbientSound(); // Reschedule
@@ -67,7 +67,7 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('drive2', 'assets/audio/drive2.mp3');
 
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
-      console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
+      // console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
       // Preload all 60 eggs
       for (let i = 1; i <= TOTAL_EGGS; i++) {
         this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
@@ -98,7 +98,8 @@ class MainMenu extends Phaser.Scene {
     this.add.text(0, 522, `Hunt with P.A.L.`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
     this.add.text(0, 580, `for the Meaning of Easter`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
 
-    const startText = this.add.text(640, 680, 'Press SPACE to Start', {
+    // Modified start text instructions
+    const startText = this.add.text(640, 680, 'Click to Start', {
       fontSize: '48px',
       fill: '#ffffff',
       fontStyle: 'bold',
@@ -132,21 +133,36 @@ class MainMenu extends Phaser.Scene {
     this.input.keyboard.on('keydown-ENTER', startGame);
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
-    this.input.on('pointerdown', startGame);
 
+    // Instead of starting game on any pointerdown, make startText interactive
+    startText.setInteractive({ useHandCursor: true }).on('pointerdown', startGame);
+
+    // Play intro music immediately
     this.sound.play('intro-music', { loop: true, volume: 0.5 });
 
-    console.log('MainMenu: Attempting to get symbols data from cache...');
+    // Ensure audio context is resumed on any interaction if locked
+    if (this.sound.locked) {
+        this.input.once('pointerdown', () => {
+            // This just ensures audio context is resumed, the music should be playing already (in paused state)
+            // or we can ensure it plays
+            const introMusic = this.sound.get('intro-music');
+            if (introMusic && !introMusic.isPlaying) {
+                introMusic.play({ loop: true, volume: 0.5 });
+            }
+        });
+    }
+
+    // console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
 
     if (symbolsData) {
-      console.log('MainMenu: Found symbols data in cache:', symbolsData);
+      // console.log('MainMenu: Found symbols data in cache:', symbolsData);
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
-        console.log(`MainMenu: Data contains a 'symbols' array with ${symbolsData.symbols.length} items. Setting registry...`);
+        // console.log(`MainMenu: Data contains a 'symbols' array with ${symbolsData.symbols.length} items. Setting registry...`);
         this.registry.set('symbols', symbolsData);
         const checkRegistry = this.registry.get('symbols');
         if (checkRegistry) {
-          console.log('MainMenu: Successfully set and verified symbols in registry:', checkRegistry);
+          // console.log('MainMenu: Successfully set and verified symbols in registry:', checkRegistry);
         } else {
           console.error('MainMenu: FAILED to verify symbols in registry immediately after setting!');
         }
@@ -220,7 +236,7 @@ class MapScene extends Phaser.Scene {
     this.sound.play('drive2', { volume: 0.5 });
 
     const mapImage = this.add.image(0, 0, 'yellowstone-main-map').setOrigin(0, 0);
-    console.log(`Map display size: ${mapImage.displayWidth}x${mapImage.displayHeight}, Position: (${mapImage.x}, ${mapImage.y})`);
+    // console.log(`Map display size: ${mapImage.displayWidth}x${mapImage.displayHeight}, Position: (${mapImage.x}, ${mapImage.y})`);
     mapSections.forEach(section => {
       const zoneX = section.coords.x;
       const zoneY = section.coords.y;
@@ -229,14 +245,23 @@ class MapScene extends Phaser.Scene {
       const zone = this.add.zone(zoneX, zoneY, zoneWidth, zoneHeight).setOrigin(0, 0);
       zone.setInteractive();
       zone.on('pointerdown', () => {
-        console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
+        // console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
         this.sound.play('drive1', { volume: 0.5 });
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
     });
+
     const eggsAmminHaul = this.add.image(0, 200, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
-      .setInteractive().on('pointerdown', () => this.scene.start('EggZamRoom'));
+      .setInteractive();
+
     addButtonInteraction(this, eggsAmminHaul, 'menu-click');
+
+    // Delayed transition to allow sound and animation to play
+    eggsAmminHaul.on('pointerdown', () => {
+         this.time.delayedCall(100, () => {
+             this.scene.start('EggZamRoom');
+         });
+    });
 
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
     const foundEggs = this.registry.get('foundEggs').length;
@@ -285,12 +310,12 @@ class SectionHunt extends Phaser.Scene {
       symbolData: egg.getData('symbolDetails'),
       categorized: false
     };
-    console.log('SectionHunt: Collecting egg with symbolData:', eggData.symbolData);
+    // console.log('SectionHunt: Collecting egg with symbolData:', eggData.symbolData);
     if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
       this.sound.play('collect');
       foundEggs.push(eggData);
       this.registry.set('foundEggs', foundEggs);
-      console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
+      // console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
     }
   }
 
@@ -311,7 +336,7 @@ class SectionHunt extends Phaser.Scene {
       return;
     }
     this.eggs = this.add.group();
-    console.log(`Creating ${section.eggs.length} eggs for section ${this.sectionName}`);
+    // console.log(`Creating ${section.eggs.length} eggs for section ${this.sectionName}`);
     section.eggs.forEach((eggId, index) => {
       const x = Phaser.Math.Between(200, 1270);
       const y = Phaser.Math.Between(100, 710);
@@ -331,23 +356,23 @@ class SectionHunt extends Phaser.Scene {
             .setDisplaySize(50, 75)
             .setAlpha(0);
           egg.symbolSprite = symbolSprite;
-          console.log(`Added symbol '${symbol.name}' (${textureKey}) to egg-${eggId}`);
+          // console.log(`Added symbol '${symbol.name}' (${textureKey}) to egg-${eggId}`);
         } else {
           console.warn(`CREATE WARN: Texture key '${textureKey}' not found for symbol '${symbol.name}'. Check preload path.`);
           egg.symbolSprite = null;
         }
       } else {
-        console.log(`No symbol assigned or symbol missing filename for egg-${eggId}. Index: ${index}`);
+        // console.log(`No symbol assigned or symbol missing filename for egg-${eggId}. Index: ${index}`);
         egg.symbolSprite = null;
       }
       egg.on('pointerdown', () => {
-        console.log(`Click ATTEMPTED on egg-${eggId} at (${egg.x}, ${egg.y})`);
+        // console.log(`Click ATTEMPTED on egg-${eggId} at (${egg.x}, ${egg.y})`);
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
-          console.log(`Bounds check PASSED for egg-${eggId}`);
+          // console.log(`Bounds check PASSED for egg-${eggId}`);
           const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
           if (distance < 150) {
-            console.log(`Distance check PASSED for egg-${eggId}, collecting!`);
+            // console.log(`Distance check PASSED for egg-${eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
             if (egg.symbolSprite) {
@@ -360,27 +385,33 @@ class SectionHunt extends Phaser.Scene {
               console.warn('scoreText not found when updating score.');
             }
           } else {
-            console.log(`Distance check FAILED for egg-${eggId}. Dist: ${distance}`);
+            // console.log(`Distance check FAILED for egg-${eggId}. Dist: ${distance}`);
           }
         } else {
-          console.log(`Bounds check FAILED for egg-${eggId}`);
+          // console.log(`Bounds check FAILED for egg-${eggId}`);
         }
       });
       this.eggs.add(egg);
     });
     const eggZitButton = this.add.image(0, 200, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150, 131)
       .setInteractive().on('pointerdown', () => {
-        console.log('Click on eggZitButton');
+        // console.log('Click on eggZitButton');
         this.scene.start('MapScene');
       }).setDepth(4).setScrollFactor(0);
     addButtonInteraction(this, eggZitButton, 'drive1');
 
     const eggsAmminHaul = this.add.image(0, 350, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
-      .setInteractive().on('pointerdown', () => {
-        console.log('Click on eggsAmminHaul');
-        this.scene.start('EggZamRoom');
-      }).setDepth(4).setScrollFactor(0);
+      .setInteractive();
+
     addButtonInteraction(this, eggsAmminHaul, 'menu-click');
+
+    // Delayed transition to allow sound and animation to play
+    eggsAmminHaul.on('pointerdown', () => {
+        // console.log('Click on eggsAmminHaul');
+        this.time.delayedCall(100, () => {
+             this.scene.start('EggZamRoom');
+        });
+    });
 
     this.sound.play('drive2', { volume: 0.5 });
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
@@ -459,7 +490,7 @@ class EggZamRoom extends Phaser.Scene {
     });
 
     this.load.on('filecomplete', (key, type, data) => {
-      console.log(`EggZamRoom: Successfully loaded asset: Key='${key}', Type='${type}'`);
+      // console.log(`EggZamRoom: Successfully loaded asset: Key='${key}', Type='${type}'`);
     });
   }
 
@@ -471,19 +502,19 @@ class EggZamRoom extends Phaser.Scene {
       .setOrigin(0, 0)
       .setDepth(0)
       .setDisplaySize(1280, 720);
-    console.log('EggZamRoom: Added background image at (0, 0) with size 1280x720');
+    // console.log('EggZamRoom: Added background image at (0, 0) with size 1280x720');
 
     const examiner = this.add.image(390, 250, 'egg-zamminer')
       .setOrigin(0, 0)
       .setDepth(2);
-    console.log('EggZamRoom: Added egg-zamminer at (390, 250)');
+    // console.log('EggZamRoom: Added egg-zamminer at (390, 250)');
 
     this.add.image(200, 50, 'symbol-result-summary-diag')
       .setOrigin(0, 0)
       .setDisplaySize(900, 600)
       .setDepth(1)
       .setAlpha(0);
-    console.log('EggZamRoom: Added symbol-result-summary-diag at (200, 50)');
+    // console.log('EggZamRoom: Added symbol-result-summary-diag at (200, 50)');
 
     const eggZitButton = this.add.image(0, 200, 'egg-zit-button')
       .setOrigin(0, 0)
@@ -493,7 +524,7 @@ class EggZamRoom extends Phaser.Scene {
       .setDepth(4)
       .setScrollFactor(0);
     addButtonInteraction(this, eggZitButton, 'drive1');
-    console.log('EggZamRoom: Added egg-zit-button at (0, 200)');
+    // console.log('EggZamRoom: Added egg-zit-button at (0, 200)');
 
     this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -509,7 +540,7 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6
     }).setDepth(5);
-    console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/${TOTAL_EGGS}`);
+    // console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/${TOTAL_EGGS}`);
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
@@ -523,14 +554,14 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6
     }).setDepth(5);
-    console.log('EggZamRoom: Added correct categorization text at (100, 150)');
+    // console.log('EggZamRoom: Added correct categorization text at (100, 150)');
 
     const leftBottleZone = this.add.zone(450, 300, 100, 200).setOrigin(0, 0).setInteractive();
     const rightBottleZone = this.add.zone(750, 300, 100, 200).setOrigin(0, 0).setInteractive();
 
     leftBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized) {
-        console.log('Left bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
+        // console.log('Left bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
         const isChristian = this.currentEgg.symbolData.category === 'Christian';
         if (isChristian) {
           this.sound.play('success');
@@ -539,7 +570,7 @@ class EggZamRoom extends Phaser.Scene {
           this.correctText.setText(`Correct: ${correctCount}`);
           this.currentEgg.categorized = true;
           this.displayRandomEggInfo();
-          console.log('Correct categorization: Egg is Christian, left bottle clicked');
+          // console.log('Correct categorization: Egg is Christian, left bottle clicked');
         } else {
           this.sound.play('error');
           const wrongText = this.add.text(420, 220, "Try again!", {
@@ -549,14 +580,14 @@ class EggZamRoom extends Phaser.Scene {
             fontFamily: 'Comic Sans MS'
           }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-          console.log('Incorrect categorization: Egg is Pagan, left bottle clicked');
+          // console.log('Incorrect categorization: Egg is Pagan, left bottle clicked');
         }
       }
     });
 
     rightBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized) {
-        console.log('Right bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
+        // console.log('Right bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
         const isPagan = this.currentEgg.symbolData.category === 'Pagan';
         if (isPagan) {
           this.sound.play('success');
@@ -565,7 +596,7 @@ class EggZamRoom extends Phaser.Scene {
           this.correctText.setText(`Correct: ${correctCount}`);
           this.currentEgg.categorized = true;
           this.displayRandomEggInfo();
-          console.log('Correct categorization: Egg is Pagan, right bottle clicked');
+          // console.log('Correct categorization: Egg is Pagan, right bottle clicked');
         } else {
           this.sound.play('error');
           const wrongText = this.add.text(420, 220, "Try again!", {
@@ -575,7 +606,7 @@ class EggZamRoom extends Phaser.Scene {
             fontFamily: 'Comic Sans MS'
           }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-          console.log('Incorrect categorization: Egg is Christian, right bottle clicked');
+          // console.log('Incorrect categorization: Egg is Christian, right bottle clicked');
         }
       }
     });
@@ -595,7 +626,7 @@ class EggZamRoom extends Phaser.Scene {
       const uncategorizedEggs = foundEggs.filter(egg => !egg.categorized);
       if (uncategorizedEggs.length > 0) {
         this.currentEgg = Phaser.Utils.Array.GetRandom(uncategorizedEggs);
-        console.log('Displaying new egg. SymbolData:', this.currentEgg.symbolData);
+        // console.log('Displaying new egg. SymbolData:', this.currentEgg.symbolData);
       } else {
         this.currentEgg = null;
         if (this.noEggsText) this.noEggsText.destroy();
@@ -681,9 +712,14 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
   });
 
   button.on('pointerdown', () => {
-    if (soundKey && scene.sound.get(soundKey)) {
-      scene.sound.play(soundKey, { volume: 0.5 });
+    // Try to play sound via MusicScene if available to ensure persistence
+    const musicScene = scene.scene.get('MusicScene');
+    if (musicScene && musicScene.scene.isActive()) {
+        musicScene.playSFX(soundKey);
+    } else if (soundKey && scene.sound.get(soundKey)) {
+        scene.sound.play(soundKey, { volume: 0.5 });
     }
+
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
