@@ -79,27 +79,27 @@ class UIScene extends Phaser.Scene {
     const gear = this.add.graphics();
     gear.fillStyle(0xffffff, 1);
 
-    // Draw gear shape
+    // Draw gear shape - reduced size by half
     const x = this.cameras.main.width - 60;
     const y = 60;
-    const radius = 25;
+    const radius = 12.5;
 
     gear.fillCircle(x, y, radius);
 
-    // Teeth
+    // Teeth - adjusted for smaller size
     for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
-        const tx = x + Math.cos(angle) * (radius + 8);
-        const ty = y + Math.sin(angle) * (radius + 8);
-        gear.fillCircle(tx, ty, 6);
+        const tx = x + Math.cos(angle) * (radius + 4);
+        const ty = y + Math.sin(angle) * (radius + 4);
+        gear.fillCircle(tx, ty, 3);
     }
     gear.fillCircle(x, y, radius); // Redraw center to smooth
 
     // Inner hole
     gear.fillStyle(0x000000, 1);
-    gear.fillCircle(x, y, 10);
+    gear.fillCircle(x, y, 5);
 
-    const hitArea = new Phaser.Geom.Circle(x, y, 40);
+    const hitArea = new Phaser.Geom.Circle(x, y, 20);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
@@ -147,6 +147,7 @@ class UIScene extends Phaser.Scene {
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
         this.gearIcon.setVisible(true);
+        this.input.setDefaultCursor('none');
     });
     this.settingsContainer.add(closeBtn);
 
@@ -198,6 +199,7 @@ class UIScene extends Phaser.Scene {
   openSettings() {
     this.settingsContainer.setVisible(true);
     this.gearIcon.setVisible(false);
+    this.input.setDefaultCursor('default');
   }
 }
 
@@ -215,7 +217,7 @@ class MainMenu extends Phaser.Scene {
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json');
-    this.load.svg('title-page', 'assets/title-page.svg');
+    this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Preload common UI and game assets here to avoid reloading in scenes
@@ -233,7 +235,6 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('collect', 'assets/audio/collect1.mp3');
     this.load.audio('success', 'assets/audio/success.wav');
     this.load.audio('error', 'assets/audio/error.wav');
-    this.load.audio('intro-music', 'assets/audio/intro-music.mp3');
     this.load.audio('ambient1', 'assets/audio/ambient1.mp3');
     this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
     this.load.audio('drive1', 'assets/audio/drive1.mp3');
@@ -277,10 +278,18 @@ class MainMenu extends Phaser.Scene {
 
   create() {
     this.input.setDefaultCursor('none');
-    this.add.image(0, -350, 'title-page').setOrigin(0, 0).setDisplaySize(1280, 1280);
-    this.add.text(520, 0, `He Is Risen!`, { fontSize: '126px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 20 });
-    this.add.text(0, 522, `Hunt with P.A.L.`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
-    this.add.text(0, 580, `for the Meaning of Easter`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
+
+    // Add Intro Video - centered
+    const introVideo = this.add.video(640, 360, 'intro-video');
+    introVideo.play(true); // Loop
+
+    // Store reference for update loop
+    this.introVideo = introVideo;
+
+    // Remove static text overlays as they are likely in the video
+    // this.add.text(520, 0, `He Is Risen!`, ...);
+    // this.add.text(0, 522, `Hunt with P.A.L.`, ...);
+    // this.add.text(0, 580, `for the Meaning of Easter`, ...);
 
     // Modified start text instructions
     const startText = this.add.text(640, 680, 'Click to Start', {
@@ -301,7 +310,11 @@ class MainMenu extends Phaser.Scene {
     });
 
     const startGame = () => {
-      this.sound.stopByKey('intro-music');
+      if (introVideo) {
+          introVideo.stop();
+          introVideo.destroy();
+      }
+
       if (!this.scene.get('MusicScene').scene.isActive()) {
         this.scene.launch('MusicScene');
       }
@@ -331,28 +344,34 @@ class MainMenu extends Phaser.Scene {
         this.scene.launch('UIScene');
     }
 
-    // ROBUST AUTOPLAY STRATEGY
+    // ROBUST AUTOPLAY STRATEGY for Video Audio
     const musicVol = this.registry.get('musicVolume');
-    const introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
-    introMusic.play();
+    introVideo.setVolume(musicVol);
 
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && introMusic) {
-            introMusic.setVolume(data);
+        if (key === 'musicVolume' && introVideo && introVideo.active) {
+            introVideo.setVolume(data);
         }
     };
     this.registry.events.on('changedata', updateIntroVolume);
     this.events.once('shutdown', () => {
         this.registry.events.off('changedata', updateIntroVolume);
+        if (introVideo) {
+            introVideo.stop();
+            introVideo.destroy();
+        }
     });
 
     const unlockAudio = () => {
         if (this.sound.context.state === 'suspended') {
             this.sound.context.resume();
         }
-        if (introMusic && !introMusic.isPlaying) {
-            introMusic.play();
+        if (introVideo && introVideo.isPaused()) {
+            introVideo.play(true);
+        }
+        if (introVideo) {
+            introVideo.setMute(false);
         }
     };
 
@@ -387,6 +406,13 @@ class MainMenu extends Phaser.Scene {
 
   update() {
     this.fingerCursor.setPosition(this.input.x, this.input.y);
+
+    // Ensure video size is correct once texture loads
+    if (this.introVideo && this.introVideo.active && this.introVideo.width > 0) {
+        if (Math.abs(this.introVideo.displayWidth - 1280) > 10) {
+            this.introVideo.setDisplaySize(1280, 720);
+        }
+    }
   }
 }
 
