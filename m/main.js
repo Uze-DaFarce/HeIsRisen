@@ -296,7 +296,8 @@ class MainMenu extends Phaser.Scene {
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
-    this.load.image('title-page', 'assets/title-page.png');
+    // Replace title-page image with intro video
+    this.load.video('intro-video', 'assets/intro-video.mp4');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Audio assets
@@ -304,7 +305,7 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('collect', 'assets/audio/collect1.mp3');
     this.load.audio('success', 'assets/audio/success.wav');
     this.load.audio('error', 'assets/audio/error.wav');
-    this.load.audio('intro-music', 'assets/audio/intro-music.mp3');
+    // intro-music removed as it is now part of the video
     this.load.audio('ambient1', 'assets/audio/ambient1.mp3');
     this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
     this.load.audio('drive1', 'assets/audio/drive1.mp3');
@@ -440,11 +441,14 @@ class MainMenu extends Phaser.Scene {
     // Debug: Log camera position
     // console.log(`MainMenu: Camera position - x: ${this.cameras.main.scrollX}, y: ${this.cameras.main.scrollY}`);
 
-    // Background image - position at top-left
-    const background = this.add.image(0, 0, 'title-page')
-      .setOrigin(0, 0)
-      .setDisplaySize(this.game.config.width, this.game.config.height);
-    // console.log(`MainMenu: Background position - x: ${background.x}, y: ${background.y}, displayWidth: ${background.displayWidth}, displayHeight: ${background.displayHeight}`);
+    // Background Video - position at top-left
+    // Assuming video has baked-in audio that should loop
+    const musicVol = this.registry.get('musicVolume') || 0.5;
+    this.introVideo = this.add.video(this.game.config.width / 2, this.game.config.height / 2, 'intro-video');
+    this.introVideo.setDisplaySize(this.game.config.width, this.game.config.height);
+    this.introVideo.setVolume(musicVol);
+    this.introVideo.play(true); // true = loop
+    this.introVideo.setPaused(false);
 
     // Adjust text positions to be within the visible area
     this.add.text(640 * scale, 0, `He Is Risen!`, {
@@ -485,7 +489,13 @@ class MainMenu extends Phaser.Scene {
 
     // Handle both mouse and touch input, request fullscreen on first click
     const startGame = () => {
-      this.sound.stopByKey('intro-music');
+      // Stop video to prevent audio overlap
+      if (this.introVideo) {
+        this.introVideo.stop();
+        this.introVideo.destroy();
+        this.introVideo = null;
+      }
+
       if (!this.scene.get('MusicScene').scene.isActive()) {
         this.scene.launch('MusicScene');
       }
@@ -545,45 +555,41 @@ class MainMenu extends Phaser.Scene {
         this.scene.launch('UIScene');
     }
 
-    // ROBUST AUTOPLAY STRATEGY
-    const musicVol = this.registry.get('musicVolume');
-    this.introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
-    this.introMusic.play();
-
+    // ROBUST AUTOPLAY STRATEGY FOR VIDEO
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && this.introMusic) {
-            this.introMusic.setVolume(data);
+        if (key === 'musicVolume' && this.introVideo) {
+            this.introVideo.setVolume(data);
         }
     };
     this.registry.events.on('changedata', updateIntroVolume);
-    this.events.once('shutdown', () => {
-        this.registry.events.off('changedata', updateIntroVolume);
-    });
 
-    const unlockAudio = () => {
+    const unlockVideo = () => {
         if (this.sound.context.state === 'suspended') {
             this.sound.context.resume();
         }
-        if (this.introMusic && !this.introMusic.isPlaying) {
-            this.introMusic.play();
+        if (this.introVideo && !this.introVideo.isPlaying()) {
+            this.introVideo.play(true);
+            this.introVideo.setMute(false);
         }
     };
 
     // Try to unlock immediately
-    unlockAudio();
+    unlockVideo();
 
     // Unlock on any pointer or keyboard interaction
-    this.input.on('pointerdown', unlockAudio);
-    this.input.keyboard.on('keydown', unlockAudio);
+    this.input.on('pointerdown', unlockVideo);
+    this.input.keyboard.on('keydown', unlockVideo);
 
-    // Cleanup listeners when starting game to prevent re-triggering
+    // Cleanup listeners when starting game
     this.events.once('shutdown', () => {
-        this.input.off('pointerdown', unlockAudio);
-        this.input.keyboard.off('keydown', unlockAudio);
-        if (this.introMusic) {
-            this.introMusic.stop();
-            this.introMusic.destroy();
+        this.registry.events.off('changedata', updateIntroVolume);
+        this.input.off('pointerdown', unlockVideo);
+        this.input.keyboard.off('keydown', unlockVideo);
+        if (this.introVideo) {
+            this.introVideo.stop();
+            this.introVideo.destroy();
+            this.introVideo = null;
         }
     });
 
@@ -1345,9 +1351,9 @@ function resizeGame() {
       scene.cameras.main.setPosition(0, 0);
     }
     if (scene.scene.key === 'MainMenu') {
-      const background = scene.children.list.find(child => child.texture && child.texture.key === 'title-page');
-      if (background) {
-        background.setDisplaySize(width, height);
+      if (scene.introVideo) {
+        scene.introVideo.setPosition(width / 2, height / 2);
+        scene.introVideo.setDisplaySize(width, height);
       }
     }
     if (scene.scene.key === 'MapScene') {

@@ -230,7 +230,8 @@ class MainMenu extends Phaser.Scene {
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json');
-    this.load.svg('title-page', 'assets/title-page.svg');
+    // Replace title-page image with intro video
+    this.load.video('intro-video', 'assets/intro-video.mp4');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Preload common UI and game assets here to avoid reloading in scenes
@@ -248,7 +249,7 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('collect', 'assets/audio/collect1.mp3');
     this.load.audio('success', 'assets/audio/success.wav');
     this.load.audio('error', 'assets/audio/error.wav');
-    this.load.audio('intro-music', 'assets/audio/intro-music.mp3');
+    // intro-music removed as it is now part of the video
     this.load.audio('ambient1', 'assets/audio/ambient1.mp3');
     this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
     this.load.audio('drive1', 'assets/audio/drive1.mp3');
@@ -292,7 +293,19 @@ class MainMenu extends Phaser.Scene {
 
   create() {
     this.input.setDefaultCursor('none');
-    this.add.image(0, -350, 'title-page').setOrigin(0, 0).setDisplaySize(1280, 1280);
+
+    // Add Intro Video (replaces title-page image)
+    // Assuming video has baked-in audio that should loop
+    const musicVol = this.registry.get('musicVolume') || 0.5;
+    this.introVideo = this.add.video(640, 360, 'intro-video');
+
+    // Configure video
+    this.introVideo.setDisplaySize(1280, 720);
+    this.introVideo.setVolume(musicVol);
+    this.introVideo.play(true); // true = loop
+    this.introVideo.setPaused(false);
+
+    // Text overlay on top of video
     this.add.text(520, 0, `He Is Risen!`, { fontSize: '126px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 20 });
     this.add.text(0, 522, `Hunt with P.A.L.`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
     this.add.text(0, 580, `for the Meaning of Easter`, { fontSize: '62px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
@@ -316,13 +329,18 @@ class MainMenu extends Phaser.Scene {
     });
 
     const startGame = () => {
-      this.sound.stopByKey('intro-music');
+      // Stop video to prevent audio overlap
+      if (this.introVideo) {
+        this.introVideo.stop();
+        this.introVideo.destroy();
+        this.introVideo = null;
+      }
+
       if (!this.scene.get('MusicScene').scene.isActive()) {
         this.scene.launch('MusicScene');
       }
       const musicScene = this.scene.get('MusicScene');
       if (musicScene) {
-        // playSFX might not work if scene isn't fully started yet, but let's try or play locally
         this.sound.play('drive1', { volume: 0.5 });
       }
       this.scene.start('MapScene');
@@ -346,45 +364,41 @@ class MainMenu extends Phaser.Scene {
         this.scene.launch('UIScene');
     }
 
-    // ROBUST AUTOPLAY STRATEGY
-    const musicVol = this.registry.get('musicVolume');
-    this.introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
-    this.introMusic.play();
-
+    // ROBUST AUTOPLAY STRATEGY FOR VIDEO
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && this.introMusic) {
-            this.introMusic.setVolume(data);
+        if (key === 'musicVolume' && this.introVideo) {
+            this.introVideo.setVolume(data);
         }
     };
     this.registry.events.on('changedata', updateIntroVolume);
-    this.events.once('shutdown', () => {
-        this.registry.events.off('changedata', updateIntroVolume);
-    });
 
-    const unlockAudio = () => {
+    const unlockVideo = () => {
         if (this.sound.context.state === 'suspended') {
             this.sound.context.resume();
         }
-        if (this.introMusic && !this.introMusic.isPlaying) {
-            this.introMusic.play();
+        if (this.introVideo && !this.introVideo.isPlaying()) {
+            this.introVideo.play(true);
+            this.introVideo.setMute(false);
         }
     };
 
-    // Try to unlock immediately (some browsers might allow if previously interacted)
-    unlockAudio();
+    // Try to unlock immediately
+    unlockVideo();
 
     // Unlock on any pointer or keyboard interaction
-    this.input.on('pointerdown', unlockAudio);
-    this.input.keyboard.on('keydown', unlockAudio);
+    this.input.on('pointerdown', unlockVideo);
+    this.input.keyboard.on('keydown', unlockVideo);
 
-    // Cleanup listeners when starting game to prevent re-triggering
+    // Cleanup listeners when starting game
     this.events.once('shutdown', () => {
-        this.input.off('pointerdown', unlockAudio);
-        this.input.keyboard.off('keydown', unlockAudio);
-        if (this.introMusic) {
-            this.introMusic.stop();
-            this.introMusic.destroy();
+        this.registry.events.off('changedata', updateIntroVolume);
+        this.input.off('pointerdown', unlockVideo);
+        this.input.keyboard.off('keydown', unlockVideo);
+        if (this.introVideo) {
+            this.introVideo.stop();
+            this.introVideo.destroy();
+            this.introVideo = null;
         }
     });
 
