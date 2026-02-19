@@ -16,6 +16,26 @@ class MusicScene extends Phaser.Scene {
       music.play();
       console.log('MusicScene: Background music resumed');
     }
+
+    // Schedule ambient1 to play randomly every 3-7 minutes
+    this.scheduleAmbientSound();
+  }
+
+  scheduleAmbientSound() {
+    const delay = Phaser.Math.Between(180000, 420000); // 3-7 minutes in ms
+    console.log(`MusicScene: Scheduling ambient1 in ${delay}ms`);
+    this.time.delayedCall(delay, () => {
+      this.sound.play('ambient1', { volume: 0.5 });
+      this.scheduleAmbientSound(); // Reschedule
+    });
+  }
+
+  playSFX(key) {
+    if (this.sound.get(key)) {
+      this.sound.play(key, { volume: 0.5 });
+    } else {
+      console.warn(`MusicScene: Sound '${key}' not found!`);
+    }
   }
 }
 
@@ -37,9 +57,14 @@ class MainMenu extends Phaser.Scene {
 
     // Audio assets
     this.load.audio('background-music', 'assets/audio/background-music.mp3');
-    this.load.audio('collect', 'assets/audio/collect.wav');
+    this.load.audio('collect', 'assets/audio/collect1.mp3');
     this.load.audio('success', 'assets/audio/success.wav');
     this.load.audio('error', 'assets/audio/error.wav');
+    this.load.audio('intro-music', 'assets/audio/intro-music.mp3');
+    this.load.audio('ambient1', 'assets/audio/ambient1.mp3');
+    this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
+    this.load.audio('drive1', 'assets/audio/drive1.mp3');
+    this.load.audio('drive2', 'assets/audio/drive2.mp3');
 
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
       console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
@@ -90,15 +115,26 @@ class MainMenu extends Phaser.Scene {
       repeat: -1
     });
 
-    this.input.keyboard.on('keydown-SPACE', () => this.scene.start('MapScene'));
-    this.input.keyboard.on('keydown-ENTER', () => this.scene.start('MapScene'));
+    const startGame = () => {
+      this.sound.stopByKey('intro-music');
+      if (!this.scene.get('MusicScene').scene.isActive()) {
+        this.scene.launch('MusicScene');
+      }
+      const musicScene = this.scene.get('MusicScene');
+      if (musicScene) {
+        // playSFX might not work if scene isn't fully started yet, but let's try or play locally
+        this.sound.play('drive1', { volume: 0.5 });
+      }
+      this.scene.start('MapScene');
+    };
+
+    this.input.keyboard.on('keydown-SPACE', startGame);
+    this.input.keyboard.on('keydown-ENTER', startGame);
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
-    this.input.on('pointerdown', () => this.scene.start('MapScene'));
+    this.input.on('pointerdown', startGame);
 
-    if (!this.scene.get('MusicScene').scene.isActive()) {
-      this.scene.launch('MusicScene');
-    }
+    this.sound.play('intro-music', { loop: true, volume: 0.5 });
 
     console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
@@ -177,6 +213,12 @@ class MapScene extends Phaser.Scene {
     if (!this.registry.has('foundEggs')) {
       this.registry.set('foundEggs', []);
     }
+
+    if (!this.scene.get('MusicScene').scene.isActive()) {
+      this.scene.launch('MusicScene');
+    }
+    this.sound.play('drive2', { volume: 0.5 });
+
     const mapImage = this.add.image(0, 0, 'yellowstone-main-map').setOrigin(0, 0);
     console.log(`Map display size: ${mapImage.displayWidth}x${mapImage.displayHeight}, Position: (${mapImage.x}, ${mapImage.y})`);
     mapSections.forEach(section => {
@@ -188,12 +230,13 @@ class MapScene extends Phaser.Scene {
       zone.setInteractive();
       zone.on('pointerdown', () => {
         console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
+        this.sound.play('drive1', { volume: 0.5 });
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
     });
     const eggsAmminHaul = this.add.image(0, 200, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
       .setInteractive().on('pointerdown', () => this.scene.start('EggZamRoom'));
-    addButtonInteraction(this, eggsAmminHaul);
+    addButtonInteraction(this, eggsAmminHaul, 'menu-click');
 
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
     const foundEggs = this.registry.get('foundEggs').length;
@@ -330,15 +373,16 @@ class SectionHunt extends Phaser.Scene {
         console.log('Click on eggZitButton');
         this.scene.start('MapScene');
       }).setDepth(4).setScrollFactor(0);
-    addButtonInteraction(this, eggZitButton);
+    addButtonInteraction(this, eggZitButton, 'drive1');
 
     const eggsAmminHaul = this.add.image(0, 350, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
       .setInteractive().on('pointerdown', () => {
         console.log('Click on eggsAmminHaul');
         this.scene.start('EggZamRoom');
       }).setDepth(4).setScrollFactor(0);
-    addButtonInteraction(this, eggsAmminHaul);
+    addButtonInteraction(this, eggsAmminHaul, 'menu-click');
 
+    this.sound.play('drive2', { volume: 0.5 });
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
     const foundEggs = this.registry.get('foundEggs').length;
     this.scoreText = this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
@@ -448,7 +492,7 @@ class EggZamRoom extends Phaser.Scene {
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4)
       .setScrollFactor(0);
-    addButtonInteraction(this, eggZitButton);
+    addButtonInteraction(this, eggZitButton, 'drive1');
     console.log('EggZamRoom: Added egg-zit-button at (0, 200)');
 
     this.add.image(0, 0, 'score')
@@ -605,8 +649,9 @@ class EggZamRoom extends Phaser.Scene {
  * Adds a "pop" animation to a game object on hover.
  * @param {Phaser.Scene} scene - The scene the object belongs to.
  * @param {Phaser.GameObjects.GameObject} button - The game object to animate.
+ * @param {string} [soundKey='success'] - The key of the sound to play on click.
  */
-function addButtonInteraction(scene, button) {
+function addButtonInteraction(scene, button, soundKey = 'success') {
   const originalScaleX = button.scaleX;
   const originalScaleY = button.scaleY;
   let isHovered = false;
@@ -636,8 +681,8 @@ function addButtonInteraction(scene, button) {
   });
 
   button.on('pointerdown', () => {
-    if (scene.sound.get('success')) {
-      scene.sound.play('success', { volume: 0.5 });
+    if (soundKey && scene.sound.get(soundKey)) {
+      scene.sound.play(soundKey, { volume: 0.5 });
     }
     scene.tweens.killTweensOf(button);
     scene.tweens.add({

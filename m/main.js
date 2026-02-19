@@ -19,6 +19,26 @@ class MusicScene extends Phaser.Scene {
       music.play();
       console.log('MusicScene: Background music resumed');
     }
+
+    // Schedule ambient1 to play randomly every 3-7 minutes
+    this.scheduleAmbientSound();
+  }
+
+  scheduleAmbientSound() {
+    const delay = Phaser.Math.Between(180000, 420000); // 3-7 minutes in ms
+    console.log(`MusicScene: Scheduling ambient1 in ${delay}ms`);
+    this.time.delayedCall(delay, () => {
+      this.sound.play('ambient1', { volume: 0.5 });
+      this.scheduleAmbientSound(); // Reschedule
+    });
+  }
+
+  playSFX(key) {
+    if (this.sound.get(key)) {
+      this.sound.play(key, { volume: 0.5 });
+    } else {
+      console.warn(`MusicScene: Sound '${key}' not found!`);
+    }
   }
 }
 
@@ -44,14 +64,19 @@ class MainMenu extends Phaser.Scene {
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
-    this.load.svg('title-page', 'assets/title-page.svg');
+    this.load.image('title-page', 'assets/title-page.png');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Audio assets
     this.load.audio('background-music', 'assets/audio/background-music.mp3');
-    this.load.audio('collect', 'assets/audio/collect.wav');
+    this.load.audio('collect', 'assets/audio/collect1.mp3');
     this.load.audio('success', 'assets/audio/success.wav');
     this.load.audio('error', 'assets/audio/error.wav');
+    this.load.audio('intro-music', 'assets/audio/intro-music.mp3');
+    this.load.audio('ambient1', 'assets/audio/ambient1.mp3');
+    this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
+    this.load.audio('drive1', 'assets/audio/drive1.mp3');
+    this.load.audio('drive2', 'assets/audio/drive2.mp3');
 
     // Preload common UI and game assets here to avoid reloading in scenes
     this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
@@ -245,31 +270,35 @@ class MainMenu extends Phaser.Scene {
       repeat: -1
     });
 
-    if (!this.scene.get('MusicScene').scene.isActive()) {
-      this.scene.launch('MusicScene');
-    }
+    this.sound.play('intro-music', { loop: true, volume: 0.5 });
 
     // Handle both mouse and touch input, request fullscreen on first click
     const startGame = () => {
+      this.sound.stopByKey('intro-music');
+      if (!this.scene.get('MusicScene').scene.isActive()) {
+        this.scene.launch('MusicScene');
+      }
+      this.sound.play('drive1', { volume: 0.5 });
+
       const canvas = this.game.canvas;
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      if (isMobile) {
-        if (canvas.requestFullscreen) {
-          canvas.requestFullscreen();
-        } else if (canvas.webkitRequestFullscreen) {
-          canvas.webkitRequestFullscreen();
+      const safeRequestFullscreen = (element) => {
+        if (element.requestFullscreen) {
+          element.requestFullscreen().catch(err => console.log('Fullscreen failed:', err));
+        } else if (element.webkitRequestFullscreen) {
+          element.webkitRequestFullscreen().catch(err => console.log('Fullscreen failed:', err));
         }
+      };
+
+      if (isMobile) {
+        safeRequestFullscreen(canvas);
         if (screen.orientation && screen.orientation.lock) {
           screen.orientation.lock('landscape').catch(err => {
             console.log('Orientation lock failed:', err);
           });
         }
       } else {
-        if (canvas.requestFullscreen) {
-          canvas.requestFullscreen();
-        } else if (canvas.webkitRequestFullscreen) {
-          canvas.webkitRequestFullscreen();
-        }
+        safeRequestFullscreen(canvas);
       }
       this.scene.start('MapScene');
     };
@@ -343,6 +372,11 @@ class MapScene extends Phaser.Scene {
     }
     console.log('MapScene: Using existing eggData:', eggData);
 
+    if (!this.scene.get('MusicScene').scene.isActive()) {
+      this.scene.launch('MusicScene');
+    }
+    this.sound.play('drive2', { volume: 0.5 });
+
     // Add map image, fill the viewport
     this.mapImage = this.add.image(0, 0, 'yellowstone-main-map')
       .setOrigin(0, 0)
@@ -359,6 +393,7 @@ class MapScene extends Phaser.Scene {
       zone.setInteractive();
       zone.on('pointerdown', () => {
         console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
+        this.sound.play('drive1', { volume: 0.5 });
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
       section.zone = zone;
@@ -371,7 +406,7 @@ class MapScene extends Phaser.Scene {
       .setDisplaySize(137 * scale, 150 * scale)
       .setInteractive()
       .on('pointerdown', () => this.scene.start('EggZamRoom'));
-    addButtonInteraction(this, this.eggsAmminHaul);
+    addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -544,7 +579,7 @@ class SectionHunt extends Phaser.Scene {
       })
       .setDepth(4)
       .setScrollFactor(0);
-    addButtonInteraction(this, this.eggZitButton);
+    addButtonInteraction(this, this.eggZitButton, 'drive1');
 
     this.eggsAmminHaul = this.add.image(0, 350 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
@@ -556,8 +591,9 @@ class SectionHunt extends Phaser.Scene {
       })
       .setDepth(4)
       .setScrollFactor(0);
-    addButtonInteraction(this, this.eggsAmminHaul);
+    addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
 
+    this.sound.play('drive2', { volume: 0.5 });
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
       .setDisplaySize(200 * scale, 200 * scale)
@@ -726,7 +762,7 @@ class EggZamRoom extends Phaser.Scene {
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4)
       .setScrollFactor(0);
-    addButtonInteraction(this, this.eggZitButton);
+    addButtonInteraction(this, this.eggZitButton, 'drive1');
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -951,13 +987,14 @@ const game = new Phaser.Game(config);
  * Adds a "press" animation to a game object on touch.
  * @param {Phaser.Scene} scene - The scene the object belongs to.
  * @param {Phaser.GameObjects.GameObject} button - The game object to animate.
+ * @param {string} [soundKey='success'] - The key of the sound to play on click.
  */
-function addButtonInteraction(scene, button) {
+function addButtonInteraction(scene, button, soundKey = 'success') {
   let baseScaleX, baseScaleY;
 
   button.on('pointerdown', () => {
-    if (scene.sound.get('success')) {
-      scene.sound.play('success', { volume: 0.5 });
+    if (soundKey && scene.sound.get(soundKey)) {
+      scene.sound.play(soundKey, { volume: 0.5 });
     }
     if (!scene.tweens.isTweening(button)) {
       baseScaleX = button.scaleX;
