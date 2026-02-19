@@ -7,13 +7,34 @@ class MainMenu extends Phaser.Scene {
   }
 
   preload() {
+    // Bolt Optimization: Centralized asset preloading to prevent gameplay stutter
+    const loadingText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'Loading...', {
+        font: '24px monospace',
+        fill: '#ffffff'
+    }).setOrigin(0.5);
+
     this.load.json('symbols', 'assets/symbols.json');
     this.load.svg('title-page', 'assets/title-page.svg');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
       console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
-      console.log('MainMenu: Raw loaded symbols data:', data);
+      // Preload all 60 eggs
+      for (let i = 1; i <= TOTAL_EGGS; i++) {
+        this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
+      }
+      // Preload all symbols
+      if (data && data.symbols) {
+        data.symbols.forEach(symbol => {
+          if (symbol.filename) {
+            this.load.image(symbol.filename, symbol.filename);
+          }
+        });
+      }
+    });
+
+    this.load.on('complete', () => {
+        loadingText.destroy();
     });
 
     this.load.on('loaderror', (file) => {
@@ -174,30 +195,7 @@ class SectionHunt extends Phaser.Scene {
       console.error(`Section data not found for: ${this.sectionName}`);
       return;
     }
-    section.eggs.forEach(eggId => {
-      // Bolt Optimization: Prevent redundant loading if texture exists
-      if (!this.textures.exists(`egg-${eggId}`)) {
-        this.load.image(`egg-${eggId}`, `assets/eggs/egg-${eggId}.png`);
-      }
-    });
-    const symbolsData = this.registry.get('symbols');
-    if (symbolsData && symbolsData.symbols) {
-      const symbolBasePath = '';
-      symbolsData.symbols.forEach(symbol => {
-        if (symbol.filename) {
-          const textureKey = symbol.filename;
-          // Bolt Optimization: Prevent redundant loading if texture exists
-          if (!this.textures.exists(textureKey)) {
-            const imagePath = symbolBasePath + symbol.filename;
-            this.load.image(textureKey, imagePath);
-          }
-        } else {
-          console.warn('Symbol definition missing filename:', symbol);
-        }
-      });
-    } else {
-      console.error('Symbols data not found in registry during SectionHunt preload.');
-    }
+    // Bolt Optimization: Redundant asset loading removed (handled in MainMenu)
     this.load.on('loaderror', (file) => {
       if (file.type === 'image') {
         console.error(`PRELOAD ERROR: Failed to load image: Key='${file.key}', URL='${file.url}'`);
@@ -381,25 +379,7 @@ class EggZamRoom extends Phaser.Scene {
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
     this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
 
-    for (let i = 1; i <= TOTAL_EGGS; i++) {
-      // Bolt Optimization: Prevent redundant loading if texture exists
-      if (!this.textures.exists(`egg-${i}`)) {
-        this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
-      }
-    }
-
-    const symbolsData = this.registry.get('symbols');
-    if (symbolsData && symbolsData.symbols) {
-      const symbolBasePath = ''; // Path is already in the filename
-      symbolsData.symbols.forEach(symbol => {
-        // Bolt Optimization: Prevent redundant loading if texture exists
-        if (symbol.filename && !this.textures.exists(symbol.filename)) {
-          this.load.image(symbol.filename, symbolBasePath + symbol.filename);
-        }
-      });
-    } else {
-      console.error('Symbols data not found in registry during EggZamRoom preload.');
-    }
+    // Bolt Optimization: Redundant asset loading removed (handled in MainMenu)
 
     this.load.on('loaderror', (file) => {
       console.error(`EggZamRoom: Load error: Key='${file.key}', URL='${file.url}'`);

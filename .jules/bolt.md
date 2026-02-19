@@ -1,0 +1,3 @@
+## 2024-05-22 - [Phaser 3 Asset Loading Redundancy]
+**Learning:** Phaser 3 scenes re-run `preload()` every time they are started. If assets (like 60+ images) are defined in `preload()` of a gameplay scene that is revisited, they are re-requested and re-processed, causing significant performance overhead and network traffic.
+**Action:** Centralize static/global asset loading in a dedicated `Boot` or `MainMenu` scene. In gameplay scenes, remove the redundant `load.image` calls or wrap them in `if (!this.textures.exists(key))` checks. This pattern was applied to both the desktop (`main.js`) and mobile (`m/main.js`) versions of the game.

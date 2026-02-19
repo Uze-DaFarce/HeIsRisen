@@ -10,14 +10,55 @@ class MainMenu extends Phaser.Scene {
   }
 
   preload() {
+    // Add loading text
+    const loadingText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'Loading... 0%', {
+      font: '20px monospace',
+      fill: '#ffffff'
+    }).setOrigin(0.5, 0.5);
+
+    this.load.on('progress', (value) => {
+      loadingText.setText(`Loading... ${Math.floor(value * 100)}%`);
+    });
+
+    this.load.on('complete', () => {
+      loadingText.destroy();
+    });
+
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
     this.load.svg('title-page', 'assets/title-page.svg');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
+
+    // Preload common UI and game assets here to avoid reloading in scenes
+    this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
+    this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
+    this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
+    this.load.image('score', 'assets/objects/score.png');
+    this.load.image('egg-zam-room', 'assets/map/egg-zam-room.png');
+    this.load.image('egg-zamminer', 'assets/objects/egg-zamminer.png');
+    this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
+
+    // Preload all 60 eggs
+    for (let i = 1; i <= TOTAL_EGGS; i++) {
+      this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
+    }
+
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
       console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
-      console.log('MainMenu: Raw loaded symbols data:', data);
+      if (data && data.symbols) {
+        const symbolBasePath = ''; // symbols.json paths are relative to assets/
+        data.symbols.forEach(symbol => {
+          if (symbol.filename) {
+            // Check if texture already exists to avoid warnings/errors
+            if (!this.textures.exists(symbol.filename)) {
+              this.load.image(symbol.filename, symbolBasePath + symbol.filename);
+            }
+          }
+        });
+        console.log(`MainMenu: Queued ${data.symbols.length} symbol images for loading.`);
+      }
     });
+
     this.load.on('filecomplete-json-map_sections', (key, type, data) => {
       console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
       console.log('MainMenu: Raw loaded map_sections data:', data);
@@ -246,9 +287,7 @@ class MapScene extends Phaser.Scene {
 
   preload() {
     this.load.image('yellowstone-main-map', 'assets/map/yellowstone-main-map.png');
-    this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
-    this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
-    this.load.image('score', 'assets/objects/score.png');
+    // Common assets like 'finger-cursor', 'eggs-ammin-haul', 'score' are preloaded in MainMenu
   }
 
   create() {
@@ -348,33 +387,14 @@ class SectionHunt extends Phaser.Scene {
 
   preload() {
     this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
-    for (let i = 1; i <= TOTAL_EGGS; i++) {
-      this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
-    }
-    const symbolsData = this.registry.get('symbols');
-    if (symbolsData && symbolsData.symbols) {
-      const symbolBasePath = '';
-      symbolsData.symbols.forEach(symbol => {
-        if (symbol.filename) {
-          const textureKey = symbol.filename;
-          const imagePath = symbolBasePath + symbol.filename;
-          this.load.image(textureKey, imagePath);
-        } else {
-          console.warn('Symbol definition missing filename:', symbol);
-        }
-      });
-    } else {
-      console.error('Symbols data not found in registry during SectionHunt preload.');
-    }
+    // Removed redundant loading of eggs, symbols, and UI elements.
+    // They are now loaded in MainMenu.
+
     this.load.on('loaderror', (file) => {
       if (file.type === 'image') {
         console.error(`PRELOAD ERROR: Failed to load image: Key='${file.key}', URL='${file.url}'`);
       }
     });
-    this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
-    this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
-    this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
-    this.load.image('score', 'assets/objects/score.png');
   }
 
   collectEgg(egg) {
@@ -624,29 +644,7 @@ class EggZamRoom extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('egg-zam-room', 'assets/map/egg-zam-room.png');
-    this.load.image('egg-zamminer', 'assets/objects/egg-zamminer.png');
-    this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
-    this.load.image('score', 'assets/objects/score.png');
-    this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
-    this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
-
-    for (let i = 1; i <= TOTAL_EGGS; i++) {
-      this.load.image(`egg-${i}`, `assets/eggs/egg-${i}.png`);
-    }
-
-    const symbolsData = this.registry.get('symbols');
-    if (symbolsData && symbolsData.symbols) {
-      const symbolBasePath = '';
-      symbolsData.symbols.forEach(symbol => {
-        if (symbol.filename) {
-          this.load.image(symbol.filename, symbolBasePath + symbol.filename);
-        }
-      });
-    } else {
-      console.error('Symbols data not found in registry during EggZamRoom preload.');
-    }
-
+    // Assets are preloaded in MainMenu
     this.load.on('loaderror', (file) => {
       console.error(`EggZamRoom: Load error: Key='${file.key}', URL='${file.url}'`);
     });
