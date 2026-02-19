@@ -25,3 +25,7 @@ The policy is defined in the `<meta>` tag in `index.html` and `m/index.html`:
 - `worker-src 'self' blob:`: Allow web workers from the application origin and blobs.
 
 If you encounter issues running the game, ensure your environment supports these directives.
+
+## Subresource Integrity (SRI)
+
+This application uses Subresource Integrity (SRI) to ensure that resources hosted on third-party servers (CDNs) have not been altered. The `integrity` attribute is used on `<script>` tags loading Phaser from jsDelivr.
