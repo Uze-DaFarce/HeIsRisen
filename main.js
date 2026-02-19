@@ -73,33 +73,29 @@ class UIScene extends Phaser.Scene {
   create() {
     this.createGearIcon();
     this.createSettingsPanel();
+
+    // Custom cursor (Desktop only)
+    if (this.sys.game.device.os.desktop) {
+        this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
+            .setOrigin(0.5, 0.5)
+            .setDisplaySize(50, 75)
+            .setDepth(1000); // Ensure it's on top of everything
+    }
+  }
+
+  update() {
+    if (this.fingerCursor) {
+        this.fingerCursor.setPosition(this.input.x, this.input.y);
+    }
   }
 
   createGearIcon() {
     const gear = this.add.graphics();
-    gear.fillStyle(0xffffff, 1);
+    const x = this.cameras.main.width - 40;
+    const y = 40;
+    this.drawGear(gear, x, y);
 
-    // Draw gear shape
-    const x = this.cameras.main.width - 60;
-    const y = 60;
-    const radius = 25;
-
-    gear.fillCircle(x, y, radius);
-
-    // Teeth
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const tx = x + Math.cos(angle) * (radius + 8);
-        const ty = y + Math.sin(angle) * (radius + 8);
-        gear.fillCircle(tx, ty, 6);
-    }
-    gear.fillCircle(x, y, radius); // Redraw center to smooth
-
-    // Inner hole
-    gear.fillStyle(0x000000, 1);
-    gear.fillCircle(x, y, 10);
-
-    const hitArea = new Phaser.Geom.Circle(x, y, 40);
+    const hitArea = new Phaser.Geom.Circle(x, y, 30);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
@@ -107,6 +103,25 @@ class UIScene extends Phaser.Scene {
     });
 
     this.gearIcon = gear;
+  }
+
+  drawGear(graphics, x, y) {
+    graphics.fillStyle(0xffffff, 1);
+    const radius = 15;
+    graphics.fillCircle(x, y, radius);
+
+    // Teeth
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const tx = x + Math.cos(angle) * (radius + 4);
+        const ty = y + Math.sin(angle) * (radius + 4);
+        graphics.fillCircle(tx, ty, 5);
+    }
+    graphics.fillCircle(x, y, radius); // Redraw center to smooth
+
+    // Inner hole
+    graphics.fillStyle(0x000000, 1);
+    graphics.fillCircle(x, y, 6);
   }
 
   createSettingsPanel() {
@@ -333,13 +348,13 @@ class MainMenu extends Phaser.Scene {
 
     // ROBUST AUTOPLAY STRATEGY
     const musicVol = this.registry.get('musicVolume');
-    const introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
-    introMusic.play();
+    this.introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
+    this.introMusic.play();
 
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && introMusic) {
-            introMusic.setVolume(data);
+        if (key === 'musicVolume' && this.introMusic) {
+            this.introMusic.setVolume(data);
         }
     };
     this.registry.events.on('changedata', updateIntroVolume);
@@ -351,8 +366,8 @@ class MainMenu extends Phaser.Scene {
         if (this.sound.context.state === 'suspended') {
             this.sound.context.resume();
         }
-        if (introMusic && !introMusic.isPlaying) {
-            introMusic.play();
+        if (this.introMusic && !this.introMusic.isPlaying) {
+            this.introMusic.play();
         }
     };
 
@@ -362,6 +377,16 @@ class MainMenu extends Phaser.Scene {
     // Unlock on any pointer or keyboard interaction
     this.input.on('pointerdown', unlockAudio);
     this.input.keyboard.on('keydown', unlockAudio);
+
+    // Cleanup listeners when starting game to prevent re-triggering
+    this.events.once('shutdown', () => {
+        this.input.off('pointerdown', unlockAudio);
+        this.input.keyboard.off('keydown', unlockAudio);
+        if (this.introMusic) {
+            this.introMusic.stop();
+            this.introMusic.destroy();
+        }
+    });
 
     // console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
