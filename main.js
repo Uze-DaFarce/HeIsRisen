@@ -349,10 +349,26 @@ class SectionHunt extends Phaser.Scene {
           if (distance < 150) {
             console.log(`Distance check PASSED for egg-${eggId}, collecting!`);
             this.collectEgg(egg);
-            egg.destroy();
-            if (egg.symbolSprite) {
-              egg.symbolSprite.destroy();
-            }
+
+            // Animation: Pop, float up, and fade out
+            const targets = [egg];
+            if (egg.symbolSprite) targets.push(egg.symbolSprite);
+            egg.disableInteractive();
+
+            this.tweens.add({
+              targets: targets,
+              y: egg.y - 100,
+              alpha: 0,
+              scaleX: egg.scaleX * 1.5,
+              scaleY: egg.scaleY * 1.5,
+              duration: 600,
+              ease: 'Back.easeOut',
+              onComplete: () => {
+                egg.destroy();
+                if (egg.symbolSprite) egg.symbolSprite.destroy();
+              }
+            });
+
             const foundEggs = this.registry.get('foundEggs').length;
             if (this.scoreText) {
               this.scoreText.setText(`${foundEggs}/${TOTAL_EGGS}`);
