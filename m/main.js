@@ -304,6 +304,7 @@ class MapScene extends Phaser.Scene {
       .setDisplaySize(137 * scale, 150 * scale)
       .setInteractive()
       .on('pointerdown', () => this.scene.start('EggZamRoom'));
+    addButtonInteraction(this, this.eggsAmminHaul);
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -494,6 +495,7 @@ class SectionHunt extends Phaser.Scene {
       })
       .setDepth(4)
       .setScrollFactor(0);
+    addButtonInteraction(this, this.eggZitButton);
 
     this.eggsAmminHaul = this.add.image(0, 350 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
@@ -505,6 +507,7 @@ class SectionHunt extends Phaser.Scene {
       })
       .setDepth(4)
       .setScrollFactor(0);
+    addButtonInteraction(this, this.eggsAmminHaul);
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -696,6 +699,7 @@ class EggZamRoom extends Phaser.Scene {
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4)
       .setScrollFactor(0);
+    addButtonInteraction(this, this.eggZitButton);
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -911,6 +915,47 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+
+/**
+ * Adds a "press" animation to a game object on touch.
+ * @param {Phaser.Scene} scene - The scene the object belongs to.
+ * @param {Phaser.GameObjects.GameObject} button - The game object to animate.
+ */
+function addButtonInteraction(scene, button) {
+  let baseScaleX, baseScaleY;
+
+  button.on('pointerdown', () => {
+    if (!scene.tweens.isTweening(button)) {
+      baseScaleX = button.scaleX;
+      baseScaleY = button.scaleY;
+    }
+
+    scene.tweens.killTweensOf(button);
+    scene.tweens.add({
+      targets: button,
+      scaleX: (baseScaleX || button.scaleX) * 0.9,
+      scaleY: (baseScaleY || button.scaleY) * 0.9,
+      duration: 50,
+      ease: 'Power1'
+    });
+  });
+
+  const restore = () => {
+    if (baseScaleX !== undefined) {
+      scene.tweens.killTweensOf(button);
+      scene.tweens.add({
+        targets: button,
+        scaleX: baseScaleX,
+        scaleY: baseScaleY,
+        duration: 100,
+        ease: 'Power1'
+      });
+    }
+  };
+
+  button.on('pointerup', restore);
+  button.on('pointerout', restore);
+}
 
 function resizeGame() {
   const { width, height } = getViewportDimensions();

@@ -596,8 +596,10 @@ class EggZamRoom extends Phaser.Scene {
 function addButtonInteraction(scene, button) {
   const originalScaleX = button.scaleX;
   const originalScaleY = button.scaleY;
+  let isHovered = false;
 
   button.on('pointerover', () => {
+    isHovered = true;
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
@@ -609,11 +611,35 @@ function addButtonInteraction(scene, button) {
   });
 
   button.on('pointerout', () => {
+    isHovered = false;
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
       scaleX: originalScaleX,
       scaleY: originalScaleY,
+      duration: 100,
+      ease: 'Power1'
+    });
+  });
+
+  button.on('pointerdown', () => {
+    scene.tweens.killTweensOf(button);
+    scene.tweens.add({
+      targets: button,
+      scaleX: originalScaleX * 0.9,
+      scaleY: originalScaleY * 0.9,
+      duration: 50,
+      ease: 'Power1'
+    });
+  });
+
+  button.on('pointerup', () => {
+    const targetScale = isHovered ? 1.1 : 1.0;
+    scene.tweens.killTweensOf(button);
+    scene.tweens.add({
+      targets: button,
+      scaleX: originalScaleX * targetScale,
+      scaleY: originalScaleY * targetScale,
       duration: 100,
       ease: 'Power1'
     });
