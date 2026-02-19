@@ -7,38 +7,256 @@ const TOTAL_EGGS = 60;
 class MusicScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MusicScene' });
+    this.musicVolume = 0.5;
+    this.ambientVolume = 0.5;
+    this.sfxVolume = 0.5;
   }
 
   create() {
     // console.log('MusicScene: checking background music');
     const music = this.sound.get('background-music');
     if (!music) {
-      this.sound.add('background-music', { loop: true, volume: 0.5 }).play();
+      this.sound.add('background-music', { loop: true, volume: this.musicVolume }).play();
       // console.log('MusicScene: Background music started');
     } else if (!music.isPlaying) {
+      // Ensure volume is updated if restarting
+      music.setVolume(this.musicVolume);
       music.play();
       // console.log('MusicScene: Background music resumed');
     }
 
     // Schedule ambient1 to play randomly every 1-3 minutes
     this.scheduleAmbientSound();
+
+    // Listen for volume changes via Registry
+    this.registry.events.on('changedata', (parent, key, data) => {
+      if (key === 'musicVolume') {
+        this.musicVolume = data;
+        const bgMusic = this.sound.get('background-music');
+        if (bgMusic) bgMusic.setVolume(this.musicVolume);
+      } else if (key === 'ambientVolume') {
+        this.ambientVolume = data;
+      } else if (key === 'sfxVolume') {
+        this.sfxVolume = data;
+      }
+    });
+
+    // Initialize from registry if available
+    if (this.registry.has('musicVolume')) this.musicVolume = this.registry.get('musicVolume');
+    if (this.registry.has('ambientVolume')) this.ambientVolume = this.registry.get('ambientVolume');
+    if (this.registry.has('sfxVolume')) this.sfxVolume = this.registry.get('sfxVolume');
   }
 
   scheduleAmbientSound() {
     const delay = Phaser.Math.Between(60000, 180000); // 1-3 minutes in ms
     // console.log(`MusicScene: Scheduling ambient1 in ${delay}ms`);
     this.time.delayedCall(delay, () => {
-      this.sound.play('ambient1', { volume: 0.5 });
+      this.sound.play('ambient1', { volume: this.ambientVolume });
       this.scheduleAmbientSound(); // Reschedule
     });
   }
 
   playSFX(key) {
-    if (this.sound.get(key)) {
-      this.sound.play(key, { volume: 0.5 });
+    if (this.cache.audio.exists(key)) {
+        this.sound.play(key, { volume: this.sfxVolume });
     } else {
-      console.warn(`MusicScene: Sound '${key}' not found!`);
+        console.warn(`MusicScene: Audio key '${key}' missing from cache!`);
     }
+  }
+}
+
+class UIScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'UIScene' });
+  }
+
+  create() {
+    this.createGearIcon();
+    this.createSettingsPanel();
+
+    // Listen for resize events to update UI positions
+    this.scale.on('resize', this.resize, this);
+  }
+
+  resize(gameSize) {
+    const width = gameSize.width;
+    const height = gameSize.height;
+    this.repositionUI(width, height);
+  }
+
+  repositionUI(width, height) {
+    // Reposition gear
+    if (this.gearIcon) {
+        this.gearIcon.clear();
+        this.drawGear(this.gearIcon, width - 60, 60);
+        // Update hit area
+        const hitArea = new Phaser.Geom.Circle(width - 60, 60, 40);
+        this.gearIcon.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    }
+
+    // Reposition settings panel
+    if (this.settingsContainer) {
+        const overlay = this.settingsContainer.getAt(0);
+        if (overlay) {
+            overlay.setSize(width, height);
+        }
+
+        // Re-center container contents? No, container is at 0,0.
+        // I need to move the panel and sliders.
+        // It's easier to destroy and recreate the panel on resize, or carefully update positions.
+        // Given the complexity, let's just destroy and recreate the panel if it's open, or just update positions.
+
+        // Let's just update the panel position (index 1)
+        const panel = this.settingsContainer.getAt(1);
+        if (panel) {
+            panel.setPosition(width / 2, height / 2);
+        }
+
+        // Title (index 2)
+        const title = this.settingsContainer.getAt(2);
+        const panelY = (height - 500) / 2;
+        if (title) {
+            title.setPosition(width / 2, panelY + 50);
+        }
+
+        // Close Btn (index 3)
+        const closeBtn = this.settingsContainer.getAt(3);
+        const panelX = (width - 500) / 2;
+        if (closeBtn) {
+            closeBtn.setPosition(panelX + 500 - 50, panelY + 50);
+        }
+
+        // Sliders are groups of objects. This is getting messy to update individually.
+        // It might be better to just clear the container and recreate the panel content.
+
+        const isVisible = this.settingsContainer.visible;
+        this.settingsContainer.removeAll(true);
+        this.createSettingsPanelContent(width, height);
+        this.settingsContainer.setVisible(isVisible);
+    }
+  }
+
+  createGearIcon() {
+    const gear = this.add.graphics();
+    const x = this.cameras.main.width - 60;
+    const y = 60;
+    this.drawGear(gear, x, y);
+
+    const hitArea = new Phaser.Geom.Circle(x, y, 40);
+    gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+
+    gear.on('pointerdown', () => {
+        this.openSettings();
+    });
+
+    this.gearIcon = gear;
+  }
+
+  drawGear(graphics, x, y) {
+    graphics.fillStyle(0xffffff, 1);
+    const radius = 25;
+    graphics.fillCircle(x, y, radius);
+
+    for (let i = 0; i < 8; i++) {
+        const angle = (i / 8) * Math.PI * 2;
+        const tx = x + Math.cos(angle) * (radius + 8);
+        const ty = y + Math.sin(angle) * (radius + 8);
+        graphics.fillCircle(tx, ty, 6);
+    }
+    graphics.fillCircle(x, y, radius);
+    graphics.fillStyle(0x000000, 1);
+    graphics.fillCircle(x, y, 10);
+  }
+
+  createSettingsPanel() {
+    this.settingsContainer = this.add.container(0, 0).setVisible(false).setDepth(100);
+    this.createSettingsPanelContent(this.cameras.main.width, this.cameras.main.height);
+  }
+
+  createSettingsPanelContent(screenWidth, screenHeight) {
+    const width = 500;
+    const height = 500;
+    const x = (screenWidth - width) / 2;
+    const y = (screenHeight - height) / 2;
+
+    // Overlay
+    const overlay = this.add.rectangle(0, 0, screenWidth, screenHeight, 0x000000, 0.7)
+        .setOrigin(0)
+        .setInteractive();
+    this.settingsContainer.add(overlay);
+
+    // Panel
+    const panel = this.add.rectangle(screenWidth / 2, screenHeight / 2, width, height, 0x333333)
+        .setStrokeStyle(4, 0xffffff);
+    this.settingsContainer.add(panel);
+
+    // Title
+    const title = this.add.text(screenWidth / 2, y + 50, 'Audio Settings', {
+        fontSize: '32px',
+        fontFamily: 'Comic Sans MS',
+        fill: '#ffffff'
+    }).setOrigin(0.5);
+    this.settingsContainer.add(title);
+
+    // Close Button
+    const closeBtn = this.add.text(x + width - 50, y + 50, 'X', {
+        fontSize: '32px',
+        fontFamily: 'Arial',
+        fill: '#ff0000'
+    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+    closeBtn.on('pointerdown', () => {
+        this.settingsContainer.setVisible(false);
+        this.gearIcon.setVisible(true);
+    });
+    this.settingsContainer.add(closeBtn);
+
+    // Sliders
+    this.createSlider('Music', y + 150, screenWidth / 2, 'music');
+    this.createSlider('Ambient', y + 250, screenWidth / 2, 'ambient');
+    this.createSlider('SFX', y + 350, screenWidth / 2, 'sfx');
+  }
+
+  createSlider(label, y, centerX, type) {
+    const startX = centerX - 100;
+    const endX = centerX + 100;
+
+    const text = this.add.text(centerX, y - 30, label, {
+        fontSize: '24px',
+        fontFamily: 'Comic Sans MS',
+        fill: '#ffffff'
+    }).setOrigin(0.5);
+    this.settingsContainer.add(text);
+
+    const track = this.add.rectangle(centerX, y + 10, 200, 4, 0x888888);
+    this.settingsContainer.add(track);
+
+    // Handle
+    let currentVol = 0.5;
+    // Check registry first
+    if (type === 'music' && this.registry.has('musicVolume')) currentVol = this.registry.get('musicVolume');
+    else if (type === 'ambient' && this.registry.has('ambientVolume')) currentVol = this.registry.get('ambientVolume');
+    else if (type === 'sfx' && this.registry.has('sfxVolume')) currentVol = this.registry.get('sfxVolume');
+
+    const handleX = startX + (currentVol * 200);
+    const handle = this.add.circle(handleX, y + 10, 12, 0xffffff).setInteractive({ draggable: true });
+    this.settingsContainer.add(handle);
+
+    handle.on('drag', (pointer, dragX, dragY) => {
+        const clampedX = Phaser.Math.Clamp(dragX, startX, endX);
+        handle.x = clampedX;
+        const volume = (clampedX - startX) / 200;
+
+        // Update Registry which triggers events
+        if (type === 'music') this.registry.set('musicVolume', volume);
+        else if (type === 'ambient') this.registry.set('ambientVolume', volume);
+        else if (type === 'sfx') this.registry.set('sfxVolume', volume);
+    });
+  }
+
+  openSettings() {
+    this.settingsContainer.setVisible(true);
+    this.gearIcon.setVisible(false);
   }
 }
 
@@ -303,17 +521,47 @@ class MainMenu extends Phaser.Scene {
       repeat: -1
     });
 
-    this.sound.play('intro-music', { loop: true, volume: 0.5 });
+    // Initialize volume registry
+    if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
+    if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', 0.5);
+    if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', 0.5);
 
-    // Ensure audio context is resumed on any interaction if locked
-    if (this.sound.locked) {
-        this.input.once('pointerdown', () => {
-            const introMusic = this.sound.get('intro-music');
-            if (introMusic && !introMusic.isPlaying) {
-                introMusic.play({ loop: true, volume: 0.5 });
-            }
-        });
+    // Launch UI Scene
+    if (!this.scene.get('UIScene').scene.isActive()) {
+        this.scene.launch('UIScene');
     }
+
+    // ROBUST AUTOPLAY STRATEGY
+    const musicVol = this.registry.get('musicVolume');
+    const introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
+    introMusic.play();
+
+    // Update intro volume if changed in settings
+    const updateIntroVolume = (parent, key, data) => {
+        if (key === 'musicVolume' && introMusic) {
+            introMusic.setVolume(data);
+        }
+    };
+    this.registry.events.on('changedata', updateIntroVolume);
+    this.events.once('shutdown', () => {
+        this.registry.events.off('changedata', updateIntroVolume);
+    });
+
+    const unlockAudio = () => {
+        if (this.sound.context.state === 'suspended') {
+            this.sound.context.resume();
+        }
+        if (introMusic && !introMusic.isPlaying) {
+            introMusic.play();
+        }
+    };
+
+    // Try to unlock immediately
+    unlockAudio();
+
+    // Unlock on any pointer or keyboard interaction
+    this.input.on('pointerdown', unlockAudio);
+    this.input.keyboard.on('keydown', unlockAudio);
 
     this.input.keyboard.once('keydown-SPACE', startGame);
     this.input.keyboard.once('keydown-ENTER', startGame);
@@ -998,7 +1246,7 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
     parent: 'game-container',
   },
-  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene],
+  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene, UIScene],
   backgroundColor: '#000000',
 };
 
@@ -1160,6 +1408,9 @@ function resizeGame() {
         scene.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
         scene.magnifyingGlass.setPosition(scene.input.x, scene.input.y);
       }
+    }
+    if (scene.scene.key === 'UIScene') {
+      scene.resize({ width, height });
     }
     if (scene.scene.key === 'EggZamRoom') {
       if (scene.background) scene.background.setDisplaySize(width, height);
