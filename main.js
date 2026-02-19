@@ -52,8 +52,19 @@ class MainMenu extends Phaser.Scene {
     }).setOrigin(0.5);
 
     this.load.json('symbols', 'assets/symbols.json');
+    this.load.json('map_sections', 'assets/map/map_sections.json');
     this.load.svg('title-page', 'assets/title-page.svg');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
+
+    // Preload common UI and game assets here to avoid reloading in scenes
+    this.load.image('yellowstone-main-map', 'assets/map/yellowstone-main-map.png');
+    this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
+    this.load.image('score', 'assets/objects/score.png');
+    this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
+    this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
+    this.load.image('egg-zam-room', 'assets/map/egg-zam-room.png');
+    this.load.image('egg-zamminer', 'assets/objects/egg-zamminer.png');
+    this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
 
     // Audio assets
     this.load.audio('background-music', 'assets/audio/background-music.mp3');
@@ -65,6 +76,17 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
     this.load.audio('drive1', 'assets/audio/drive1.mp3');
     this.load.audio('drive2', 'assets/audio/drive2.mp3');
+
+    this.load.on('filecomplete-json-map_sections', (key, type, data) => {
+      // console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
+      if (Array.isArray(data)) {
+        data.forEach(section => {
+             // Preload section SVGs using the same naming convention as SectionHunt
+             this.load.svg(section.name, `assets/map/sections/${section.name}.svg`);
+        });
+        // console.log(`MainMenu: Queued ${data.length} section SVGs for loading.`);
+      }
+    });
 
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
       // console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
@@ -184,14 +206,6 @@ class MapScene extends Phaser.Scene {
     super({ key: 'MapScene' });
   }
 
-  preload() {
-    this.load.json('map_sections', 'assets/map/map_sections.json');
-    this.load.image('yellowstone-main-map', 'assets/map/yellowstone-main-map.png');
-    this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
-    this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
-    this.load.image('score', 'assets/objects/score.png');
-  }
-
   create() {
     this.input.setDefaultCursor('none');
     const mapSections = this.cache.json.get('map_sections');
@@ -281,26 +295,6 @@ class SectionHunt extends Phaser.Scene {
 
   init(data) {
     this.sectionName = data.sectionName;
-  }
-
-  preload() {
-    this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
-    const sections = this.registry.get('sections');
-    const section = sections.find(s => s.name === this.sectionName);
-    if (!section) {
-      console.error(`Section data not found for: ${this.sectionName}`);
-      return;
-    }
-    // Bolt Optimization: Redundant asset loading removed (handled in MainMenu)
-    this.load.on('loaderror', (file) => {
-      if (file.type === 'image') {
-        console.error(`PRELOAD ERROR: Failed to load image: Key='${file.key}', URL='${file.url}'`);
-      }
-    });
-    this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
-    this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
-    this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
-    this.load.image('score', 'assets/objects/score.png');
   }
 
   collectEgg(egg) {
@@ -401,8 +395,10 @@ class SectionHunt extends Phaser.Scene {
     addButtonInteraction(this, eggZitButton, 'drive1');
 
     const eggsAmminHaul = this.add.image(0, 350, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
-      .setInteractive();
-
+      .setInteractive().on('pointerdown', () => {
+        // console.log('Click on eggsAmminHaul');
+        this.scene.start('EggZamRoom');
+      }).setDepth(4).setScrollFactor(0);
     addButtonInteraction(this, eggsAmminHaul, 'menu-click');
 
     // Delayed transition to allow sound and animation to play
@@ -473,25 +469,6 @@ class EggZamRoom extends Phaser.Scene {
     this.explanationText = null;
     this.noEggsText = null;
     this.currentEgg = null;
-  }
-
-  preload() {
-    this.load.image('egg-zam-room', 'assets/map/egg-zam-room.png');
-    this.load.image('egg-zamminer', 'assets/objects/egg-zamminer.png');
-    this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
-    this.load.image('score', 'assets/objects/score.png');
-    this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
-    this.load.image('symbol-result-summary-diag', 'assets/objects/symbol-result-summary-diag.png');
-
-    // Bolt Optimization: Redundant asset loading removed (handled in MainMenu)
-
-    this.load.on('loaderror', (file) => {
-      console.error(`EggZamRoom: Load error: Key='${file.key}', URL='${file.url}'`);
-    });
-
-    this.load.on('filecomplete', (key, type, data) => {
-      // console.log(`EggZamRoom: Successfully loaded asset: Key='${key}', Type='${type}'`);
-    });
   }
 
   create() {
