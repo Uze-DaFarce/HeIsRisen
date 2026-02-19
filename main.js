@@ -1,6 +1,24 @@
 // Define all scene classes first
 const TOTAL_EGGS = 60;
 
+class MusicScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'MusicScene' });
+  }
+
+  create() {
+    console.log('MusicScene: checking background music');
+    const music = this.sound.get('background-music');
+    if (!music) {
+      this.sound.add('background-music', { loop: true, volume: 0.5 }).play();
+      console.log('MusicScene: Background music started');
+    } else if (!music.isPlaying) {
+      music.play();
+      console.log('MusicScene: Background music resumed');
+    }
+  }
+}
+
 class MainMenu extends Phaser.Scene {
   constructor() {
     super({ key: 'MainMenu' });
@@ -16,6 +34,12 @@ class MainMenu extends Phaser.Scene {
     this.load.json('symbols', 'assets/symbols.json');
     this.load.svg('title-page', 'assets/title-page.svg');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
+
+    // Audio assets
+    this.load.audio('background-music', 'assets/audio/background-music.mp3');
+    this.load.audio('collect', 'assets/audio/collect.wav');
+    this.load.audio('success', 'assets/audio/success.wav');
+    this.load.audio('error', 'assets/audio/error.wav');
 
     this.load.on('filecomplete-json-symbols', (key, type, data) => {
       console.log(`MainMenu: filecomplete-json-symbols: Key='${key}', Type='${type}'`);
@@ -71,6 +95,10 @@ class MainMenu extends Phaser.Scene {
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
     this.input.on('pointerdown', () => this.scene.start('MapScene'));
+
+    if (!this.scene.get('MusicScene').scene.isActive()) {
+      this.scene.launch('MusicScene');
+    }
 
     console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
@@ -216,6 +244,7 @@ class SectionHunt extends Phaser.Scene {
     };
     console.log('SectionHunt: Collecting egg with symbolData:', eggData.symbolData);
     if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
+      this.sound.play('collect');
       foundEggs.push(eggData);
       this.registry.set('foundEggs', foundEggs);
       console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
@@ -460,6 +489,7 @@ class EggZamRoom extends Phaser.Scene {
         console.log('Left bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
         const isChristian = this.currentEgg.symbolData.category === 'Christian';
         if (isChristian) {
+          this.sound.play('success');
           const correctCount = this.registry.get('correctCategorizations') + 1;
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
@@ -467,6 +497,7 @@ class EggZamRoom extends Phaser.Scene {
           this.displayRandomEggInfo();
           console.log('Correct categorization: Egg is Christian, left bottle clicked');
         } else {
+          this.sound.play('error');
           const wrongText = this.add.text(420, 220, "Try again!", {
             fontSize: '28px',
             fill: '#f00',
@@ -484,6 +515,7 @@ class EggZamRoom extends Phaser.Scene {
         console.log('Right bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
         const isPagan = this.currentEgg.symbolData.category === 'Pagan';
         if (isPagan) {
+          this.sound.play('success');
           const correctCount = this.registry.get('correctCategorizations') + 1;
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
@@ -491,6 +523,7 @@ class EggZamRoom extends Phaser.Scene {
           this.displayRandomEggInfo();
           console.log('Correct categorization: Egg is Pagan, right bottle clicked');
         } else {
+          this.sound.play('error');
           const wrongText = this.add.text(420, 220, "Try again!", {
             fontSize: '28px',
             fill: '#f00',
@@ -603,6 +636,9 @@ function addButtonInteraction(scene, button) {
   });
 
   button.on('pointerdown', () => {
+    if (scene.sound.get('success')) {
+      scene.sound.play('success', { volume: 0.5 });
+    }
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
@@ -631,7 +667,7 @@ const config = {
   type: Phaser.AUTO,
   width: 1280,
   height: 720,
-  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom],
+  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene],
   parent: 'game',
   backgroundColor: '#000000',
 };

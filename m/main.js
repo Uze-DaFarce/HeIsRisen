@@ -4,6 +4,24 @@ const TOTAL_EGGS = 60;
 
 // Define all scene classes first
 
+class MusicScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'MusicScene' });
+  }
+
+  create() {
+    console.log('MusicScene: checking background music');
+    const music = this.sound.get('background-music');
+    if (!music) {
+      this.sound.add('background-music', { loop: true, volume: 0.5 }).play();
+      console.log('MusicScene: Background music started');
+    } else if (!music.isPlaying) {
+      music.play();
+      console.log('MusicScene: Background music resumed');
+    }
+  }
+}
+
 class MainMenu extends Phaser.Scene {
   constructor() {
     super({ key: 'MainMenu' });
@@ -28,6 +46,12 @@ class MainMenu extends Phaser.Scene {
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
     this.load.svg('title-page', 'assets/title-page.svg');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
+
+    // Audio assets
+    this.load.audio('background-music', 'assets/audio/background-music.mp3');
+    this.load.audio('collect', 'assets/audio/collect.wav');
+    this.load.audio('success', 'assets/audio/success.wav');
+    this.load.audio('error', 'assets/audio/error.wav');
 
     // Preload common UI and game assets here to avoid reloading in scenes
     this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
@@ -221,6 +245,10 @@ class MainMenu extends Phaser.Scene {
       repeat: -1
     });
 
+    if (!this.scene.get('MusicScene').scene.isActive()) {
+      this.scene.launch('MusicScene');
+    }
+
     // Handle both mouse and touch input, request fullscreen on first click
     const startGame = () => {
       const canvas = this.game.canvas;
@@ -408,6 +436,7 @@ class SectionHunt extends Phaser.Scene {
     };
     console.log('SectionHunt: Collecting egg with symbolData:', eggInfo.symbolData);
     if (!foundEggs.some(e => e.eggId === eggInfo.eggId)) {
+      this.sound.play('collect');
       foundEggs.push(eggInfo);
       this.registry.set('foundEggs', foundEggs);
       if (eggData) {
@@ -742,6 +771,7 @@ class EggZamRoom extends Phaser.Scene {
       if (this.currentEgg && !this.currentEgg.categorized) {
         const isChristian = this.currentEgg.symbolData.category === 'Christian';
         if (isChristian) {
+          this.sound.play('success');
           const correctCount = this.registry.get('correctCategorizations') + 1;
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
@@ -757,6 +787,7 @@ class EggZamRoom extends Phaser.Scene {
           this.currentEgg.categorized = true;
           this.displayRandomEggInfo();
         } else {
+          this.sound.play('error');
           const wrongText = this.add.text(700 * this.scale, 220 * this.scale, "Try again!", {
             fontSize: `${28 * this.scale}px`,
             fill: '#f00',
@@ -774,6 +805,7 @@ class EggZamRoom extends Phaser.Scene {
       if (this.currentEgg && !this.currentEgg.categorized) {
         const isPagan = this.currentEgg.symbolData.category === 'Pagan';
         if (isPagan) {
+          this.sound.play('success');
           const correctCount = this.registry.get('correctCategorizations') + 1;
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
@@ -789,6 +821,7 @@ class EggZamRoom extends Phaser.Scene {
           this.currentEgg.categorized = true;
           this.displayRandomEggInfo();
         } else {
+          this.sound.play('error');
           const wrongText = this.add.text(700 * this.scale, 220 * this.scale, "Try again!", {
             fontSize: `${28 * this.scale}px`,
             fill: '#f00',
@@ -908,7 +941,7 @@ const config = {
     autoCenter: Phaser.Scale.CENTER_BOTH,
     parent: 'game-container',
   },
-  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom],
+  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene],
   backgroundColor: '#000000',
 };
 
@@ -923,6 +956,9 @@ function addButtonInteraction(scene, button) {
   let baseScaleX, baseScaleY;
 
   button.on('pointerdown', () => {
+    if (scene.sound.get('success')) {
+      scene.sound.play('success', { volume: 0.5 });
+    }
     if (!scene.tweens.isTweening(button)) {
       baseScaleX = button.scaleX;
       baseScaleY = button.scaleY;
