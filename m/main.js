@@ -142,7 +142,7 @@ class UIScene extends Phaser.Scene {
     const y = 60;
     this.drawGear(gear, x, y);
 
-    const hitArea = new Phaser.Geom.Circle(x, y, 40);
+    const hitArea = new Phaser.Geom.Circle(x, y, 20);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
@@ -154,18 +154,18 @@ class UIScene extends Phaser.Scene {
 
   drawGear(graphics, x, y) {
     graphics.fillStyle(0xffffff, 1);
-    const radius = 25;
+    const radius = 12.5;
     graphics.fillCircle(x, y, radius);
 
     for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
-        const tx = x + Math.cos(angle) * (radius + 8);
-        const ty = y + Math.sin(angle) * (radius + 8);
-        graphics.fillCircle(tx, ty, 6);
+        const tx = x + Math.cos(angle) * (radius + 4);
+        const ty = y + Math.sin(angle) * (radius + 4);
+        graphics.fillCircle(tx, ty, 3);
     }
     graphics.fillCircle(x, y, radius);
     graphics.fillStyle(0x000000, 1);
-    graphics.fillCircle(x, y, 10);
+    graphics.fillCircle(x, y, 5);
   }
 
   createSettingsPanel() {
@@ -208,6 +208,7 @@ class UIScene extends Phaser.Scene {
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
         this.gearIcon.setVisible(true);
+        this.input.setDefaultCursor('none');
     });
     this.settingsContainer.add(closeBtn);
 
@@ -257,6 +258,7 @@ class UIScene extends Phaser.Scene {
   openSettings() {
     this.settingsContainer.setVisible(true);
     this.gearIcon.setVisible(false);
+    this.input.setDefaultCursor('default');
   }
 }
 
@@ -282,7 +284,7 @@ class MainMenu extends Phaser.Scene {
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
-    this.load.image('title-page', 'assets/title-page.png');
+    this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Audio assets
@@ -290,7 +292,6 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('collect', 'assets/audio/collect1.mp3');
     this.load.audio('success', 'assets/audio/success.wav');
     this.load.audio('error', 'assets/audio/error.wav');
-    this.load.audio('intro-music', 'assets/audio/intro-music.mp3');
     this.load.audio('ambient1', 'assets/audio/ambient1.mp3');
     this.load.audio('menu-click', 'assets/audio/menu-click.mp3');
     this.load.audio('drive1', 'assets/audio/drive1.mp3');
@@ -426,39 +427,16 @@ class MainMenu extends Phaser.Scene {
     // Debug: Log camera position
     // console.log(`MainMenu: Camera position - x: ${this.cameras.main.scrollX}, y: ${this.cameras.main.scrollY}`);
 
-    // Background image - position at top-left
-    const background = this.add.image(0, 0, 'title-page')
-      .setOrigin(0, 0)
-      .setDisplaySize(this.game.config.width, this.game.config.height);
-    // console.log(`MainMenu: Background position - x: ${background.x}, y: ${background.y}, displayWidth: ${background.displayWidth}, displayHeight: ${background.displayHeight}`);
+    // Intro Video - centered
+    const introVideo = this.add.video(this.game.config.width / 2, this.game.config.height / 2, 'intro-video');
+    introVideo.play(true); // Loop
+    this.introVideo = introVideo; // Store reference for resizing
 
-    // Adjust text positions to be within the visible area
-    this.add.text(640 * scale, 0, `He Is Risen!`, {
-      fontSize: `${126 * scale}px`,
-      fill: '#000',
-      fontStyle: 'bold',
-      fontFamily: 'Comic Sans MS',
-      stroke: '#fff',
-      strokeThickness: 20 * scale
-    });
 
-    this.add.text(0, 522 * scale, `Hunt with P.A.L.`, {
-      fontSize: `${62 * scale}px`,
-      fill: '#000',
-      fontStyle: 'bold',
-      fontFamily: 'Comic Sans MS',
-      stroke: '#fff',
-      strokeThickness: 6 * scale
-    });
-
-    this.add.text(0, 580 * scale, `for the Meaning of Easter`, {
-      fontSize: `${62 * scale}px`,
-      fill: '#000',
-      fontStyle: 'bold',
-      fontFamily: 'Comic Sans MS',
-      stroke: '#fff',
-      strokeThickness: 6 * scale
-    });
+    // Remove static text overlays as they are likely in the video
+    // this.add.text(640 * scale, 0, `He Is Risen!`, ...);
+    // this.add.text(0, 522 * scale, `Hunt with P.A.L.`, ...);
+    // this.add.text(0, 580 * scale, `for the Meaning of Easter`, ...);
 
     // Only show cursor on desktop
     if (!this.sys.game.device.os.desktop) {
@@ -471,7 +449,11 @@ class MainMenu extends Phaser.Scene {
 
     // Handle both mouse and touch input, request fullscreen on first click
     const startGame = () => {
-      this.sound.stopByKey('intro-music');
+      if (introVideo) {
+          introVideo.stop();
+          introVideo.destroy();
+      }
+
       if (!this.scene.get('MusicScene').scene.isActive()) {
         this.scene.launch('MusicScene');
       }
@@ -531,28 +513,34 @@ class MainMenu extends Phaser.Scene {
         this.scene.launch('UIScene');
     }
 
-    // ROBUST AUTOPLAY STRATEGY
+    // ROBUST AUTOPLAY STRATEGY for Video
     const musicVol = this.registry.get('musicVolume');
-    const introMusic = this.sound.add('intro-music', { loop: true, volume: musicVol });
-    introMusic.play();
+    introVideo.setVolume(musicVol);
 
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && introMusic) {
-            introMusic.setVolume(data);
+        if (key === 'musicVolume' && introVideo && introVideo.active) {
+            introVideo.setVolume(data);
         }
     };
     this.registry.events.on('changedata', updateIntroVolume);
     this.events.once('shutdown', () => {
         this.registry.events.off('changedata', updateIntroVolume);
+        if (introVideo) {
+            introVideo.stop();
+            introVideo.destroy();
+        }
     });
 
     const unlockAudio = () => {
         if (this.sound.context.state === 'suspended') {
             this.sound.context.resume();
         }
-        if (introMusic && !introMusic.isPlaying) {
-            introMusic.play();
+        if (introVideo && introVideo.isPaused()) {
+            introVideo.play(true);
+        }
+        if (introVideo) {
+            introVideo.setMute(false);
         }
     };
 
@@ -592,6 +580,13 @@ class MainMenu extends Phaser.Scene {
   update() {
     if (this.fingerCursor) {
       this.fingerCursor.setPosition(this.input.x, this.input.y);
+    }
+
+    // Ensure video size is correct once texture loads
+    if (this.introVideo && this.introVideo.active && this.introVideo.width > 0) {
+        if (Math.abs(this.introVideo.displayWidth - this.game.config.width) > 10) {
+            this.introVideo.setDisplaySize(this.game.config.width, this.game.config.height);
+        }
     }
   }
 }
@@ -1321,9 +1316,9 @@ function resizeGame() {
       scene.cameras.main.setPosition(0, 0);
     }
     if (scene.scene.key === 'MainMenu') {
-      const background = scene.children.list.find(child => child.texture && child.texture.key === 'title-page');
-      if (background) {
-        background.setDisplaySize(width, height);
+      if (scene.introVideo) {
+        scene.introVideo.setPosition(width / 2, height / 2);
+        scene.introVideo.setDisplaySize(width, height);
       }
     }
     if (scene.scene.key === 'MapScene') {
