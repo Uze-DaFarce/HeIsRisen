@@ -336,324 +336,326 @@ class MainMenu extends Phaser.Scene {
   }
 
   create() {
-    this.input.setDefaultCursor('none');
-
-    // Get scale factors based on game dimensions
-    const scaleX = this.game.config.width / 1280;
-    const scaleY = this.game.config.height / 720;
-    const scale = Math.min(scaleX, scaleY);
-    this.gameScale = scale;
-
-    // NEW: Initialize all game variables
-    // console.log('MainMenu: Initializing game state');
-    this.registry.set('foundEggs', []);
-    this.registry.set('correctCategorizations', 0);
-    this.registry.set('currentScore', 0);
-
     try {
-        this.registry.set('highScore', parseInt(localStorage.getItem('highScore')) || 0);
-    } catch (e) {
-        console.warn('LocalStorage access failed:', e);
-        this.registry.set('highScore', 0);
-    }
-    // console.log('MainMenu: highScore:', this.registry.get('highScore'));
+      this.input.setDefaultCursor('none');
 
-    // Load and validate symbols and map sections
-    const symbolsData = this.cache.json.get('symbols');
-    const mapSections = this.cache.json.get('map_sections');
-    if (!symbolsData || !symbolsData.symbols || !Array.isArray(symbolsData.symbols)) {
-      console.error('MainMenu: Invalid symbols data:', symbolsData);
-      return;
-    }
-    if (symbolsData.symbols.length !== TOTAL_EGGS) {
-      console.error(`MainMenu: Expected ${TOTAL_EGGS} symbols, found ${symbolsData.symbols.length}`);
-    }
-    if (!mapSections || mapSections.length !== 11) {
-      console.warn(`MainMenu: Expected 11 sections, found ${mapSections.length || 0}`);
-    }
-    this.registry.set('symbols', symbolsData);
+      // Get scale factors based on game dimensions
+      const scaleX = this.game.config.width / 1280;
+      const scaleY = this.game.config.height / 720;
+      const scale = Math.min(scaleX, scaleY);
+      this.gameScale = scale;
 
-    // Randomly assign 3-8 eggs per section, totaling TOTAL_EGGS
-    const eggCounts = [];
-    let remainingEggs = TOTAL_EGGS;
-    const numSections = mapSections.length;
-    for (let i = 0; i < numSections - 1; i++) {
-      const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
-      const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
+      // NEW: Initialize all game variables
+      // console.log('MainMenu: Initializing game state');
+      this.registry.set('foundEggs', []);
+      this.registry.set('correctCategorizations', 0);
+      this.registry.set('currentScore', 0);
 
-      const maxEggs = Math.min(8, maxPossible);
-      const minEggs = Math.max(3, minPossible);
+      try {
+          this.registry.set('highScore', parseInt(localStorage.getItem('highScore')) || 0);
+      } catch (e) {
+          console.warn('LocalStorage access failed:', e);
+          this.registry.set('highScore', 0);
+      }
+      // console.log('MainMenu: highScore:', this.registry.get('highScore'));
 
-      const count = Phaser.Math.Between(minEggs, maxEggs);
-      eggCounts.push(count);
-      remainingEggs -= count;
-    }
-    eggCounts.push(remainingEggs);
+      // Load and validate symbols and map sections
+      const symbolsData = this.cache.json.get('symbols');
+      const mapSections = this.cache.json.get('map_sections');
+      if (!symbolsData || !symbolsData.symbols || !Array.isArray(symbolsData.symbols)) {
+        console.error('MainMenu: Invalid symbols data:', symbolsData);
+        return;
+      }
+      if (symbolsData.symbols.length !== TOTAL_EGGS) {
+        console.error(`MainMenu: Expected ${TOTAL_EGGS} symbols, found ${symbolsData.symbols.length}`);
+      }
+      if (!mapSections || mapSections.length !== 11) {
+        console.warn(`MainMenu: Expected 11 sections, found ${mapSections.length || 0}`);
+      }
+      this.registry.set('symbols', symbolsData);
 
-    // console.log('MainMenu: Egg distribution:', eggCounts);
+      // Randomly assign 3-8 eggs per section, totaling TOTAL_EGGS
+      const eggCounts = [];
+      let remainingEggs = TOTAL_EGGS;
+      const numSections = mapSections.length;
+      for (let i = 0; i < numSections - 1; i++) {
+        const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
+        const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
 
-    // Shuffle egg IDs and symbols
-    const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: TOTAL_EGGS }, (_, i) => i + 1));
-    const shuffledSymbols = Phaser.Utils.Array.Shuffle([...symbolsData.symbols]);
+        const maxEggs = Math.min(8, maxPossible);
+        const minEggs = Math.max(3, minPossible);
 
-    // Create eggData and sections
-    const eggData = [];
-    let eggIndex = 0;
-    const sections = mapSections.map((section, index) => {
-      const sectionEggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
-      eggIndex += eggCounts[index];
-      sectionEggs.forEach((eggId, idx) => {
-        const x = Phaser.Math.Between(200 * scale, (this.game.config.width / scale) - 10 * scale);
-        const y = Phaser.Math.Between(50 * scale, (this.game.config.height / scale) - 10 * scale);
-        eggData.push({
-          eggId: eggId,
-          section: section.name,
-          x: x,
-          y: y,
-          symbol: shuffledSymbols[eggId - 1] || null,
-          collected: false
+        const count = Phaser.Math.Between(minEggs, maxEggs);
+        eggCounts.push(count);
+        remainingEggs -= count;
+      }
+      eggCounts.push(remainingEggs);
+
+      // console.log('MainMenu: Egg distribution:', eggCounts);
+
+      // Shuffle egg IDs and symbols
+      const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: TOTAL_EGGS }, (_, i) => i + 1));
+      const shuffledSymbols = Phaser.Utils.Array.Shuffle([...symbolsData.symbols]);
+
+      // Create eggData and sections
+      const eggData = [];
+      let eggIndex = 0;
+      const sections = mapSections.map((section, index) => {
+        const sectionEggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
+        eggIndex += eggCounts[index];
+        sectionEggs.forEach((eggId, idx) => {
+          const x = Phaser.Math.Between(200 * scale, (this.game.config.width / scale) - 10 * scale);
+          const y = Phaser.Math.Between(50 * scale, (this.game.config.height / scale) - 10 * scale);
+          eggData.push({
+            eggId: eggId,
+            section: section.name,
+            x: x,
+            y: y,
+            symbol: shuffledSymbols[eggId - 1] || null,
+            collected: false
+          });
         });
+        return { name: section.name, eggs: sectionEggs };
       });
-      return { name: section.name, eggs: sectionEggs };
-    });
 
-    this.registry.set('eggData', eggData);
-    this.registry.set('sections', sections);
-    // console.log('MainMenu: Initialized eggData:', eggData);
+      this.registry.set('eggData', eggData);
+      this.registry.set('sections', sections);
+      // console.log('MainMenu: Initialized eggData:', eggData);
 
-    // Debug: Log game dimensions and scale
-    // console.log(`MainMenu: Game dimensions - width: ${this.game.config.width}, height: ${this.game.config.height}, scale: ${scale}`);
+      // Debug: Log game dimensions and scale
+      // console.log(`MainMenu: Game dimensions - width: ${this.game.config.width}, height: ${this.game.config.height}, scale: ${scale}`);
 
-    // Set camera bounds to match viewport
-    this.cameras.main.setBounds(0, 0, this.game.config.width, this.game.config.height);
-    this.cameras.main.setViewport(0, 0, this.game.config.width, this.game.config.height);
-    this.cameras.main.setPosition(0, 0);
+      // Set camera bounds to match viewport
+      this.cameras.main.setBounds(0, 0, this.game.config.width, this.game.config.height);
+      this.cameras.main.setViewport(0, 0, this.game.config.width, this.game.config.height);
+      this.cameras.main.setPosition(0, 0);
 
-    // Debug: Log camera position
-    // console.log(`MainMenu: Camera position - x: ${this.cameras.main.scrollX}, y: ${this.cameras.main.scrollY}`);
+      // Debug: Log camera position
+      // console.log(`MainMenu: Camera position - x: ${this.cameras.main.scrollX}, y: ${this.cameras.main.scrollY}`);
 
-    // Intro Video - centered
-    const introVideo = this.add.video(this.game.config.width / 2, this.game.config.height / 2, 'intro-video');
-    introVideo.setMute(true); // Start muted to allow autoplay
-    introVideo.play(true); // Loop
-    this.introVideo = introVideo; // Store reference for resizing
-
-
-    // Remove static text overlays as they are likely in the video
-    // this.add.text(640 * scale, 0, `He Is Risen!`, ...);
-    // this.add.text(0, 522 * scale, `Hunt with P.A.L.`, ...);
-    // this.add.text(0, 580 * scale, `for the Meaning of Easter`, ...);
-
-    // Only show cursor on desktop
-    if (!this.sys.game.device.os.desktop) {
-      this.fingerCursor = null;
-    } else {
-      this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
-        .setDisplaySize(50 * scale, 75 * scale)
-        .setDepth(1000); // Ensure cursor is on top of everything
-    }
-
-    // Handle both mouse and touch input, request fullscreen on first click
-    const safeRequestFullscreen = (element) => {
-      if (element.requestFullscreen) {
-        element.requestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
-      } else if (element.webkitRequestFullscreen) {
-        element.webkitRequestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
-      }
-    };
-
-    const startGame = () => {
-      if (introVideo) {
-          introVideo.stop();
-          introVideo.destroy();
-      }
-
-      if (!this.scene.get('MusicScene').scene.isActive()) {
-        this.scene.launch('MusicScene');
-      }
-      this.sound.play('drive1', { volume: 0.5 });
-
-      const canvas = this.game.canvas;
-      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-      if (isMobile) {
-        safeRequestFullscreen(canvas);
-        if (screen.orientation && screen.orientation.lock) {
-          screen.orientation.lock('landscape').catch(err => {
-            // console.log('Orientation lock failed:', err);
+      // Intro Video - centered
+      const introVideo = this.add.video(this.game.config.width / 2, this.game.config.height / 2, 'intro-video');
+      this.introVideo = introVideo; // Store reference for resizing
+      introVideo.setMute(true); // Start muted to allow autoplay
+      try {
+        const playPromise = introVideo.play(true); // Loop
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            console.warn('Video autoplay failed:', error);
           });
         }
-      } else {
-        safeRequestFullscreen(canvas);
+      } catch (e) {
+        console.warn('Video autoplay synchronous error:', e);
       }
-      this.scene.start('MapScene');
-    };
 
-    // NEW: "Red Pill" Start Button with 2-step activation
-    this.startStep = 1;
-    const buttonWidth = 400 * scale;
-    const buttonHeight = 100 * scale;
-    const btnX = this.game.config.width / 2;
-    const btnY = 580 * scale; // Moved up to reveal bottom text
+      // Remove static text overlays as they are likely in the video
+      // this.add.text(640 * scale, 0, `He Is Risen!`, ...);
+      // this.add.text(0, 522 * scale, `Hunt with P.A.L.`, ...);
+      // this.add.text(0, 580 * scale, `for the Meaning of Easter`, ...);
 
-    const startBtnContainer = this.add.container(btnX, btnY);
-
-    // Red Pill Background
-    const btnBg = this.add.graphics();
-    btnBg.fillStyle(0xff0000, 1); // Red
-    btnBg.fillRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
-    btnBg.lineStyle(4 * scale, 0xffffff, 1); // White border
-    btnBg.strokeRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
-    startBtnContainer.add(btnBg);
-
-    // Text
-    const btnText = this.add.text(0, 0, 'Tap Here to Start', {
-      fontSize: `${40 * scale}px`,
-      fill: '#ffffff',
-      fontStyle: 'bold',
-      fontFamily: 'Comic Sans MS',
-      stroke: '#000000',
-      strokeThickness: 4 * scale
-    }).setOrigin(0.5);
-    startBtnContainer.add(btnText);
-
-    // Interaction Zone
-    startBtnContainer.setSize(buttonWidth, buttonHeight);
-    startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
-
-    // Pulse Animation
-    this.tweens.add({
-      targets: startBtnContainer,
-      scaleX: 1.05,
-      scaleY: 1.05,
-      duration: 800,
-      yoyo: true,
-      repeat: -1,
-      ease: 'Sine.easeInOut'
-    });
-
-    const handleStart = () => {
-      if (this.startStep === 1) {
-        // Step 1: Maximize, Unmute, Start Music
-        const canvas = this.game.canvas;
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-        if (isMobile) {
-            safeRequestFullscreen(canvas);
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(() => {});
-            }
-        } else {
-            safeRequestFullscreen(canvas);
-        }
-
-        // Start Audio/Music
-        if (!this.scene.get('MusicScene').scene.isActive()) {
-            this.scene.launch('MusicScene');
-        }
-
-        // Unmute Video
-        if (this.introVideo) {
-            this.introVideo.setMute(false);
-            const vol = this.registry.get('musicVolume');
-            this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
-        }
-
-        // Change Button to "Play Now"
-        btnText.setText("Play Now");
-        this.startStep = 2;
-
+      // Only show cursor on desktop
+      if (!this.sys.game.device.os.desktop) {
+        this.fingerCursor = null;
       } else {
-        // Step 2: Transition to Game
-        startGame();
+        this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
+          .setOrigin(0.5, 0.5)
+          .setDisplaySize(50 * scale, 75 * scale)
+          .setDepth(1000); // Ensure cursor is on top of everything
       }
-    };
 
-    startBtnContainer.on('pointerdown', handleStart);
-
-    // Initialize volume registry
-    if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
-    if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', 0.5);
-    if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', 0.5);
-
-    // Launch UI Scene
-    if (!this.scene.get('UIScene').scene.isActive()) {
-        this.scene.launch('UIScene');
-    }
-
-    // ROBUST AUTOPLAY STRATEGY for Video
-    const musicVol = this.registry.get('musicVolume');
-    introVideo.setVolume(musicVol);
-
-    // Update intro volume if changed in settings
-    const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && introVideo && introVideo.active) {
-            introVideo.setVolume(data);
+      // Handle both mouse and touch input, request fullscreen on first click
+      const safeRequestFullscreen = (element) => {
+        if (element.requestFullscreen) {
+          element.requestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
+        } else if (element.webkitRequestFullscreen) {
+          element.webkitRequestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
         }
-    };
-    this.registry.events.on('changedata', updateIntroVolume);
-    this.events.once('shutdown', () => {
-        this.registry.events.off('changedata', updateIntroVolume);
+      };
+
+      const startGame = () => {
         if (introVideo) {
             introVideo.stop();
             introVideo.destroy();
         }
-    });
 
-    const unlockAudio = () => {
-        if (this.sound.context.state === 'suspended') {
-            this.sound.context.resume();
+        if (!this.scene.get('MusicScene').scene.isActive()) {
+          this.scene.launch('MusicScene');
         }
-        if (introVideo && introVideo.isPaused()) {
-            introVideo.play(true);
-        }
-        if (introVideo) {
-            introVideo.setMute(false);
-        }
+        this.sound.play('drive1', { volume: 0.5 });
 
-        // Auto-Fullscreen on first interaction
         const canvas = this.game.canvas;
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-        if (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement) {
-             safeRequestFullscreen(canvas);
-             if (screen.orientation && screen.orientation.lock) {
-                  screen.orientation.lock('landscape').catch(() => {});
-             }
+
+        if (isMobile) {
+          safeRequestFullscreen(canvas);
+          if (screen.orientation && screen.orientation.lock) {
+            screen.orientation.lock('landscape').catch(err => {
+              // console.log('Orientation lock failed:', err);
+            });
+          }
+        } else {
+          safeRequestFullscreen(canvas);
         }
-    };
+        this.scene.start('MapScene');
+      };
 
-    // Note: We do NOT call unlockAudio() immediately to allow muted autoplay.
-    // Audio will be unlocked on first interaction.
+      // NEW: "Red Pill" Start Button with 2-step activation
+      this.startStep = 1;
+      const buttonWidth = 400; // Unscaled width
+      const buttonHeight = 100; // Unscaled height
+      const btnX = this.game.config.width / 2;
+      const btnY = 580 * scale; // Moved up to reveal bottom text
 
-    // Unlock on any pointer or keyboard interaction
-    this.input.on('pointerdown', unlockAudio);
-    this.input.keyboard.on('keydown', unlockAudio);
+      const startBtnContainer = this.add.container(btnX, btnY);
+      this.startBtnContainer = startBtnContainer; // Expose for resizing
 
-    this.input.keyboard.once('keydown-SPACE', startGame);
-    this.input.keyboard.once('keydown-ENTER', startGame);
+      // Red Pill Background
+      const btnBg = this.add.graphics();
+      btnBg.fillStyle(0xff0000, 1); // Red
+      btnBg.fillRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
+      btnBg.lineStyle(4, 0xffffff, 1); // White border
+      btnBg.strokeRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
+      startBtnContainer.add(btnBg);
 
-    // NEW: Optional "Reset Game" button
-    /*
-    this.add.text(0, 650 * scale, `Reset Game`, {
-      fontSize: `${32 * scale}px`,
-      fill: '#000',
-      fontStyle: 'bold',
-      fontFamily: 'Comic Sans MS',
-      stroke: '#fff',
-      strokeThickness: 4 * scale
-    })
-      .setInteractive()
-      .on('pointerdown', () => {
-        this.registry.set('foundEggs', []);
-        this.registry.set('correctCategorizations', 0);
-        this.registry.set('currentScore', 0);
-        this.registry.set('eggData', null);
-        this.registry.set('sections', null);
-        console.log('MainMenu: Game reset by user');
-        this.scene.start('MainMenu');
+      // Text
+      const btnText = this.add.text(0, 0, 'Tap Here to Start', {
+        fontSize: `40px`,
+        fill: '#ffffff',
+        fontStyle: 'bold',
+        fontFamily: 'Comic Sans MS',
+        stroke: '#000000',
+        strokeThickness: 4
+      }).setOrigin(0.5);
+      startBtnContainer.add(btnText);
+      this.btnText = btnText; // Store to update text
+
+      // Interaction Zone
+      startBtnContainer.setSize(buttonWidth, buttonHeight);
+      startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+
+      // Apply initial scale
+      startBtnContainer.setScale(scale);
+
+      // Pulse Animation
+      this.tweens.add({
+        targets: startBtnContainer,
+        scaleX: scale * 1.05,
+        scaleY: scale * 1.05,
+        duration: 800,
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut'
       });
-    */
+
+      const handleStart = () => {
+        if (this.startStep === 1) {
+          // Step 1: Maximize, Unmute, Start Music
+          const canvas = this.game.canvas;
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+          if (isMobile) {
+              safeRequestFullscreen(canvas);
+              if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock('landscape').catch(() => {});
+              }
+          } else {
+              safeRequestFullscreen(canvas);
+          }
+
+          // Start Audio/Music
+          if (!this.scene.get('MusicScene').scene.isActive()) {
+              this.scene.launch('MusicScene');
+          }
+
+          // Unmute Video
+          if (this.introVideo) {
+              this.introVideo.setMute(false);
+              const vol = this.registry.get('musicVolume');
+              this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
+          }
+
+          // Change Button to "Play Now"
+          btnText.setText("Play Now");
+          this.startStep = 2;
+
+        } else {
+          // Step 2: Transition to Game
+          startGame();
+        }
+      };
+
+      startBtnContainer.on('pointerdown', handleStart);
+
+      // Initialize volume registry
+      if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
+      if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', 0.5);
+      if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', 0.5);
+
+      // Launch UI Scene
+      if (!this.scene.get('UIScene').scene.isActive()) {
+          this.scene.launch('UIScene');
+      }
+
+      // ROBUST AUTOPLAY STRATEGY for Video
+      const musicVol = this.registry.get('musicVolume');
+      introVideo.setVolume(musicVol);
+
+      // Update intro volume if changed in settings
+      const updateIntroVolume = (parent, key, data) => {
+          if (key === 'musicVolume' && introVideo && introVideo.active) {
+              introVideo.setVolume(data);
+          }
+      };
+      this.registry.events.on('changedata', updateIntroVolume);
+      this.events.once('shutdown', () => {
+          this.registry.events.off('changedata', updateIntroVolume);
+          if (introVideo) {
+              introVideo.stop();
+              introVideo.destroy();
+          }
+      });
+
+      const unlockAudio = () => {
+          if (this.sound.context.state === 'suspended') {
+              this.sound.context.resume();
+          }
+          if (introVideo && introVideo.isPaused()) {
+              try { introVideo.play(true); } catch(e){}
+          }
+          if (introVideo) {
+              introVideo.setMute(false);
+          }
+
+          // Auto-Fullscreen on first interaction
+          const canvas = this.game.canvas;
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement) {
+               safeRequestFullscreen(canvas);
+               if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+               }
+          }
+      };
+
+      // Note: We do NOT call unlockAudio() immediately to allow muted autoplay.
+      // Audio will be unlocked on first interaction.
+
+      // Unlock on any pointer or keyboard interaction
+      this.input.on('pointerdown', unlockAudio);
+      this.input.keyboard.on('keydown', unlockAudio);
+
+      this.input.keyboard.once('keydown-SPACE', startGame);
+      this.input.keyboard.once('keydown-ENTER', startGame);
+
+      // Ensure loading text is destroyed if it persists (safety check)
+      // Note: loadingText is local to preload, so we can't access it here directly easily unless stored on this.
+      // But preload logic destroys it on complete.
+
+    } catch (error) {
+       console.error("Critical error in MainMenu create:", error);
+       // Manually trigger the global error handler
+       window.dispatchEvent(new ErrorEvent('error', { message: error.message }));
+    }
   }
 
   update() {
@@ -1552,6 +1554,23 @@ function resizeGame() {
       if (scene.introVideo) {
         scene.introVideo.setPosition(width / 2, height / 2);
         scene.introVideo.setDisplaySize(width, height);
+      }
+      if (scene.startBtnContainer) {
+        scene.startBtnContainer.setPosition(width / 2, 580 * scale);
+        scene.startBtnContainer.setScale(scale);
+        // Reset tween to match new scale to prevent jumps
+        if (scene.tweens.isTweening(scene.startBtnContainer)) {
+           scene.tweens.killTweensOf(scene.startBtnContainer);
+           scene.tweens.add({
+              targets: scene.startBtnContainer,
+              scaleX: scale * 1.05,
+              scaleY: scale * 1.05,
+              duration: 800,
+              yoyo: true,
+              repeat: -1,
+              ease: 'Sine.easeInOut'
+            });
+        }
       }
     }
     if (scene.scene.key === 'MapScene') {
