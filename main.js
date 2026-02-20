@@ -632,6 +632,9 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics = this.add.graphics().fillCircle(50, 50, 50).setScrollFactor(0);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
     this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass').setOrigin(0.25, 0.2).setDepth(7).setScrollFactor(0);
+
+    // Bolt Optimization: Render Stamp for single-pass drawing
+    this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
   }
 
   update() {
@@ -650,6 +653,20 @@ class SectionHunt extends Phaser.Scene {
     const magnifierRadius = 50;
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
+
+    this.zoomedView.clear();
+
+    // Draw background using renderStamp to avoid dirtying scene object
+    this.renderStamp.setTexture(this.sectionName);
+    this.renderStamp.setOrigin(0, 0);
+    this.renderStamp.setDisplaySize(1280, 720);
+    this.renderStamp.setAngle(0);
+    this.renderStamp.setRotation(0);
+    this.renderStamp.setFlipX(false);
+    this.renderStamp.setFlipY(false);
+    this.zoomedView.draw(this.renderStamp, 0, 0);
+
+    // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
         const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
@@ -658,18 +675,30 @@ class SectionHunt extends Phaser.Scene {
         if (egg.symbolSprite) {
           egg.symbolSprite.setAlpha(alpha);
         }
-      }
-    });
-    this.zoomedView.clear();
-    this.zoomedView.draw(this.sectionImage, 0, 0);
-    this.eggs.getChildren().forEach(egg => {
-      if (egg.active && egg.visible && egg.alpha > 0) {
-        this.zoomedView.draw(egg, egg.x - this.zoomedView.camera.scrollX, egg.y - this.zoomedView.camera.scrollY);
-        if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible && egg.symbolSprite.alpha > 0) {
-          this.zoomedView.draw(egg.symbolSprite, egg.symbolSprite.x - this.zoomedView.camera.scrollX, egg.symbolSprite.y - this.zoomedView.camera.scrollY);
+
+        if (alpha > 0) {
+            // Draw egg using renderStamp
+            this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
+            this.renderStamp.setAngle(egg.angle);
+            this.renderStamp.setFlipX(egg.flipX);
+            this.renderStamp.setFlipY(egg.flipY);
+            this.renderStamp.setOrigin(0.5, 0.5);
+            this.renderStamp.setScale(egg.scaleX, egg.scaleY);
+            this.zoomedView.draw(this.renderStamp, egg.x - this.zoomedView.camera.scrollX, egg.y - this.zoomedView.camera.scrollY);
+
+            // Draw symbol using renderStamp
+            if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
+                this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
+                this.renderStamp.setAngle(egg.symbolSprite.angle);
+                this.renderStamp.setFlipX(egg.symbolSprite.flipX);
+                this.renderStamp.setFlipY(egg.symbolSprite.flipY);
+                this.renderStamp.setScale(egg.symbolSprite.scaleX, egg.symbolSprite.scaleY);
+                this.zoomedView.draw(this.renderStamp, egg.symbolSprite.x - this.zoomedView.camera.scrollX, egg.symbolSprite.y - this.zoomedView.camera.scrollY);
+            }
         }
       }
     });
+
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
     const foundEggsCount = this.registry.get('foundEggs').length;
     this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
@@ -947,3 +976,4 @@ const config = {
 
 // Initialize the game
 const game = new Phaser.Game(config);
+window.game = game;
