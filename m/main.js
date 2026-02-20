@@ -791,13 +791,20 @@ class SectionHunt extends Phaser.Scene {
   }
 
   preload() {
-    this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
+    if (this.sectionName === 'grand-prismatic') {
+        this.load.video(this.sectionName, 'assets/videos/grand-prismatic.mp4');
+    } else if (this.sectionName === 'mammoth-hot-springs') {
+        this.load.image(this.sectionName, 'assets/map/sections/mammoth-hot-springs.jpg');
+    } else {
+        this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
+    }
+
     // Removed redundant loading of eggs, symbols, and UI elements.
     // They are now loaded in MainMenu.
 
     this.load.on('loaderror', (file) => {
-      if (file.type === 'image') {
-        console.error(`PRELOAD ERROR: Failed to load image: Key='${file.key}', URL='${file.url}'`);
+      if (file.type === 'image' || file.type === 'video') {
+        console.error(`PRELOAD ERROR: Failed to load asset: Key='${file.key}', URL='${file.url}'`);
       }
     });
   }
@@ -853,10 +860,18 @@ class SectionHunt extends Phaser.Scene {
     this.cameras.main.setViewport(0, 0, this.game.config.width, this.game.config.height);
     this.cameras.main.setPosition(0, 0);
 
-    this.sectionImage = this.add.image(0, 0, this.sectionName)
-      .setOrigin(0, 0)
-      .setDisplaySize(this.game.config.width, this.game.config.height)
-      .setDepth(0);
+    if (this.sectionName === 'grand-prismatic') {
+        this.sectionImage = this.add.video(0, 0, this.sectionName)
+            .setOrigin(0, 0)
+            .setDisplaySize(this.game.config.width, this.game.config.height)
+            .setDepth(0);
+        this.sectionImage.play(true); // Loop
+    } else {
+        this.sectionImage = this.add.image(0, 0, this.sectionName)
+            .setOrigin(0, 0)
+            .setDisplaySize(this.game.config.width, this.game.config.height)
+            .setDepth(0);
+    }
 
     const eggData = this.registry.get('eggData') || [];
     const sectionEggs = eggData.filter(e => e.section === this.sectionName && !e.collected);
