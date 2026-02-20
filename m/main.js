@@ -792,7 +792,8 @@ class SectionHunt extends Phaser.Scene {
 
   preload() {
     if (this.sectionName === 'grand-prismatic') {
-        this.load.video(this.sectionName, 'assets/videos/grand-prismatic.mp4');
+        this.load.video('grand-prismatic-video', 'assets/video/grand-prismatic.mp4');
+        this.load.image('grand-prismatic-bg', 'assets/map/sections/grand-prismatic.png');
     } else if (this.sectionName === 'mammoth-hot-springs') {
         this.load.image(this.sectionName, 'assets/map/sections/mammoth-hot-springs.jpg');
     } else {
@@ -861,11 +862,29 @@ class SectionHunt extends Phaser.Scene {
     this.cameras.main.setPosition(0, 0);
 
     if (this.sectionName === 'grand-prismatic') {
-        this.sectionImage = this.add.video(0, 0, this.sectionName)
-            .setOrigin(0, 0)
-            .setDisplaySize(this.game.config.width, this.game.config.height)
-            .setDepth(0);
-        this.sectionImage.play(true); // Loop
+        if (this.cache.video.exists('grand-prismatic-video')) {
+            this.sectionImage = this.add.video(0, 0, 'grand-prismatic-video')
+                .setOrigin(0, 0)
+                .setDisplaySize(this.game.config.width, this.game.config.height)
+                .setDepth(0);
+            this.sectionImage.play(true); // Loop
+
+            // Error handling for playback issues
+            this.sectionImage.on('error', () => {
+                 console.warn('Video playback error, falling back to image');
+                 this.sectionImage.destroy();
+                 this.sectionImage = this.add.image(0, 0, 'grand-prismatic-bg')
+                    .setOrigin(0, 0)
+                    .setDisplaySize(this.game.config.width, this.game.config.height)
+                    .setDepth(0);
+            });
+        } else {
+             // Fallback if video failed to load
+             this.sectionImage = this.add.image(0, 0, 'grand-prismatic-bg')
+                .setOrigin(0, 0)
+                .setDisplaySize(this.game.config.width, this.game.config.height)
+                .setDepth(0);
+        }
     } else {
         this.sectionImage = this.add.image(0, 0, this.sectionName)
             .setOrigin(0, 0)
