@@ -886,40 +886,93 @@ class SectionHunt extends Phaser.Scene {
       // WHY DO I NEED THIS??? DO NOT WANT! ===> this.magnifyingGlass = null;
     // } else {
       this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass')
-        .setOrigin(-0.75, -0.35)
+        .setOrigin(1, 1) // Anchor at bottom-right (handle tip)
         .setDepth(7)
         .setScrollFactor(0);
     // }
+
+    // Global capture handler
+    this.input.on('pointerdown', (pointer) => {
+      // Calculate lens position based on pointer
+      // Offset matches update loop logic: (-120 * scale, -170 * scale)
+      const scale = this.scale;
+      // Note: These offsets must match the update loop EXACTLY
+      // Image is 200x250. Handle is at bottom-right (200, 250).
+      // Lens center approx (80, 80).
+      // Offset = (80 - 200) * X_scale_factor, (80 - 250) * Y_scale_factor
+      // Display size is 200*scale x 250*scale.
+      // So visual offset is -120 * (scale/2) ?? No, display size is 100x125.
+      // Original image 200x250. Display size 100x125. Scale factor is 0.5 relative to original.
+      // So visual lens center is (-60 * scale, -85 * scale) relative to handle?
+      // Wait, let's look at update loop display size: 100 * scale, 125 * scale.
+      // This means the sprite is scaled by (0.5 * scale) relative to the 200x250 texture.
+      // Handle tip is at (200, 250) in texture space.
+      // Lens center is at (~80, ~80) in texture space.
+      // Delta is (-120, -170).
+      // Scaled delta is (-120 * 0.5 * scale, -170 * 0.5 * scale) = (-60 * scale, -85 * scale).
+      // Let's use these values.
+
+      const lensOffsetX = -60 * scale;
+      const lensOffsetY = -85 * scale;
+      const lensX = pointer.x + lensOffsetX;
+      const lensY = pointer.y + lensOffsetY;
+      const captureRadius = 60 * scale; // Slightly larger than visual radius (50)
+
+      // Check all eggs
+      this.eggs.getChildren().forEach(egg => {
+        if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
+           // Check if clicking on egg OR clicking on handle (when egg is under lens)
+           const distToClick = Phaser.Math.Distance.Between(pointer.x, pointer.y, egg.x, egg.y);
+           const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+
+           if (distToClick < captureRadius || distToLens < captureRadius) {
+               this.collectEgg(egg);
+               egg.destroy();
+               if (egg.symbolSprite) egg.symbolSprite.destroy();
+           }
+        }
+      });
+    });
   }
 
   update() {
     const pointer = this.input.activePointer;
     const scale = this.scale;
 
-    // MODIFIED: Changed offset to look down and right
-    const offset = 45 * scale;
-    const rtX = pointer.x - offset + 75 * scale; // Changed from +offset -75 to -offset +75
-    const rtY = pointer.y - offset + 53 * scale; // Changed from +offset -53 to -offset +53
-    this.zoomedView.setPosition(rtX, rtY);
-    this.maskGraphics.setPosition(rtX, rtY);
+    // Magnifying glass display size is 100*scale x 125*scale.
+    // Texture is 200x250.
+    // So visual scale factor relative to texture is 0.5 * scale.
+    // Handle tip is at bottom-right (200, 250).
+    // Lens center is approx (80, 80).
+    // Offset in texture pixels: (-120, -170).
+    // Offset in screen pixels: (-120 * 0.5 * scale, -170 * 0.5 * scale) = (-60 * scale, -85 * scale).
 
+    const lensOffsetX = -60 * scale;
+    const lensOffsetY = -85 * scale;
+    const lensX = pointer.x + lensOffsetX;
+    const lensY = pointer.y + lensOffsetY;
+
+    // Update Zoomed View Position (centered on lens)
+    this.zoomedView.setPosition(lensX, lensY);
+    this.maskGraphics.setPosition(lensX, lensY);
+
+    // Update Zoomed View Content
+    // We want to show the world content at lensX, lensY.
     const zoom = 2;
-    const zoomedWidth = (200 * scale) / zoom;
+    const zoomedWidth = (200 * scale) / zoom; // Viewport size / zoom
     const zoomedHeight = (200 * scale) / zoom;
 
-    const centerX = pointer.x - offset; // Changed from +offset to -offset
-    const centerY = pointer.y - offset; // Changed from +offset to -offset
-    const worldCenter = this.cameras.main.getWorldPoint(centerX, centerY);
-    const scrollX = worldCenter.x - zoomedWidth / 2;
-    const scrollY = worldCenter.y - zoomedHeight / 2;
+    // Convert screen lens position to world camera position
+    const worldPoint = this.cameras.main.getWorldPoint(lensX, lensY);
+    const scrollX = worldPoint.x - zoomedWidth / 2;
+    const scrollY = worldPoint.y - zoomedHeight / 2;
 
-    const magnifierRadius = 50 * scale;
-    const magnifierScreenX = pointer.x;
-    const magnifierScreenY = pointer.y;
+    const magnifierRadius = 50 * scale; // Visual radius for egg visibility
 
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-        const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
+        // Check distance to LENS, not pointer
+        const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
         const alpha = distance < magnifierRadius ? 1 : 0;
         egg.setAlpha(alpha);
         if (egg.symbolSprite) {
@@ -1246,6 +1299,7 @@ const config = {
 };
 
 const game = new Phaser.Game(config);
+window.game = game; // Expose for debugging/verification
 
 /**
  * Adds a "press" animation to a game object on touch.
