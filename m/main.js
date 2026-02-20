@@ -349,7 +349,13 @@ class MainMenu extends Phaser.Scene {
     this.registry.set('foundEggs', []);
     this.registry.set('correctCategorizations', 0);
     this.registry.set('currentScore', 0);
-    this.registry.set('highScore', parseInt(localStorage.getItem('highScore')) || 0);
+
+    try {
+        this.registry.set('highScore', parseInt(localStorage.getItem('highScore')) || 0);
+    } catch (e) {
+        console.warn('LocalStorage access failed:', e);
+        this.registry.set('highScore', 0);
+    }
     // console.log('MainMenu: highScore:', this.registry.get('highScore'));
 
     // Load and validate symbols and map sections
@@ -444,7 +450,8 @@ class MainMenu extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(50 * scale, 75 * scale);
+        .setDisplaySize(50 * scale, 75 * scale)
+        .setDepth(1000); // Ensure cursor is on top of everything
     }
 
     // Handle both mouse and touch input, request fullscreen on first click
@@ -488,7 +495,7 @@ class MainMenu extends Phaser.Scene {
     const buttonWidth = 400 * scale;
     const buttonHeight = 100 * scale;
     const btnX = this.game.config.width / 2;
-    const btnY = 650 * scale;
+    const btnY = 580 * scale; // Moved up to reveal bottom text
 
     const startBtnContainer = this.add.container(btnX, btnY);
 
@@ -1442,6 +1449,24 @@ const config = {
 
 const game = new Phaser.Game(config);
 window.game = game; // Expose for debugging/verification
+
+// Global error handler for mobile debugging
+window.addEventListener('error', function (event) {
+    const errorMsg = event.message || "Unknown error";
+    // Create a temporary text element to show error on screen
+    const div = document.createElement('div');
+    div.style.position = 'absolute';
+    div.style.top = '0';
+    div.style.left = '0';
+    div.style.width = '100%';
+    div.style.backgroundColor = 'red';
+    div.style.color = 'white';
+    div.style.zIndex = '10000';
+    div.style.fontSize = '14px';
+    div.style.padding = '10px';
+    div.innerText = 'Global Error: ' + errorMsg;
+    document.body.appendChild(div);
+});
 
 /**
  * Adds a "press" animation to a game object on touch.
