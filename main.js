@@ -73,6 +73,15 @@ class UIScene extends Phaser.Scene {
   create() {
     this.createGearIcon();
     this.createSettingsPanel();
+
+    // Add ESC key support
+    this.input.keyboard.on('keydown-ESC', () => {
+        if (this.settingsContainer.visible) {
+            this.settingsContainer.setVisible(false);
+            this.gearIcon.setVisible(true);
+            this.input.setDefaultCursor('none');
+        }
+    });
   }
 
   createGearIcon() {
@@ -138,11 +147,51 @@ class UIScene extends Phaser.Scene {
     this.settingsContainer.add(title);
 
     // Close Button
-    const closeBtn = this.add.text(x + width - 50, y + 50, 'X', {
-        fontSize: '32px',
-        fontFamily: 'Arial',
-        fill: '#ff0000'
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const closeSize = 40;
+    const closeX = x + width - 30;
+    const closeY = y + 30;
+
+    const closeBtn = this.add.container(closeX, closeY);
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0xff4444, 1); // Reddish
+    closeBg.fillCircle(0, 0, closeSize / 2);
+    closeBg.lineStyle(2, 0xffffff, 1);
+    closeBg.strokeCircle(0, 0, closeSize / 2);
+
+    // Draw X
+    const xSize = closeSize / 4;
+    closeBg.lineStyle(3, 0xffffff, 1);
+    closeBg.beginPath();
+    closeBg.moveTo(-xSize, -xSize);
+    closeBg.lineTo(xSize, xSize);
+    closeBg.moveTo(xSize, -xSize);
+    closeBg.lineTo(-xSize, xSize);
+    closeBg.strokePath();
+
+    closeBtn.add(closeBg);
+    closeBtn.setSize(closeSize, closeSize);
+    closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, closeSize / 2), Phaser.Geom.Circle.Contains);
+
+    // Hover effects
+    closeBtn.on('pointerover', () => {
+        this.tweens.add({
+            targets: closeBtn,
+            scaleX: 1.1,
+            scaleY: 1.1,
+            duration: 100,
+            ease: 'Sine.easeInOut'
+        });
+    });
+
+    closeBtn.on('pointerout', () => {
+        this.tweens.add({
+            targets: closeBtn,
+            scaleX: 1.0,
+            scaleY: 1.0,
+            duration: 100,
+            ease: 'Sine.easeInOut'
+        });
+    });
 
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
@@ -947,3 +996,4 @@ const config = {
 
 // Initialize the game
 const game = new Phaser.Game(config);
+window.game = game;
