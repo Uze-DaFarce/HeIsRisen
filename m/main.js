@@ -791,13 +791,21 @@ class SectionHunt extends Phaser.Scene {
   }
 
   preload() {
-    this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
+    if (this.sectionName === 'grand-prismatic') {
+        this.load.video('grand-prismatic-video', 'assets/video/grand-prismatic.mp4');
+        this.load.image('grand-prismatic-bg', 'assets/map/sections/grand-prismatic.png');
+    } else if (this.sectionName === 'mammoth-hot-springs') {
+        this.load.image(this.sectionName, 'assets/map/sections/mammoth-hot-springs.jpg');
+    } else {
+        this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
+    }
+
     // Removed redundant loading of eggs, symbols, and UI elements.
     // They are now loaded in MainMenu.
 
     this.load.on('loaderror', (file) => {
-      if (file.type === 'image') {
-        console.error(`PRELOAD ERROR: Failed to load image: Key='${file.key}', URL='${file.url}'`);
+      if (file.type === 'image' || file.type === 'video') {
+        console.error(`PRELOAD ERROR: Failed to load asset: Key='${file.key}', URL='${file.url}'`);
       }
     });
   }
@@ -853,10 +861,36 @@ class SectionHunt extends Phaser.Scene {
     this.cameras.main.setViewport(0, 0, this.game.config.width, this.game.config.height);
     this.cameras.main.setPosition(0, 0);
 
-    this.sectionImage = this.add.image(0, 0, this.sectionName)
-      .setOrigin(0, 0)
-      .setDisplaySize(this.game.config.width, this.game.config.height)
-      .setDepth(0);
+    if (this.sectionName === 'grand-prismatic') {
+        if (this.cache.video.exists('grand-prismatic-video')) {
+            this.sectionImage = this.add.video(0, 0, 'grand-prismatic-video')
+                .setOrigin(0, 0)
+                .setDisplaySize(this.game.config.width, this.game.config.height)
+                .setDepth(0);
+            this.sectionImage.play(true); // Loop
+
+            // Error handling for playback issues
+            this.sectionImage.on('error', () => {
+                 console.warn('Video playback error, falling back to image');
+                 this.sectionImage.destroy();
+                 this.sectionImage = this.add.image(0, 0, 'grand-prismatic-bg')
+                    .setOrigin(0, 0)
+                    .setDisplaySize(this.game.config.width, this.game.config.height)
+                    .setDepth(0);
+            });
+        } else {
+             // Fallback if video failed to load
+             this.sectionImage = this.add.image(0, 0, 'grand-prismatic-bg')
+                .setOrigin(0, 0)
+                .setDisplaySize(this.game.config.width, this.game.config.height)
+                .setDepth(0);
+        }
+    } else {
+        this.sectionImage = this.add.image(0, 0, this.sectionName)
+            .setOrigin(0, 0)
+            .setDisplaySize(this.game.config.width, this.game.config.height)
+            .setDepth(0);
+    }
 
     const eggData = this.registry.get('eggData') || [];
     const sectionEggs = eggData.filter(e => e.section === this.sectionName && !e.collected);
