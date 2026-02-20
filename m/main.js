@@ -343,7 +343,7 @@ class MainMenu extends Phaser.Scene {
     const scaleX = this.game.config.width / 1280;
     const scaleY = this.game.config.height / 720;
     const scale = Math.min(scaleX, scaleY);
-    this.scale = scale;
+    this.gameScale = scale;
 
     // NEW: Initialize all game variables
     // console.log('MainMenu: Initializing game state');
@@ -429,6 +429,7 @@ class MainMenu extends Phaser.Scene {
 
     // Intro Video - centered
     const introVideo = this.add.video(this.game.config.width / 2, this.game.config.height / 2, 'intro-video');
+    introVideo.setMute(true); // Start muted to allow autoplay
     introVideo.play(true); // Loop
     this.introVideo = introVideo; // Store reference for resizing
 
@@ -448,6 +449,14 @@ class MainMenu extends Phaser.Scene {
     }
 
     // Handle both mouse and touch input, request fullscreen on first click
+    const safeRequestFullscreen = (element) => {
+      if (element.requestFullscreen) {
+        element.requestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
+      } else if (element.webkitRequestFullscreen) {
+        element.webkitRequestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
+      }
+    };
+
     const startGame = () => {
       if (introVideo) {
           introVideo.stop();
@@ -461,13 +470,6 @@ class MainMenu extends Phaser.Scene {
 
       const canvas = this.game.canvas;
       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-      const safeRequestFullscreen = (element) => {
-        if (element.requestFullscreen) {
-          element.requestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
-        } else if (element.webkitRequestFullscreen) {
-          element.webkitRequestFullscreen().catch(err => {}); // console.log('Fullscreen failed:', err));
-        }
-      };
 
       if (isMobile) {
         safeRequestFullscreen(canvas);
@@ -542,10 +544,20 @@ class MainMenu extends Phaser.Scene {
         if (introVideo) {
             introVideo.setMute(false);
         }
+
+        // Auto-Fullscreen on first interaction
+        const canvas = this.game.canvas;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        if (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement) {
+             safeRequestFullscreen(canvas);
+             if (screen.orientation && screen.orientation.lock) {
+                  screen.orientation.lock('landscape').catch(() => {});
+             }
+        }
     };
 
-    // Try to unlock immediately
-    unlockAudio();
+    // Note: We do NOT call unlockAudio() immediately to allow muted autoplay.
+    // Audio will be unlocked on first interaction.
 
     // Unlock on any pointer or keyboard interaction
     this.input.on('pointerdown', unlockAudio);
@@ -608,7 +620,7 @@ class MapScene extends Phaser.Scene {
     const scaleX = this.game.config.width / 1280;
     const scaleY = this.game.config.height / 720;
     const scale = Math.min(scaleX, scaleY);
-    this.scale = scale;
+    this.gameScale = scale;
 
     // Set camera bounds to match viewport
     this.cameras.main.setBounds(0, 0, this.game.config.width, this.game.config.height);
@@ -766,7 +778,7 @@ class SectionHunt extends Phaser.Scene {
     const scaleX = this.game.config.width / 1280;
     const scaleY = this.game.config.height / 720;
     const scale = Math.min(scaleX, scaleY);
-    this.scale = scale;
+    this.gameScale = scale;
 
     this.cameras.main.setBounds(0, 0, this.game.config.width, this.game.config.height);
     this.cameras.main.setViewport(0, 0, this.game.config.width, this.game.config.height);
@@ -874,12 +886,15 @@ class SectionHunt extends Phaser.Scene {
       strokeThickness: 6 * scale
     }).setDepth(5);
 
-    this.zoomedView = this.add.renderTexture(0, 0, 200 * scale, 200 * scale)
+    const diameter = 100 * scale; // Match visual lens size
+    this.zoomedView = this.add.renderTexture(0, 0, diameter, diameter)
       .setDepth(2)
-      .setScrollFactor(0);
+      .setScrollFactor(0)
+      .setOrigin(0.5, 0.5); // Center origin for easier positioning
     this.maskGraphics = this.add.graphics()
-      .fillCircle(50 * scale, 50 * scale, 50 * scale)
       .setScrollFactor(0);
+    // Draw circle centered at 0,0 relative to graphics object
+    this.maskGraphics.fillCircle(0, 0, 50 * scale);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
 
     // if (!this.sys.game.device.os.desktop) {
@@ -895,7 +910,7 @@ class SectionHunt extends Phaser.Scene {
     this.input.on('pointerdown', (pointer) => {
       // Calculate lens position based on pointer
       // Offset matches update loop logic: (-120 * scale, -170 * scale)
-      const scale = this.scale;
+      const scale = this.gameScale;
       // Note: These offsets must match the update loop EXACTLY
       // Image is 200x250. Handle is at bottom-right (200, 250).
       // Lens center approx (80, 80).
@@ -937,7 +952,7 @@ class SectionHunt extends Phaser.Scene {
 
   update() {
     const pointer = this.input.activePointer;
-    const scale = this.scale;
+    const scale = this.gameScale;
 
     // Magnifying glass display size is 100*scale x 125*scale.
     // Texture is 200x250.
@@ -956,17 +971,6 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.setPosition(lensX, lensY);
     this.maskGraphics.setPosition(lensX, lensY);
 
-    // Update Zoomed View Content
-    // We want to show the world content at lensX, lensY.
-    const zoom = 2;
-    const zoomedWidth = (200 * scale) / zoom; // Viewport size / zoom
-    const zoomedHeight = (200 * scale) / zoom;
-
-    // Convert screen lens position to world camera position
-    const worldPoint = this.cameras.main.getWorldPoint(lensX, lensY);
-    const scrollX = worldPoint.x - zoomedWidth / 2;
-    const scrollY = worldPoint.y - zoomedHeight / 2;
-
     const magnifierRadius = 50 * scale; // Visual radius for egg visibility
 
     this.eggs.getChildren().forEach(egg => {
@@ -981,18 +985,37 @@ class SectionHunt extends Phaser.Scene {
       }
     });
 
+    const zoom = 2;
+    const diameter = 100 * scale;
+    const viewWidth = diameter / zoom;
+    const viewHeight = diameter / zoom;
+    const scrollX = lensX - viewWidth / 2;
+    const scrollY = lensY - viewHeight / 2;
+
     this.zoomedView.clear();
-    this.zoomedView.beginDraw();
-    this.zoomedView.batchDraw(this.sectionImage, -scrollX, -scrollY, 1 / zoom);
+
+    const drawScaled = (obj) => {
+      const drawX = (obj.x - scrollX) * zoom;
+      const drawY = (obj.y - scrollY) * zoom;
+      const oldScaleX = obj.scaleX;
+      const oldScaleY = obj.scaleY;
+
+      obj.setScale(oldScaleX * zoom, oldScaleY * zoom);
+      this.zoomedView.draw(obj, drawX, drawY);
+      obj.setScale(oldScaleX, oldScaleY);
+    };
+
+    drawScaled(this.sectionImage);
+
+    // Draw visible eggs
     this.eggs.getChildren().forEach(egg => {
       if (egg.active && egg.visible && egg.alpha > 0) {
-        this.zoomedView.batchDraw(egg, egg.x - scrollX, egg.y - scrollY, 1 / zoom);
+        drawScaled(egg);
         if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible && egg.symbolSprite.alpha > 0) {
-          this.zoomedView.batchDraw(egg.symbolSprite, egg.symbolSprite.x - scrollX, egg.symbolSprite.y - scrollY, 1 / zoom);
+          drawScaled(egg.symbolSprite);
         }
       }
     });
-    this.zoomedView.endDraw();
 
     if (this.magnifyingGlass) {
       this.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
@@ -1012,7 +1035,7 @@ class EggZamRoom extends Phaser.Scene {
     this.explanationText = null;
     this.noEggsText = null;
     this.currentEgg = null;
-    this.scale = 1;
+    this.gameScale = 1;
     this.background = null;
     this.examiner = null;
     this.symbolResultDiag = null;
@@ -1042,7 +1065,7 @@ class EggZamRoom extends Phaser.Scene {
     const height = this.game.config.height;
     const scaleX = width / 1280;
     const scaleY = height / 720;
-    this.scale = Math.min(scaleX, scaleY);
+    this.gameScale = Math.min(scaleX, scaleY);
 
     this.cameras.main.setBounds(0, 0, width, height);
     this.cameras.main.setViewport(0, 0, width, height);
@@ -1054,8 +1077,8 @@ class EggZamRoom extends Phaser.Scene {
       .setDisplaySize(width, height);
 
     const tanBoxCenterX = (640 / 1280) * width;
-    const examinerWidth = 400 * this.scale;
-    const examinerHeight = 500 * this.scale;
+    const examinerWidth = 400 * this.gameScale;
+    const examinerHeight = 500 * this.gameScale;
     const examinerX = tanBoxCenterX - (examinerWidth / 2);
     const floorY = (740 / 720) * height;
     const examinerY = floorY - examinerHeight;
@@ -1069,12 +1092,12 @@ class EggZamRoom extends Phaser.Scene {
     this.symbolResultDiag = this.add.image(diagX, diagY, 'symbol-result-summary-diag')
       .setOrigin(0, 0)
       .setDepth(1)
-      .setDisplaySize(900 * this.scale, 600 * this.scale)
+      .setDisplaySize(900 * this.gameScale, 600 * this.gameScale)
       .setAlpha(0);
 
-    this.eggZitButton = this.add.image(0, 200 * this.scale, 'egg-zit-button')
+    this.eggZitButton = this.add.image(0, 200 * this.gameScale, 'egg-zit-button')
       .setOrigin(0, 0)
-      .setDisplaySize(150 * this.scale, 131 * this.scale)
+      .setDisplaySize(150 * this.gameScale, 131 * this.gameScale)
       .setInteractive()
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4)
@@ -1083,34 +1106,34 @@ class EggZamRoom extends Phaser.Scene {
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
-      .setDisplaySize(200 * this.scale, 200 * this.scale)
+      .setDisplaySize(200 * this.gameScale, 200 * this.gameScale)
       .setDepth(4)
       .setScrollFactor(0);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * this.scale, 98 * this.scale, `${foundEggsCount}/${TOTAL_EGGS}`, {
-      fontSize: `${42 * this.scale}px`,
+    this.scoreText = this.add.text(50 * this.gameScale, 98 * this.gameScale, `${foundEggsCount}/${TOTAL_EGGS}`, {
+      fontSize: `${42 * this.gameScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6 * this.scale
+      strokeThickness: 6 * this.gameScale
     }).setDepth(5);
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
     }
-    this.correctText = this.add.text(15 * this.scale, 148 * this.scale, `Correct: ${this.registry.get('correctCategorizations')}`, {
-      fontSize: `${32 * this.scale}px`,
+    this.correctText = this.add.text(15 * this.gameScale, 148 * this.gameScale, `Correct: ${this.registry.get('correctCategorizations')}`, {
+      fontSize: `${32 * this.gameScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6 * this.scale
+      strokeThickness: 6 * this.gameScale
     }).setDepth(5);
 
-    const zoneWidth = 200 * this.scale;
-    const zoneHeight = 400 * this.scale;
-    const zoneY = examinerY + 100 * this.scale;
+    const zoneWidth = 200 * this.gameScale;
+    const zoneHeight = 400 * this.gameScale;
+    const zoneY = examinerY + 100 * this.gameScale;
 
     this.leftBottleZone = this.add.zone(examinerX, zoneY, zoneWidth, zoneHeight)
       .setOrigin(0, 0)
@@ -1141,13 +1164,13 @@ class EggZamRoom extends Phaser.Scene {
           this.displayRandomEggInfo();
         } else {
           this.sound.play('error');
-          const wrongText = this.add.text(700 * this.scale, 220 * this.scale, "Try again!", {
-            fontSize: `${28 * this.scale}px`,
+          const wrongText = this.add.text(700 * this.gameScale, 220 * this.gameScale, "Try again!", {
+            fontSize: `${28 * this.gameScale}px`,
             fill: '#f00',
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS',
             stroke: '#fff',
-            strokeThickness: 3 * this.scale
+            strokeThickness: 3 * this.gameScale
           }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
         }
@@ -1175,13 +1198,13 @@ class EggZamRoom extends Phaser.Scene {
           this.displayRandomEggInfo();
         } else {
           this.sound.play('error');
-          const wrongText = this.add.text(700 * this.scale, 220 * this.scale, "Try again!", {
-            fontSize: `${28 * this.scale}px`,
+          const wrongText = this.add.text(700 * this.gameScale, 220 * this.gameScale, "Try again!", {
+            fontSize: `${28 * this.gameScale}px`,
             fill: '#f00',
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS',
             stroke: '#fff',
-            strokeThickness: 3 * this.scale
+            strokeThickness: 3 * this.gameScale
           }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
         }
@@ -1195,7 +1218,7 @@ class EggZamRoom extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(50 * this.scale, 75 * this.scale)
+        .setDisplaySize(50 * this.gameScale, 75 * this.gameScale)
         .setDepth(7);
     }
   }
@@ -1213,13 +1236,13 @@ class EggZamRoom extends Phaser.Scene {
         this.currentEgg = null;
         if (this.noEggsText) this.noEggsText.destroy();
         this.noEggsText = this.add.text((0.36 * width), (0.25 * height), "  All eggs have been categorized!", {
-          fontSize: `${28 * this.scale}px`,
+          fontSize: `${28 * this.gameScale}px`,
           fill: '#000',
           fontStyle: 'bold',
           fontFamily: 'Comic Sans MS',
           stroke: '#fff',
-          strokeThickness: 3 * this.scale,
-          wordWrap: { width: 480 * this.scale, useAdvancedWrap: true }
+          strokeThickness: 3 * this.gameScale,
+          wordWrap: { width: 480 * this.gameScale, useAdvancedWrap: true }
         }).setOrigin(0, 0);
         return;
       }
@@ -1232,10 +1255,10 @@ class EggZamRoom extends Phaser.Scene {
 
     if (this.currentEgg) {
       const { eggId, symbolData } = this.currentEgg;
-      const windowCenterX = 196 * this.scale;
-      const windowBottomY = 190 * this.scale;
-      const eggHeight = 125 * this.scale;
-      const symbolHeight = 125 * this.scale;
+      const windowCenterX = 196 * this.gameScale;
+      const windowBottomY = 190 * this.gameScale;
+      const eggHeight = 125 * this.gameScale;
+      const symbolHeight = 125 * this.gameScale;
 
       const eggPosX = this.examiner.x + windowCenterX;
       const eggPosY = this.examiner.y + windowBottomY - (eggHeight / 2);
@@ -1245,13 +1268,13 @@ class EggZamRoom extends Phaser.Scene {
       if (this.textures.exists(`egg-${eggId}`)) {
         this.displayedEggImage = this.add.image(eggPosX, eggPosY, `egg-${eggId}`)
           .setOrigin(0.5, 0.5)
-          .setDisplaySize(100 * this.scale, 125 * this.scale)
+          .setDisplaySize(100 * this.gameScale, 125 * this.gameScale)
           .setDepth(3);
       }
       if (symbolData && symbolData.filename && this.textures.exists(symbolData.filename)) {
         this.displayedSymbolImage = this.add.image(symbolPosX, symbolPosY, symbolData.filename)
           .setOrigin(0.5, 0.5)
-          .setDisplaySize(100 * this.scale, 125 * this.scale)
+          .setDisplaySize(100 * this.gameScale, 125 * this.gameScale)
           .setDepth(3);
       }
     }
@@ -1363,7 +1386,7 @@ function resizeGame() {
   const scale = Math.min(scaleX, scaleY);
 
   game.scene.getScenes(true).forEach(scene => {
-    if (scene.scale) scene.scale = scale;
+    if (scene.gameScale) scene.gameScale = scale;
     if (scene.cameras && scene.cameras.main) {
       scene.cameras.main.setBounds(0, 0, width, height);
       scene.cameras.main.setViewport(0, 0, width, height);
@@ -1446,12 +1469,13 @@ function resizeGame() {
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
       }
       if (scene.zoomedView) {
-        scene.zoomedView.setPosition(0, 0);
-        scene.zoomedView.setSize(200 * scale, 200 * scale);
+        // Position set in update
+        const diameter = 100 * scale;
+        scene.zoomedView.setSize(diameter, diameter);
       }
       if (scene.maskGraphics) {
         scene.maskGraphics.clear();
-        scene.maskGraphics.fillCircle(50 * scale, 50 * scale, 50 * scale);
+        scene.maskGraphics.fillCircle(0, 0, 50 * scale);
       }
       if (scene.magnifyingGlass) {
         scene.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
