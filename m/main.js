@@ -1006,6 +1006,9 @@ class SectionHunt extends Phaser.Scene {
       .setDepth(7)
       .setScrollFactor(0);
 
+    // Bolt Optimization: Render Stamp for single-pass drawing
+    this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0.5, 0.5)
         .setDepth(8)
@@ -1078,19 +1081,6 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics.setPosition(lensX, lensY);
 
     const magnifierRadius = 50 * scale; // Visual radius for egg visibility
-
-    this.eggs.getChildren().forEach(egg => {
-      if (egg && egg.active) {
-        // Check distance to LENS, not pointer
-        const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
-        const alpha = distance < magnifierRadius ? 1 : 0;
-        egg.setAlpha(alpha);
-        if (egg.symbolSprite) {
-          egg.symbolSprite.setAlpha(alpha);
-        }
-      }
-    });
-
     const zoom = 2;
     const diameter = 100 * scale;
     const viewWidth = diameter / zoom;
@@ -1100,26 +1090,48 @@ class SectionHunt extends Phaser.Scene {
 
     this.zoomedView.clear();
 
-    const drawScaled = (obj) => {
-      const drawX = (obj.x - scrollX) * zoom;
-      const drawY = (obj.y - scrollY) * zoom;
-      const oldScaleX = obj.scaleX;
-      const oldScaleY = obj.scaleY;
+    // Draw background using renderStamp to avoid dirtying scene object
+    this.renderStamp.setTexture(this.sectionName);
+    this.renderStamp.setOrigin(0, 0);
+    this.renderStamp.setDisplaySize(this.game.config.width, this.game.config.height);
+    this.renderStamp.setScale(this.renderStamp.scaleX * zoom, this.renderStamp.scaleY * zoom);
+    this.renderStamp.setAngle(0);
+    this.renderStamp.setRotation(0);
+    this.renderStamp.setFlipX(false);
+    this.renderStamp.setFlipY(false);
+    this.zoomedView.draw(this.renderStamp, (0 - scrollX) * zoom, (0 - scrollY) * zoom);
 
-      obj.setScale(oldScaleX * zoom, oldScaleY * zoom);
-      this.zoomedView.draw(obj, drawX, drawY);
-      obj.setScale(oldScaleX, oldScaleY);
-    };
-
-    drawScaled(this.sectionImage);
-
-    // Draw visible eggs
+    // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
-      if (egg.active && egg.visible && egg.alpha > 0) {
-        drawScaled(egg);
-        if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible && egg.symbolSprite.alpha > 0) {
-          drawScaled(egg.symbolSprite);
-        }
+      if (egg && egg.active) {
+          // Update visibility
+          const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+          const alpha = distance < magnifierRadius ? 1 : 0;
+          egg.setAlpha(alpha);
+          if (egg.symbolSprite) {
+            egg.symbolSprite.setAlpha(alpha);
+          }
+
+          if (egg.visible && egg.alpha > 0) {
+             // Draw Egg using renderStamp
+             this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
+             this.renderStamp.setAngle(egg.angle);
+             this.renderStamp.setFlipX(egg.flipX);
+             this.renderStamp.setFlipY(egg.flipY);
+             this.renderStamp.setOrigin(0.5, 0.5);
+             this.renderStamp.setScale(egg.scaleX * zoom, egg.scaleY * zoom);
+             this.zoomedView.draw(this.renderStamp, (egg.x - scrollX) * zoom, (egg.y - scrollY) * zoom);
+
+             // Draw Symbol using renderStamp
+             if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
+                 this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
+                 this.renderStamp.setAngle(egg.symbolSprite.angle);
+                 this.renderStamp.setFlipX(egg.symbolSprite.flipX);
+                 this.renderStamp.setFlipY(egg.symbolSprite.flipY);
+                 this.renderStamp.setScale(egg.symbolSprite.scaleX * zoom, egg.symbolSprite.scaleY * zoom);
+                 this.zoomedView.draw(this.renderStamp, (egg.symbolSprite.x - scrollX) * zoom, (egg.symbolSprite.y - scrollY) * zoom);
+             }
+          }
       }
     });
 
