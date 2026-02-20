@@ -23,8 +23,15 @@ The policy is defined in the `<meta>` tag in `index.html` and `m/index.html`:
 - `img-src 'self' data: blob:`: Allow images from the application origin, data URIs, and blobs (used by Phaser).
 - `connect-src 'self'`: Allow XHR/Fetch requests only to the application origin (for loading JSON data).
 - `worker-src 'self' blob:`: Allow web workers from the application origin and blobs.
+- `object-src 'none'`: Prevents embedding of plugins like Flash or Java.
+- `base-uri 'self'`: Restricts the URLs that can be used in a document's `<base>` element to the same origin.
+- `form-action 'self'`: Restricts the URLs which can be used as the target of a form submissions.
 
 If you encounter issues running the game, ensure your environment supports these directives.
+
+## Referrer Policy
+
+This application sets the `Referrer-Policy` to `strict-origin-when-cross-origin` via a `<meta>` tag. This ensures that the full URL is not sent as a referrer to other origins, protecting user privacy.
 
 ## Subresource Integrity (SRI)
 
