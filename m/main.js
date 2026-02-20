@@ -96,39 +96,6 @@ class UIScene extends Phaser.Scene {
 
     // Reposition settings panel
     if (this.settingsContainer) {
-        const overlay = this.settingsContainer.getAt(0);
-        if (overlay) {
-            overlay.setSize(width, height);
-        }
-
-        // Re-center container contents? No, container is at 0,0.
-        // I need to move the panel and sliders.
-        // It's easier to destroy and recreate the panel on resize, or carefully update positions.
-        // Given the complexity, let's just destroy and recreate the panel if it's open, or just update positions.
-
-        // Let's just update the panel position (index 1)
-        const panel = this.settingsContainer.getAt(1);
-        if (panel) {
-            panel.setPosition(width / 2, height / 2);
-        }
-
-        // Title (index 2)
-        const title = this.settingsContainer.getAt(2);
-        const panelY = (height - 500) / 2;
-        if (title) {
-            title.setPosition(width / 2, panelY + 50);
-        }
-
-        // Close Btn (index 3)
-        const closeBtn = this.settingsContainer.getAt(3);
-        const panelX = (width - 500) / 2;
-        if (closeBtn) {
-            closeBtn.setPosition(panelX + 500 - 50, panelY + 50);
-        }
-
-        // Sliders are groups of objects. This is getting messy to update individually.
-        // It might be better to just clear the container and recreate the panel content.
-
         const isVisible = this.settingsContainer.visible;
         this.settingsContainer.removeAll(true);
         this.createSettingsPanelContent(width, height);
@@ -174,8 +141,12 @@ class UIScene extends Phaser.Scene {
   }
 
   createSettingsPanelContent(screenWidth, screenHeight) {
-    const width = 500;
-    const height = 500;
+    // Dynamic sizing for responsiveness
+    const maxWidth = 500;
+    const maxHeight = 500;
+    const margin = 20;
+    const width = Math.min(maxWidth, screenWidth - margin * 2);
+    const height = Math.min(maxHeight, screenHeight - margin * 2);
     const x = (screenWidth - width) / 2;
     const y = (screenHeight - height) / 2;
 
@@ -185,25 +156,47 @@ class UIScene extends Phaser.Scene {
         .setInteractive();
     this.settingsContainer.add(overlay);
 
-    // Panel
-    const panel = this.add.rectangle(screenWidth / 2, screenHeight / 2, width, height, 0x333333)
-        .setStrokeStyle(4, 0xffffff);
+    // Panel Background
+    const panel = this.add.graphics();
+    panel.fillStyle(0x333333, 1);
+    panel.fillRoundedRect(x, y, width, height, 16);
+    panel.lineStyle(4, 0xffffff, 1);
+    panel.strokeRoundedRect(x, y, width, height, 16);
     this.settingsContainer.add(panel);
 
     // Title
-    const title = this.add.text(screenWidth / 2, y + 50, 'Audio Settings', {
+    const title = this.add.text(screenWidth / 2, y + 40, 'Audio Settings', {
         fontSize: '32px',
         fontFamily: 'Comic Sans MS',
         fill: '#ffffff'
     }).setOrigin(0.5);
     this.settingsContainer.add(title);
 
-    // Close Button
-    const closeBtn = this.add.text(x + width - 50, y + 50, 'X', {
-        fontSize: '32px',
-        fontFamily: 'Arial',
-        fill: '#ff0000'
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    // Cute Close Button (Top Right)
+    const closeSize = 40;
+    const closeX = x + width - 30;
+    const closeY = y + 30;
+
+    const closeBtn = this.add.container(closeX, closeY);
+    const closeBg = this.add.graphics();
+    closeBg.fillStyle(0xff4444, 1); // Reddish
+    closeBg.fillCircle(0, 0, closeSize / 2);
+    closeBg.lineStyle(2, 0xffffff, 1);
+    closeBg.strokeCircle(0, 0, closeSize / 2);
+
+    // Draw X
+    const xSize = closeSize / 4;
+    closeBg.lineStyle(3, 0xffffff, 1);
+    closeBg.beginPath();
+    closeBg.moveTo(-xSize, -xSize);
+    closeBg.lineTo(xSize, xSize);
+    closeBg.moveTo(xSize, -xSize);
+    closeBg.lineTo(-xSize, xSize);
+    closeBg.strokePath();
+
+    closeBtn.add(closeBg);
+    closeBtn.setSize(closeSize, closeSize);
+    closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, closeSize/2), Phaser.Geom.Circle.Contains);
 
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
@@ -212,24 +205,30 @@ class UIScene extends Phaser.Scene {
     });
     this.settingsContainer.add(closeBtn);
 
-    // Sliders
-    this.createSlider('Music', y + 150, screenWidth / 2, 'music');
-    this.createSlider('Ambient', y + 250, screenWidth / 2, 'ambient');
-    this.createSlider('SFX', y + 350, screenWidth / 2, 'sfx');
+    // Calculate layout for sliders
+    // Space available below title (y + 80) to bottom (y + height - 20)
+    const contentTop = y + 80;
+    const contentHeight = height - 100;
+    const spacing = contentHeight / 3;
+    const trackWidth = Math.min(200, width - 60);
+
+    this.createSlider('Music', contentTop + spacing * 0.5, screenWidth / 2, 'music', trackWidth);
+    this.createSlider('Ambient', contentTop + spacing * 1.5, screenWidth / 2, 'ambient', trackWidth);
+    this.createSlider('SFX', contentTop + spacing * 2.5, screenWidth / 2, 'sfx', trackWidth);
   }
 
-  createSlider(label, y, centerX, type) {
-    const startX = centerX - 100;
-    const endX = centerX + 100;
+  createSlider(label, y, centerX, type, trackWidth = 200) {
+    const startX = centerX - (trackWidth / 2);
+    const endX = centerX + (trackWidth / 2);
 
-    const text = this.add.text(centerX, y - 30, label, {
+    const text = this.add.text(centerX, y - 25, label, {
         fontSize: '24px',
         fontFamily: 'Comic Sans MS',
         fill: '#ffffff'
     }).setOrigin(0.5);
     this.settingsContainer.add(text);
 
-    const track = this.add.rectangle(centerX, y + 10, 200, 4, 0x888888);
+    const track = this.add.rectangle(centerX, y + 10, trackWidth, 4, 0x888888);
     this.settingsContainer.add(track);
 
     // Handle
@@ -239,14 +238,14 @@ class UIScene extends Phaser.Scene {
     else if (type === 'ambient' && this.registry.has('ambientVolume')) currentVol = this.registry.get('ambientVolume');
     else if (type === 'sfx' && this.registry.has('sfxVolume')) currentVol = this.registry.get('sfxVolume');
 
-    const handleX = startX + (currentVol * 200);
+    const handleX = startX + (currentVol * trackWidth);
     const handle = this.add.circle(handleX, y + 10, 12, 0xffffff).setInteractive({ draggable: true });
     this.settingsContainer.add(handle);
 
     handle.on('drag', (pointer, dragX, dragY) => {
         const clampedX = Phaser.Math.Clamp(dragX, startX, endX);
         handle.x = clampedX;
-        const volume = (clampedX - startX) / 200;
+        const volume = (clampedX - startX) / trackWidth;
 
         // Update Registry which triggers events
         if (type === 'music') this.registry.set('musicVolume', volume);
@@ -285,7 +284,7 @@ class MainMenu extends Phaser.Scene {
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
     this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
-    this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
+    this.load.svg('finger-cursor', 'assets/cursor/pointer-finger.svg', { width: 50, height: 75 });
 
     // Audio assets
     this.load.audio('background-music', 'assets/audio/background-music.mp3');
@@ -484,26 +483,87 @@ class MainMenu extends Phaser.Scene {
       this.scene.start('MapScene');
     };
 
-    // NEW: Add blinking "Tap to Start" text for UX guidance
-    const startText = this.add.text(this.game.config.width / 2, 650 * scale, 'Tap to Start', {
-      fontSize: `${48 * scale}px`,
+    // NEW: "Red Pill" Start Button with 2-step activation
+    this.startStep = 1;
+    const buttonWidth = 400 * scale;
+    const buttonHeight = 100 * scale;
+    const btnX = this.game.config.width / 2;
+    const btnY = 650 * scale;
+
+    const startBtnContainer = this.add.container(btnX, btnY);
+
+    // Red Pill Background
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0xff0000, 1); // Red
+    btnBg.fillRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
+    btnBg.lineStyle(4 * scale, 0xffffff, 1); // White border
+    btnBg.strokeRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
+    startBtnContainer.add(btnBg);
+
+    // Text
+    const btnText = this.add.text(0, 0, 'Tap Here to Start', {
+      fontSize: `${40 * scale}px`,
       fill: '#ffffff',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#000000',
-      strokeThickness: 6 * scale
-    }).setOrigin(0.5)
-      .setInteractive()
-      .once('pointerdown', startGame);
+      strokeThickness: 4 * scale
+    }).setOrigin(0.5);
+    startBtnContainer.add(btnText);
 
+    // Interaction Zone
+    startBtnContainer.setSize(buttonWidth, buttonHeight);
+    startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+
+    // Pulse Animation
     this.tweens.add({
-      targets: startText,
-      alpha: 0,
-      duration: 1000,
-      ease: 'Power1',
+      targets: startBtnContainer,
+      scaleX: 1.05,
+      scaleY: 1.05,
+      duration: 800,
       yoyo: true,
-      repeat: -1
+      repeat: -1,
+      ease: 'Sine.easeInOut'
     });
+
+    const handleStart = () => {
+      if (this.startStep === 1) {
+        // Step 1: Maximize, Unmute, Start Music
+        const canvas = this.game.canvas;
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+        if (isMobile) {
+            safeRequestFullscreen(canvas);
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(() => {});
+            }
+        } else {
+            safeRequestFullscreen(canvas);
+        }
+
+        // Start Audio/Music
+        if (!this.scene.get('MusicScene').scene.isActive()) {
+            this.scene.launch('MusicScene');
+        }
+
+        // Unmute Video
+        if (this.introVideo) {
+            this.introVideo.setMute(false);
+            const vol = this.registry.get('musicVolume');
+            this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
+        }
+
+        // Change Button to "Play Now"
+        btnText.setText("Play Now");
+        this.startStep = 2;
+
+      } else {
+        // Step 2: Transition to Game
+        startGame();
+      }
+    };
+
+    startBtnContainer.on('pointerdown', handleStart);
 
     // Initialize volume registry
     if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
@@ -857,7 +917,8 @@ class SectionHunt extends Phaser.Scene {
     this.eggsAmminHaul = this.add.image(0, 350 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
       .setDisplaySize(137 * scale, 150 * scale)
-      .setInteractive();
+      .setInteractive()
+      .setDepth(4);
 
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
 
@@ -897,14 +958,16 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics.fillCircle(0, 0, 50 * scale);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
 
-    // if (!this.sys.game.device.os.desktop) {
-      // WHY DO I NEED THIS??? DO NOT WANT! ===> this.magnifyingGlass = null;
-    // } else {
-      this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass')
-        .setOrigin(1, 1) // Anchor at bottom-right (handle tip)
-        .setDepth(7)
-        .setScrollFactor(0);
-    // }
+    this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass')
+      .setOrigin(1, 1) // Anchor at bottom-right (handle tip)
+      .setDepth(7)
+      .setScrollFactor(0);
+
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
+        .setOrigin(0.5, 0.5)
+        .setDepth(8)
+        .setScrollFactor(0)
+        .setVisible(false);
 
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
@@ -1017,9 +1080,65 @@ class SectionHunt extends Phaser.Scene {
       }
     });
 
-    if (this.magnifyingGlass) {
-      this.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
-      this.magnifyingGlass.setPosition(pointer.x, pointer.y);
+    // Handle Button Hover and Cursor Swap
+    const buttons = [this.eggZitButton, this.eggsAmminHaul];
+    let isHoveringButton = false;
+
+    buttons.forEach(btn => {
+        if (btn && btn.active) {
+             // Store base scale if not already stored
+             if (btn.baseScaleX === undefined) btn.baseScaleX = btn.scaleX;
+             if (btn.baseScaleY === undefined) btn.baseScaleY = btn.scaleY;
+
+             const bounds = btn.getBounds();
+             if (bounds.contains(pointer.x, pointer.y)) {
+                 isHoveringButton = true;
+                 if (!btn.isHovered) {
+                     btn.isHovered = true;
+                     // Use absolute scale based on baseScale
+                     this.tweens.add({
+                         targets: btn,
+                         scaleX: btn.baseScaleX * 1.1,
+                         scaleY: btn.baseScaleY * 1.1,
+                         duration: 100,
+                         ease: 'Sine.easeInOut'
+                     });
+                 }
+             } else {
+                 if (btn.isHovered) {
+                     btn.isHovered = false;
+                     // Return to base scale
+                     this.tweens.add({
+                         targets: btn,
+                         scaleX: btn.baseScaleX,
+                         scaleY: btn.baseScaleY,
+                         duration: 100,
+                         ease: 'Sine.easeInOut'
+                     });
+                 }
+             }
+        }
+    });
+
+    if (isHoveringButton) {
+        if (this.magnifyingGlass) this.magnifyingGlass.setVisible(false);
+        if (this.zoomedView) this.zoomedView.setVisible(false);
+        if (this.maskGraphics) this.maskGraphics.setVisible(false);
+
+        if (this.fingerCursor) {
+            this.fingerCursor.setVisible(true);
+            this.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
+            this.fingerCursor.setPosition(pointer.x, pointer.y);
+        }
+    } else {
+        if (this.magnifyingGlass) {
+             this.magnifyingGlass.setVisible(true);
+             this.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
+             this.magnifyingGlass.setPosition(pointer.x, pointer.y);
+        }
+        if (this.zoomedView) this.zoomedView.setVisible(true);
+        if (this.maskGraphics) this.maskGraphics.setVisible(true);
+        if (this.fingerCursor) this.fingerCursor.setVisible(false);
     }
 
     const foundEggsCount = this.registry.get('foundEggs').length;
@@ -1331,7 +1450,7 @@ window.game = game; // Expose for debugging/verification
  * @param {string} [soundKey='success'] - The key of the sound to play on click.
  */
 function addButtonInteraction(scene, button, soundKey = 'success') {
-  let baseScaleX, baseScaleY;
+  let localBaseX, localBaseY;
 
   button.on('pointerdown', () => {
     // Try to play sound via MusicScene if available to ensure persistence
@@ -1342,28 +1461,40 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
         scene.sound.play(soundKey, { volume: 0.5 });
     }
 
-    if (!scene.tweens.isTweening(button)) {
-      baseScaleX = button.scaleX;
-      baseScaleY = button.scaleY;
+    // Determine the resting scale
+    // If the button has an explicit baseScale (from hover logic), use it.
+    // Otherwise, capture the current scale on first interaction or if not tweening.
+    if (button.baseScaleX !== undefined) {
+        localBaseX = button.baseScaleX;
+        localBaseY = button.baseScaleY;
+    } else if (localBaseX === undefined || !scene.tweens.isTweening(button)) {
+        localBaseX = button.scaleX;
+        localBaseY = button.scaleY;
     }
 
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
-      scaleX: (baseScaleX || button.scaleX) * 0.9,
-      scaleY: (baseScaleY || button.scaleY) * 0.9,
+      scaleX: localBaseX * 0.9,
+      scaleY: localBaseY * 0.9,
       duration: 50,
       ease: 'Power1'
     });
   });
 
   const restore = () => {
-    if (baseScaleX !== undefined) {
+    if (localBaseX !== undefined) {
+      // If the button has dynamic baseScale (hover), update local to match
+      if (button.baseScaleX !== undefined) {
+          localBaseX = button.baseScaleX;
+          localBaseY = button.baseScaleY;
+      }
+
       scene.tweens.killTweensOf(button);
       scene.tweens.add({
         targets: button,
-        scaleX: baseScaleX,
-        scaleY: baseScaleY,
+        scaleX: localBaseX,
+        scaleY: localBaseY,
         duration: 100,
         ease: 'Power1'
       });
