@@ -628,8 +628,9 @@ class SectionHunt extends Phaser.Scene {
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
           // console.log(`Bounds check PASSED for egg-${eggId}`);
-          const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          if (distance < 150) {
+          // Bolt Optimization: Use squared distance to avoid sqrt
+          const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
+          if (distSq < 22500) { // 150^2
             // console.log(`Distance check PASSED for egg-${eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
@@ -716,10 +717,12 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.draw(this.renderStamp, 0, 0);
 
     // Single pass for visibility update and drawing
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius;
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-        const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
-        const alpha = distance < magnifierRadius ? 1 : 0;
+        // Bolt Optimization: Use squared distance to avoid sqrt in hot loop
+        const distSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
+        const alpha = distSq < magnifierRadiusSq ? 1 : 0;
         egg.setAlpha(alpha);
         if (egg.symbolSprite) {
           egg.symbolSprite.setAlpha(alpha);
