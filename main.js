@@ -571,9 +571,102 @@ class SectionHunt extends Phaser.Scene {
     // console.log('SectionHunt: Collecting egg with symbolData:', eggData.symbolData);
     if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
       this.sound.play('collect');
+
+      // Get symbol texture if available
+      let symbolTexture = null;
+      if (egg.symbolSprite && egg.symbolSprite.active) {
+          symbolTexture = egg.symbolSprite.texture.key;
+      }
+
+      this.showCollectionFeedback(egg.x, egg.y, egg.texture.key, symbolTexture);
       foundEggs.push(eggData);
       this.registry.set('foundEggs', foundEggs);
+
+      // Reset hint timer on success
+      if (this.hintTimer) {
+          this.hintTimer.reset({ delay: 120000, callback: this.showIdleHint, callbackScope: this, loop: true });
+      }
       // console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
+    }
+  }
+
+  showCollectionFeedback(x, y, eggTexture, symbolTexture) {
+    // Show Egg Sprite
+    const eggSprite = this.add.image(x, y, eggTexture).setDepth(20).setDisplaySize(50, 75);
+    this.tweens.add({
+        targets: eggSprite,
+        y: y - 60,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power1',
+        onComplete: () => eggSprite.destroy()
+    });
+
+    // Show Symbol Sprite if exists
+    if (symbolTexture) {
+        const symSprite = this.add.image(x, y, symbolTexture).setDepth(21).setDisplaySize(50, 75);
+        this.tweens.add({
+            targets: symSprite,
+            y: y - 60,
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power1',
+            onComplete: () => symSprite.destroy()
+        });
+    }
+
+    const feedback = this.add.text(x, y - 40, 'Found!', {
+        fontSize: '32px',
+        fontFamily: 'Comic Sans MS',
+        fill: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 4
+    }).setOrigin(0.5).setDepth(22);
+
+    this.tweens.add({
+        targets: feedback,
+        y: y - 100,
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power1',
+        onComplete: () => feedback.destroy()
+    });
+  }
+
+  showIdleHint() {
+    const foundEggs = this.registry.get('foundEggs');
+    const sections = this.registry.get('sections');
+    const currentSection = sections.find(s => s.name === this.sectionName);
+
+    if (!currentSection) return;
+
+    // Count how many eggs from this section are NOT yet found
+    const eggsInSection = currentSection.eggs; // Array of IDs
+    const foundIds = foundEggs.map(e => e.eggId);
+    const remainingCount = eggsInSection.filter(id => !foundIds.includes(id)).length;
+
+    if (remainingCount > 0) {
+        // Play gentle cue
+        const musicScene = this.scene.get('MusicScene');
+        if (musicScene) musicScene.playSFX('menu-click');
+
+        const hintText = this.add.text(640, 680, `Hint: ${remainingCount} eggs left here!`, {
+            fontSize: '32px',
+            fontFamily: 'Comic Sans MS',
+            fill: '#ffffff',
+            backgroundColor: '#00000088',
+            padding: { x: 10, y: 5 },
+            stroke: '#000000',
+            strokeThickness: 4
+        }).setOrigin(0.5).setDepth(30).setScrollFactor(0);
+
+        this.tweens.add({
+            targets: hintText,
+            alpha: 0,
+            delay: 4000,
+            duration: 1000,
+            onComplete: () => hintText.destroy()
+        });
     }
   }
 
@@ -684,6 +777,14 @@ class SectionHunt extends Phaser.Scene {
 
     // Bolt Optimization: Render Stamp for single-pass drawing
     this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+
+    // Idle Hint Timer (2 minutes)
+    this.hintTimer = this.time.addEvent({
+        delay: 120000,
+        callback: this.showIdleHint,
+        callbackScope: this,
+        loop: true
+    });
   }
 
   update() {
