@@ -438,12 +438,7 @@ class MainMenu extends Phaser.Scene {
       this.introVideo = introVideo; // Store reference for resizing
       introVideo.setMute(true); // Start muted to allow autoplay
       try {
-        const playPromise = introVideo.play(true); // Loop
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.warn('Video autoplay failed:', error);
-          });
-        }
+        introVideo.play(true); // Loop
       } catch (e) {
         console.warn('Video autoplay synchronous error:', e);
       }
@@ -1076,6 +1071,13 @@ class SectionHunt extends Phaser.Scene {
     const lensX = pointer.x + lensOffsetX;
     const lensY = pointer.y + lensOffsetY;
 
+    // Ensure video size is correct once texture loads
+    if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active && this.sectionImage.width > 0) {
+        if (Math.abs(this.sectionImage.displayWidth - this.game.config.width) > 10) {
+             this.sectionImage.setDisplaySize(this.game.config.width, this.game.config.height);
+        }
+    }
+
     // Update Zoomed View Position (centered on lens)
     this.zoomedView.setPosition(lensX, lensY);
     this.maskGraphics.setPosition(lensX, lensY);
@@ -1091,7 +1093,12 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.clear();
 
     // Draw background using renderStamp to avoid dirtying scene object
-    this.renderStamp.setTexture(this.sectionName);
+    if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active) {
+         this.renderStamp.texture = this.sectionImage.texture;
+         this.renderStamp.frame = this.sectionImage.frame;
+    } else {
+         this.renderStamp.setTexture(this.sectionName);
+    }
     this.renderStamp.setOrigin(0, 0);
     this.renderStamp.setDisplaySize(this.game.config.width, this.game.config.height);
     this.renderStamp.setScale(this.renderStamp.scaleX * zoom, this.renderStamp.scaleY * zoom);
