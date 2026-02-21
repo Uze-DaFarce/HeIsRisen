@@ -109,7 +109,8 @@ class UIScene extends Phaser.Scene {
     const y = 60;
     this.drawGear(gear, x, y);
 
-    const hitArea = new Phaser.Geom.Circle(x, y, 20);
+    // Much larger hit area (60px radius) for the gear
+    const hitArea = new Phaser.Geom.Circle(x, y, 60);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
@@ -178,6 +179,10 @@ class UIScene extends Phaser.Scene {
     const closeY = y + 30;
 
     const closeBtn = this.add.container(closeX, closeY);
+
+    // Transparent hit area - much larger (80x80)
+    const hitArea = new Phaser.Geom.Circle(0, 0, 40);
+
     const closeBg = this.add.graphics();
     closeBg.fillStyle(0xff4444, 1); // Reddish
     closeBg.fillCircle(0, 0, closeSize / 2);
@@ -195,8 +200,8 @@ class UIScene extends Phaser.Scene {
     closeBg.strokePath();
 
     closeBtn.add(closeBg);
-    closeBtn.setSize(closeSize, closeSize);
-    closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, closeSize/2), Phaser.Geom.Circle.Contains);
+    closeBtn.setSize(80, 80); // Ensure container size is large enough
+    closeBtn.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
@@ -228,8 +233,12 @@ class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.settingsContainer.add(text);
 
-    const track = this.add.rectangle(centerX, y + 10, trackWidth, 4, 0x888888);
+    // Increase track hit area for easier tapping
+    const track = this.add.rectangle(centerX, y + 10, trackWidth, 30, 0x888888).setAlpha(0.01).setInteractive();
+    // Visual track
+    const visualTrack = this.add.rectangle(centerX, y + 10, trackWidth, 4, 0x888888);
     this.settingsContainer.add(track);
+    this.settingsContainer.add(visualTrack);
 
     // Handle
     let currentVol = 0.5;
@@ -239,11 +248,12 @@ class UIScene extends Phaser.Scene {
     else if (type === 'sfx' && this.registry.has('sfxVolume')) currentVol = this.registry.get('sfxVolume');
 
     const handleX = startX + (currentVol * trackWidth);
-    const handle = this.add.circle(handleX, y + 10, 12, 0xffffff).setInteractive({ draggable: true });
+    // Larger handle hit area
+    const handle = this.add.circle(handleX, y + 10, 20, 0xffffff).setInteractive({ draggable: true });
     this.settingsContainer.add(handle);
 
-    handle.on('drag', (pointer, dragX, dragY) => {
-        const clampedX = Phaser.Math.Clamp(dragX, startX, endX);
+    const updateVolume = (x) => {
+        const clampedX = Phaser.Math.Clamp(x, startX, endX);
         handle.x = clampedX;
         const volume = (clampedX - startX) / trackWidth;
 
@@ -251,6 +261,17 @@ class UIScene extends Phaser.Scene {
         if (type === 'music') this.registry.set('musicVolume', volume);
         else if (type === 'ambient') this.registry.set('ambientVolume', volume);
         else if (type === 'sfx') this.registry.set('sfxVolume', volume);
+    };
+
+    handle.on('drag', (pointer, dragX, dragY) => {
+        updateVolume(dragX);
+    });
+
+    track.on('pointerdown', (pointer) => {
+        // pointer.x is world coordinate, but since container is at 0,0, it maps directly.
+        // If container moves, we'd need local transform.
+        // Assuming container is fullscreen overlay at 0,0.
+        updateVolume(pointer.x);
     });
   }
 
@@ -437,6 +458,7 @@ class MainMenu extends Phaser.Scene {
       const introVideo = this.add.video(this.game.config.width / 2, this.game.config.height / 2, 'intro-video');
       this.introVideo = introVideo; // Store reference for resizing
       introVideo.setMute(true); // Start muted to allow autoplay
+      introVideo.disableInteractive(); // Ensure video ignores input
       try {
         introVideo.play(true); // Loop
       } catch (e) {
@@ -454,7 +476,7 @@ class MainMenu extends Phaser.Scene {
       } else {
         this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
           .setOrigin(0.5, 0.5)
-          .setDisplaySize(50 * scale, 75 * scale)
+          .setDisplaySize(100 * scale, 150 * scale)
           .setDepth(1000); // Ensure cursor is on top of everything
       }
 
@@ -467,53 +489,48 @@ class MainMenu extends Phaser.Scene {
         }
       };
 
-      const startGame = () => {
-        if (introVideo) {
-            introVideo.stop();
-            introVideo.destroy();
-        }
+      // NEW INTRO SEQUENCE LOGIC
+      // 1. Silent Loop + "Tap anywhere to start"
+      // 2. User Tap -> Unmute, Fullscreen, Wait 3s
+      // 3. Show "Play Now" Button
+      // 4. User Tap "Play Now" -> Start Game
 
-        if (!this.scene.get('MusicScene').scene.isActive()) {
-          this.scene.launch('MusicScene');
-        }
-        this.sound.play('drive1', { volume: 0.5 });
+      // Initialize volume registry early
+      if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
+      if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', 0.5);
+      if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', 0.5);
 
-        const canvas = this.game.canvas;
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      // Launch UI Scene immediately (hidden initially)
+      if (!this.scene.get('UIScene').scene.isActive()) {
+          this.scene.launch('UIScene');
+      }
 
-        if (isMobile) {
-          safeRequestFullscreen(canvas);
-          if (screen.orientation && screen.orientation.lock) {
-            screen.orientation.lock('landscape').catch(err => {
-              // console.log('Orientation lock failed:', err);
-            });
-          }
-        } else {
-          safeRequestFullscreen(canvas);
-        }
-        this.scene.start('MapScene');
-      };
+      // Initial Overlay Text
+      const tapToStartText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, 'Tap anywhere to start', {
+          fontSize: '48px',
+          fontFamily: 'Comic Sans MS',
+          fill: '#ffffff',
+          stroke: '#000000',
+          strokeThickness: 6
+      }).setOrigin(0.5).setDepth(100);
 
-      // NEW: "Red Pill" Start Button with 2-step activation
-      this.startStep = 1;
-      const buttonWidth = 400; // Unscaled width
-      const buttonHeight = 100; // Unscaled height
+      // "Play Now" Button Container (Initially Hidden)
+      const buttonWidth = 400;
+      const buttonHeight = 100;
       const btnX = this.game.config.width / 2;
-      const btnY = 580 * scale; // Moved up to reveal bottom text
+      const btnY = 580 * scale;
 
-      const startBtnContainer = this.add.container(btnX, btnY);
-      this.startBtnContainer = startBtnContainer; // Expose for resizing
+      const startBtnContainer = this.add.container(btnX, btnY).setVisible(false).setDepth(101);
+      this.startBtnContainer = startBtnContainer;
 
-      // Red Pill Background
       const btnBg = this.add.graphics();
-      btnBg.fillStyle(0xff0000, 1); // Red
+      btnBg.fillStyle(0xff0000, 1);
       btnBg.fillRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
-      btnBg.lineStyle(4, 0xffffff, 1); // White border
+      btnBg.lineStyle(4, 0xffffff, 1);
       btnBg.strokeRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, buttonHeight / 2);
       startBtnContainer.add(btnBg);
 
-      // Text
-      const btnText = this.add.text(0, 0, 'Tap Here to Start', {
+      const btnText = this.add.text(0, 0, 'PLAY NOW', {
         fontSize: `40px`,
         fill: '#ffffff',
         fontStyle: 'bold',
@@ -522,32 +539,38 @@ class MainMenu extends Phaser.Scene {
         strokeThickness: 4
       }).setOrigin(0.5);
       startBtnContainer.add(btnText);
-      this.btnText = btnText; // Store to update text
 
-      // Interaction Zone
       startBtnContainer.setSize(buttonWidth, buttonHeight);
-      startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
-
-      // Apply initial scale
+      // Increased hit area height for easier tapping
+      startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight, buttonWidth, buttonHeight * 2), Phaser.Geom.Rectangle.Contains);
       startBtnContainer.setScale(scale);
 
-      // Pulse Animation
-      this.tweens.add({
-        targets: startBtnContainer,
-        scaleX: scale * 1.05,
-        scaleY: scale * 1.05,
-        duration: 800,
-        yoyo: true,
-        repeat: -1,
-        ease: 'Sine.easeInOut'
-      });
+      // State Management
+      let introState = 'waiting_for_interaction'; // waiting_for_interaction -> playing_intro -> ready_to_play
 
-      const handleStart = () => {
-        if (this.startStep === 1) {
-          // Step 1: Maximize, Unmute, Start Music
+      const handleGlobalTap = () => {
+          if (introState !== 'waiting_for_interaction') return;
+
+          introState = 'playing_intro';
+          tapToStartText.setVisible(false);
+
+          // Resume Audio Context
+          if (this.sound.context.state === 'suspended') {
+              this.sound.context.resume();
+          }
+
+          // Unmute Video
+          if (this.introVideo) {
+              this.introVideo.setMute(false);
+              const vol = this.registry.get('musicVolume');
+              this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
+              // Ensure it's playing
+              if (this.introVideo.isPaused()) this.introVideo.play(true);
+          }
+
+          // Fullscreen
           const canvas = this.game.canvas;
           const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
           if (isMobile) {
               safeRequestFullscreen(canvas);
               if (screen.orientation && screen.orientation.lock) {
@@ -557,90 +580,72 @@ class MainMenu extends Phaser.Scene {
               safeRequestFullscreen(canvas);
           }
 
-          // Start Audio/Music
-          if (!this.scene.get('MusicScene').scene.isActive()) {
-              this.scene.launch('MusicScene');
-          }
+          // Wait 3 seconds then show Play Button
+          this.time.delayedCall(3000, () => {
+              introState = 'ready_to_play';
+              startBtnContainer.setVisible(true);
+              startBtnContainer.setScale(0);
 
-          // Unmute Video
-          if (this.introVideo) {
-              this.introVideo.setMute(false);
-              const vol = this.registry.get('musicVolume');
-              this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
-          }
+              // Kill any existing tweens to prevent conflicts
+              this.tweens.killTweensOf(startBtnContainer);
 
-          // Change Button to "Play Now"
-          btnText.setText("Play Now");
-          this.startStep = 2;
-
-        } else {
-          // Step 2: Transition to Game
-          startGame();
-        }
+              // Pop in effect
+              this.tweens.add({
+                  targets: startBtnContainer,
+                  scaleX: scale,
+                  scaleY: scale,
+                  duration: 500,
+                  ease: 'Back.out',
+                  onComplete: () => {
+                      // Start pulsing after pop-in is complete
+                      this.tweens.add({
+                        targets: startBtnContainer,
+                        scaleX: scale * 1.05,
+                        scaleY: scale * 1.05,
+                        duration: 800,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                      });
+                  }
+              });
+          });
       };
 
-      startBtnContainer.on('pointerdown', handleStart);
+      // Add one-time listener for the global tap
+      this.input.once('pointerdown', handleGlobalTap);
 
-      // Initialize volume registry
-      if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
-      if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', 0.5);
-      if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', 0.5);
+      // Play Now Handler
+      startBtnContainer.on('pointerdown', () => {
+          // Fade out video audio
+          this.tweens.add({
+              targets: this.introVideo,
+              volume: 0,
+              duration: 500,
+              onComplete: () => {
+                  if (this.introVideo) {
+                      this.introVideo.stop();
+                      this.introVideo.destroy();
+                  }
 
-      // Launch UI Scene
-      if (!this.scene.get('UIScene').scene.isActive()) {
-          this.scene.launch('UIScene');
-      }
+                  // Start Background Music
+                  if (!this.scene.get('MusicScene').scene.isActive()) {
+                      this.scene.launch('MusicScene');
+                  }
 
-      // ROBUST AUTOPLAY STRATEGY for Video
-      const musicVol = this.registry.get('musicVolume');
-      introVideo.setVolume(musicVol);
+                  this.sound.play('drive1', { volume: 0.5 });
+                  this.scene.start('MapScene');
+              }
+          });
+      });
 
-      // Update intro volume if changed in settings
-      const updateIntroVolume = (parent, key, data) => {
-          if (key === 'musicVolume' && introVideo && introVideo.active) {
-              introVideo.setVolume(data);
-          }
-      };
-      this.registry.events.on('changedata', updateIntroVolume);
+      // Clean up on shutdown
       this.events.once('shutdown', () => {
-          this.registry.events.off('changedata', updateIntroVolume);
           if (introVideo) {
               introVideo.stop();
               introVideo.destroy();
           }
       });
-
-      const unlockAudio = () => {
-          if (this.sound.context.state === 'suspended') {
-              this.sound.context.resume();
-          }
-          if (introVideo && introVideo.isPaused()) {
-              try { introVideo.play(true); } catch(e){}
-          }
-          if (introVideo) {
-              introVideo.setMute(false);
-          }
-
-          // Auto-Fullscreen on first interaction
-          const canvas = this.game.canvas;
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-          if (isMobile && !document.fullscreenElement && !document.webkitFullscreenElement) {
-               safeRequestFullscreen(canvas);
-               if (screen.orientation && screen.orientation.lock) {
-                    screen.orientation.lock('landscape').catch(() => {});
-               }
-          }
-      };
-
-      // Note: We do NOT call unlockAudio() immediately to allow muted autoplay.
-      // Audio will be unlocked on first interaction.
-
-      // Unlock on any pointer or keyboard interaction
-      this.input.on('pointerdown', unlockAudio);
-      this.input.keyboard.on('keydown', unlockAudio);
-
-      this.input.keyboard.once('keydown-SPACE', startGame);
-      this.input.keyboard.once('keydown-ENTER', startGame);
 
       // Ensure loading text is destroyed if it persists (safety check)
       // Note: loadingText is local to preload, so we can't access it here directly easily unless stored on this.
@@ -734,7 +739,7 @@ class MapScene extends Phaser.Scene {
     this.eggsAmminHaul = this.add.image(0, 200 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
       .setDisplaySize(137 * scale, 150 * scale)
-      .setInteractive();
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 137, 150), Phaser.Geom.Rectangle.Contains);
 
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
 
@@ -765,7 +770,7 @@ class MapScene extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(50 * scale, 75 * scale);
+        .setDisplaySize(100 * scale, 150 * scale);
     }
   }
 
@@ -861,7 +866,8 @@ class SectionHunt extends Phaser.Scene {
             this.sectionImage = this.add.video(0, 0, 'grand-prismatic-video')
                 .setOrigin(0, 0)
                 .setDisplaySize(this.game.config.width, this.game.config.height)
-                .setDepth(0);
+                .setDepth(0)
+                .disableInteractive(); // Ensure background video is non-interactive
             this.sectionImage.play(true); // Loop
 
             // Error handling for playback issues
@@ -896,7 +902,7 @@ class SectionHunt extends Phaser.Scene {
       const egg = this.add.image(eggData.x, eggData.y, `egg-${eggData.eggId}`)
         .setInteractive()
         .setDepth(5)
-        .setDisplaySize(50 * scale, 75 * scale)
+        .setDisplaySize(100 * scale, 150 * scale) // Doubled size
         .setAlpha(0);
       egg.setData('eggId', eggData.eggId);
       egg.setData('symbolDetails', eggData.symbol);
@@ -905,7 +911,7 @@ class SectionHunt extends Phaser.Scene {
         if (this.textures.exists(textureKey)) {
           const symbolSprite = this.add.image(eggData.x, eggData.y, textureKey)
             .setDepth(6)
-            .setDisplaySize(50 * scale, 75 * scale)
+            .setDisplaySize(100 * scale, 150 * scale) // Doubled size
             .setAlpha(0);
           egg.symbolSprite = symbolSprite;
           // console.log(`SectionHunt: Added symbol '${eggData.symbol.name}' (${textureKey}) to egg-${eggData.eggId}`);
@@ -943,7 +949,7 @@ class SectionHunt extends Phaser.Scene {
     this.eggZitButton = this.add.image(0, 200 * scale, 'egg-zit-button')
       .setOrigin(0, 0)
       .setDisplaySize(150 * scale, 150 * scale)
-      .setInteractive()
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 150, 150), Phaser.Geom.Rectangle.Contains)
       .on('pointerdown', () => {
         // console.log('Click on eggZitButton');
         this.scene.start('MapScene');
@@ -955,7 +961,7 @@ class SectionHunt extends Phaser.Scene {
     this.eggsAmminHaul = this.add.image(0, 350 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
       .setDisplaySize(137 * scale, 150 * scale)
-      .setInteractive()
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 137, 150), Phaser.Geom.Rectangle.Contains)
       .setDepth(4);
 
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
@@ -985,7 +991,7 @@ class SectionHunt extends Phaser.Scene {
       strokeThickness: 6 * scale
     }).setDepth(5);
 
-    const diameter = 100 * scale; // Match visual lens size
+    const diameter = 200 * scale; // Doubled size
     this.zoomedView = this.add.renderTexture(0, 0, diameter, diameter)
       .setDepth(2)
       .setScrollFactor(0)
@@ -993,7 +999,7 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics = this.add.graphics()
       .setScrollFactor(0);
     // Draw circle centered at 0,0 relative to graphics object
-    this.maskGraphics.fillCircle(0, 0, 50 * scale);
+    this.maskGraphics.fillCircle(0, 0, 100 * scale); // Doubled radius
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
 
     this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass')
@@ -1013,29 +1019,17 @@ class SectionHunt extends Phaser.Scene {
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
       // Calculate lens position based on pointer
-      // Offset matches update loop logic: (-120 * scale, -170 * scale)
       const scale = this.gameScale;
-      // Note: These offsets must match the update loop EXACTLY
-      // Image is 200x250. Handle is at bottom-right (200, 250).
-      // Lens center approx (80, 80).
-      // Offset = (80 - 200) * X_scale_factor, (80 - 250) * Y_scale_factor
-      // Display size is 200*scale x 250*scale.
-      // So visual offset is -120 * (scale/2) ?? No, display size is 100x125.
-      // Original image 200x250. Display size 100x125. Scale factor is 0.5 relative to original.
-      // So visual lens center is (-60 * scale, -85 * scale) relative to handle?
-      // Wait, let's look at update loop display size: 100 * scale, 125 * scale.
-      // This means the sprite is scaled by (0.5 * scale) relative to the 200x250 texture.
-      // Handle tip is at (200, 250) in texture space.
-      // Lens center is at (~80, ~80) in texture space.
-      // Delta is (-120, -170).
-      // Scaled delta is (-120 * 0.5 * scale, -170 * 0.5 * scale) = (-60 * scale, -85 * scale).
-      // Let's use these values.
 
-      const lensOffsetX = -60 * scale;
-      const lensOffsetY = -85 * scale;
+      // New offsets for doubled size (200x250 display size)
+      // Visual lens center is approx (-130 * scale, -180 * scale) relative to handle tip
+      // Shifted "Up and Left" a bit more as requested
+      const lensOffsetX = -130 * scale;
+      const lensOffsetY = -180 * scale;
+
       const lensX = pointer.x + lensOffsetX;
       const lensY = pointer.y + lensOffsetY;
-      const captureRadius = 60 * scale; // Slightly larger than visual radius (50)
+      const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
 
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
@@ -1044,6 +1038,7 @@ class SectionHunt extends Phaser.Scene {
            const distToClick = Phaser.Math.Distance.Between(pointer.x, pointer.y, egg.x, egg.y);
            const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
 
+           // Increased capture radius logic for easier finding
            if (distToClick < captureRadius || distToLens < captureRadius) {
                this.collectEgg(egg);
                egg.destroy();
@@ -1058,16 +1053,17 @@ class SectionHunt extends Phaser.Scene {
     const pointer = this.input.activePointer;
     const scale = this.gameScale;
 
-    // Magnifying glass display size is 100*scale x 125*scale.
+    // Magnifying glass display size is 200*scale x 250*scale.
     // Texture is 200x250.
-    // So visual scale factor relative to texture is 0.5 * scale.
+    // Visual scale factor relative to texture is 1.0 * scale.
     // Handle tip is at bottom-right (200, 250).
     // Lens center is approx (80, 80).
     // Offset in texture pixels: (-120, -170).
-    // Offset in screen pixels: (-120 * 0.5 * scale, -170 * 0.5 * scale) = (-60 * scale, -85 * scale).
+    // We shift it "Up and Left" a bit more per request: (-130, -180).
 
-    const lensOffsetX = -60 * scale;
-    const lensOffsetY = -85 * scale;
+    const lensOffsetX = -130 * scale;
+    const lensOffsetY = -180 * scale;
+
     const lensX = pointer.x + lensOffsetX;
     const lensY = pointer.y + lensOffsetY;
 
@@ -1082,9 +1078,9 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.setPosition(lensX, lensY);
     this.maskGraphics.setPosition(lensX, lensY);
 
-    const magnifierRadius = 50 * scale; // Visual radius for egg visibility
+    const magnifierRadius = 100 * scale; // Visual radius for egg visibility (doubled)
     const zoom = 2;
-    const diameter = 100 * scale;
+    const diameter = 200 * scale; // Doubled
     const viewWidth = diameter / zoom;
     const viewHeight = diameter / zoom;
     const scrollX = lensX - viewWidth / 2;
@@ -1189,13 +1185,13 @@ class SectionHunt extends Phaser.Scene {
 
         if (this.fingerCursor) {
             this.fingerCursor.setVisible(true);
-            this.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
+            this.fingerCursor.setDisplaySize(100 * scale, 150 * scale); // Doubled cursor size
             this.fingerCursor.setPosition(pointer.x, pointer.y);
         }
     } else {
         if (this.magnifyingGlass) {
              this.magnifyingGlass.setVisible(true);
-             this.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
+             this.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled size
              this.magnifyingGlass.setPosition(pointer.x, pointer.y);
         }
         if (this.zoomedView) this.zoomedView.setVisible(true);
@@ -1399,7 +1395,7 @@ class EggZamRoom extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0.5, 0.5)
-        .setDisplaySize(50 * this.gameScale, 75 * this.gameScale)
+        .setDisplaySize(100 * this.gameScale, 150 * this.gameScale)
         .setDepth(7);
     }
   }
@@ -1659,7 +1655,7 @@ function resizeGame() {
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
       }
       if (scene.fingerCursor) {
-        scene.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
+        scene.fingerCursor.setDisplaySize(100 * scale, 150 * scale);
       }
     }
     if (scene.scene.key === 'SectionHunt') {
@@ -1669,9 +1665,9 @@ function resizeGame() {
       if (scene.eggs) {
         scene.eggs.getChildren().forEach(egg => {
           if (egg && egg.active) {
-            egg.setDisplaySize(50 * scale, 75 * scale);
+            egg.setDisplaySize(100 * scale, 150 * scale); // Doubled
             if (egg.symbolSprite) {
-              egg.symbolSprite.setDisplaySize(50 * scale, 75 * scale);
+              egg.symbolSprite.setDisplaySize(100 * scale, 150 * scale); // Doubled
             }
           }
         });
@@ -1698,15 +1694,15 @@ function resizeGame() {
       }
       if (scene.zoomedView) {
         // Position set in update
-        const diameter = 100 * scale;
+        const diameter = 200 * scale; // Doubled
         scene.zoomedView.setSize(diameter, diameter);
       }
       if (scene.maskGraphics) {
         scene.maskGraphics.clear();
-        scene.maskGraphics.fillCircle(0, 0, 50 * scale);
+        scene.maskGraphics.fillCircle(0, 0, 100 * scale); // Doubled radius
       }
       if (scene.magnifyingGlass) {
-        scene.magnifyingGlass.setDisplaySize(100 * scale, 125 * scale);
+        scene.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled
         scene.magnifyingGlass.setPosition(scene.input.x, scene.input.y);
       }
     }
@@ -1778,7 +1774,7 @@ function resizeGame() {
         scene.noEggsText.setPosition(0.36 * width, 0.25 * height);
         scene.noEggsText.setStyle({ fontSize: `${28 * scale}px`, strokeThickness: 3 * scale, wordWrap: { width: 480 * scale, useAdvancedWrap: true } });
       }
-      if (scene.fingerCursor) scene.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
+      if (scene.fingerCursor) scene.fingerCursor.setDisplaySize(100 * scale, 150 * scale);
     }
   });
 }
