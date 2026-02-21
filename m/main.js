@@ -922,8 +922,9 @@ class SectionHunt extends Phaser.Scene {
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
           // console.log(`SectionHunt: Bounds check PASSED for egg-${eggData.eggId}`);
-          const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          if (distance < 150 * scale) {
+          const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
+          const thresholdSq = (150 * scale) * (150 * scale);
+          if (distSq < thresholdSq) {
             // console.log(`SectionHunt: Distance check PASSED for egg-${eggData.eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
@@ -1036,15 +1037,16 @@ class SectionHunt extends Phaser.Scene {
       const lensX = pointer.x + lensOffsetX;
       const lensY = pointer.y + lensOffsetY;
       const captureRadius = 60 * scale; // Slightly larger than visual radius (50)
+      const captureRadiusSq = captureRadius * captureRadius;
 
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
            // Check if clicking on egg OR clicking on handle (when egg is under lens)
-           const distToClick = Phaser.Math.Distance.Between(pointer.x, pointer.y, egg.x, egg.y);
-           const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+           const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
+           const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
 
-           if (distToClick < captureRadius || distToLens < captureRadius) {
+           if (distToClickSq < captureRadiusSq || distToLensSq < captureRadiusSq) {
                this.collectEgg(egg);
                egg.destroy();
                if (egg.symbolSprite) egg.symbolSprite.destroy();
@@ -1109,11 +1111,13 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.draw(this.renderStamp, (0 - scrollX) * zoom, (0 - scrollY) * zoom);
 
     // Single pass for visibility update and drawing
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius;
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
           // Update visibility
-          const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
-          const alpha = distance < magnifierRadius ? 1 : 0;
+          // Bolt Optimization: Use squared distance to avoid sqrt
+          const distSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
+          const alpha = distSq < magnifierRadiusSq ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
             egg.symbolSprite.setAlpha(alpha);
