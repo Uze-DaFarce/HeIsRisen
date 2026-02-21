@@ -1016,8 +1016,9 @@ class SectionHunt extends Phaser.Scene {
         .setScrollFactor(0)
         .setVisible(false);
 
-    // Bolt Fix: Help Prompt
-    this.lastInteractionTime = this.time.now;
+    // Bolt Fix: Help Prompt (Struggle Detection)
+    this.lastEggTime = this.time.now;
+    this.lastInputTime = this.time.now;
     this.helpText = this.add.text(this.game.config.width / 2, 50 * scale, '', {
         fontSize: `${28 * scale}px`,
         fill: '#ffffff',
@@ -1026,9 +1027,14 @@ class SectionHunt extends Phaser.Scene {
         padding: { x: 10, y: 5 }
     }).setOrigin(0.5).setScrollFactor(0).setDepth(100).setAlpha(0);
 
+    // Track input for AFK detection
+    this.input.on('pointermove', () => {
+        this.lastInputTime = this.time.now;
+    });
+
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
-      this.lastInteractionTime = this.time.now;
+      this.lastInputTime = this.time.now;
       if (this.helpText) this.helpText.setAlpha(0);
 
       // Calculate lens position based on pointer
@@ -1068,7 +1074,7 @@ class SectionHunt extends Phaser.Scene {
                this.collectEgg(egg);
                egg.destroy();
                if (egg.symbolSprite) egg.symbolSprite.destroy();
-               this.lastInteractionTime = this.time.now; // Reset on collect
+               this.lastEggTime = this.time.now; // Reset struggle timer
                if (this.helpText) this.helpText.setAlpha(0);
            }
         }
@@ -1077,8 +1083,12 @@ class SectionHunt extends Phaser.Scene {
   }
 
   update() {
-    // Bolt Fix: Show help if idle
-    if (this.time.now - this.lastInteractionTime > 15000) {
+    // Bolt Fix: Show help if struggling (active but no eggs found for 90s)
+    const timeSinceLastEgg = this.time.now - this.lastEggTime;
+    const timeSinceLastInput = this.time.now - this.lastInputTime;
+
+    // Condition: 90s since last egg AND active in last 30s
+    if (timeSinceLastEgg > 90000 && timeSinceLastInput < 30000) {
         const remaining = this.registry.get('eggData').filter(e => e.section === this.sectionName && !e.collected).length;
         if (remaining > 0 && this.helpText && this.helpText.alpha === 0) {
             this.helpText.setText(`Eggs left here: ${remaining}`);
@@ -1089,7 +1099,10 @@ class SectionHunt extends Phaser.Scene {
                 delay: 4000,
                 duration: 1000
             });
-            this.lastInteractionTime = this.time.now; // Prevent spam
+            // Reset lastEggTime slightly to prevent spamming immediately after fade out,
+            // but effectively we want to keep helping if they are still stuck.
+            // Resetting it to now restarts the 90s timer.
+            this.lastEggTime = this.time.now;
         }
     }
 
