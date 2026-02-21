@@ -817,6 +817,7 @@ class SectionHunt extends Phaser.Scene {
     // console.log('SectionHunt: Collecting egg with symbolData:', eggInfo.symbolData);
     if (!foundEggs.some(e => e.eggId === eggInfo.eggId)) {
       this.sound.play('collect');
+      this.showCollectionFeedback(egg.x, egg.y);
       foundEggs.push(eggInfo);
       this.registry.set('foundEggs', foundEggs);
       if (eggData) {
@@ -842,6 +843,26 @@ class SectionHunt extends Phaser.Scene {
     } else {
       // console.log(`SectionHunt: Egg-${eggInfo.eggId} already collected, skipping`);
     }
+  }
+
+  showCollectionFeedback(x, y) {
+    const scale = this.gameScale;
+    const feedback = this.add.text(x, y, 'Found!', {
+        fontSize: `${32 * scale}px`,
+        fontFamily: 'Comic Sans MS',
+        fill: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 4 * scale
+    }).setOrigin(0.5).setDepth(20);
+
+    this.tweens.add({
+        targets: feedback,
+        y: y - (50 * scale),
+        alpha: 0,
+        duration: 800,
+        ease: 'Power1',
+        onComplete: () => feedback.destroy()
+    });
   }
 
   create() {

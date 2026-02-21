@@ -571,10 +571,30 @@ class SectionHunt extends Phaser.Scene {
     // console.log('SectionHunt: Collecting egg with symbolData:', eggData.symbolData);
     if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
       this.sound.play('collect');
+      this.showCollectionFeedback(egg.x, egg.y);
       foundEggs.push(eggData);
       this.registry.set('foundEggs', foundEggs);
       // console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
     }
+  }
+
+  showCollectionFeedback(x, y) {
+    const feedback = this.add.text(x, y, 'Found!', {
+        fontSize: '32px',
+        fontFamily: 'Comic Sans MS',
+        fill: '#ffff00',
+        stroke: '#000000',
+        strokeThickness: 4
+    }).setOrigin(0.5).setDepth(20);
+
+    this.tweens.add({
+        targets: feedback,
+        y: y - 50,
+        alpha: 0,
+        duration: 800,
+        ease: 'Power1',
+        onComplete: () => feedback.destroy()
+    });
   }
 
   create() {
