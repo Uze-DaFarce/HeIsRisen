@@ -1451,7 +1451,7 @@ class EggZamRoom extends Phaser.Scene {
       this.fingerCursor = null;
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0) // Bolt Fix: Align cursor tip
         .setDisplaySize(50 * this.gameScale, 75 * this.gameScale)
         .setDepth(7);
     }
