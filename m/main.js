@@ -817,13 +817,26 @@ class SectionHunt extends Phaser.Scene {
     // console.log('SectionHunt: Collecting egg with symbolData:', eggInfo.symbolData);
     if (!foundEggs.some(e => e.eggId === eggInfo.eggId)) {
       this.sound.play('collect');
-      this.showCollectionFeedback(egg.x, egg.y);
+
+      // Get symbol texture if available
+      let symbolTexture = null;
+      if (egg.symbolSprite && egg.symbolSprite.active) {
+          symbolTexture = egg.symbolSprite.texture.key;
+      }
+
+      this.showCollectionFeedback(egg.x, egg.y, egg.texture.key, symbolTexture);
       foundEggs.push(eggInfo);
       this.registry.set('foundEggs', foundEggs);
       if (eggData) {
         eggData.collected = true;
         this.registry.set('eggData', eggDataArray);
       }
+
+      // Reset hint timer
+      if (this.hintTimer) {
+          this.hintTimer.reset({ delay: 120000, callback: this.showIdleHint, callbackScope: this, loop: true });
+      }
+
       let currentScore = this.registry.get('currentScore');
       currentScore += 10;
       if (foundEggs.length === TOTAL_EGGS) {
@@ -845,24 +858,87 @@ class SectionHunt extends Phaser.Scene {
     }
   }
 
-  showCollectionFeedback(x, y) {
+  showCollectionFeedback(x, y, eggTexture, symbolTexture) {
     const scale = this.gameScale;
-    const feedback = this.add.text(x, y, 'Found!', {
+
+    // Egg Sprite
+    const eggSprite = this.add.image(x, y, eggTexture).setDepth(20).setDisplaySize(50 * scale, 75 * scale);
+    this.tweens.add({
+        targets: eggSprite,
+        y: y - (60 * scale),
+        alpha: 0,
+        duration: 1000,
+        ease: 'Power1',
+        onComplete: () => eggSprite.destroy()
+    });
+
+    // Symbol Sprite
+    if (symbolTexture) {
+        const symSprite = this.add.image(x, y, symbolTexture).setDepth(21).setDisplaySize(50 * scale, 75 * scale);
+        this.tweens.add({
+            targets: symSprite,
+            y: y - (60 * scale),
+            alpha: 0,
+            duration: 1000,
+            ease: 'Power1',
+            onComplete: () => symSprite.destroy()
+        });
+    }
+
+    const feedback = this.add.text(x, y - (40 * scale), 'Found!', {
         fontSize: `${32 * scale}px`,
         fontFamily: 'Comic Sans MS',
         fill: '#ffff00',
         stroke: '#000000',
         strokeThickness: 4 * scale
-    }).setOrigin(0.5).setDepth(20);
+    }).setOrigin(0.5).setDepth(22);
 
     this.tweens.add({
         targets: feedback,
-        y: y - (50 * scale),
+        y: y - (100 * scale),
         alpha: 0,
-        duration: 800,
+        duration: 1000,
         ease: 'Power1',
         onComplete: () => feedback.destroy()
     });
+  }
+
+  showIdleHint() {
+    const foundEggs = this.registry.get('foundEggs');
+    const sections = this.registry.get('sections');
+    // For mobile, section lookup depends on if 'sections' structure is same.
+    // m/main.js create sets registry sections: { name: section.name, eggs: sectionEggs }
+    const currentSection = sections.find(s => s.name === this.sectionName);
+    const scale = this.gameScale;
+
+    if (!currentSection) return;
+
+    const eggsInSection = currentSection.eggs; // Array of IDs in this section's cluster
+    const foundIds = foundEggs.map(e => e.eggId);
+    const remainingCount = eggsInSection.filter(id => !foundIds.includes(id)).length;
+
+    if (remainingCount > 0) {
+        const musicScene = this.scene.get('MusicScene');
+        if (musicScene) musicScene.playSFX('menu-click');
+
+        const hintText = this.add.text(this.game.config.width / 2, this.game.config.height * 0.9, `Hint: ${remainingCount} eggs left here!`, {
+            fontSize: `${32 * scale}px`,
+            fontFamily: 'Comic Sans MS',
+            fill: '#ffffff',
+            backgroundColor: '#00000088',
+            padding: { x: 10 * scale, y: 5 * scale },
+            stroke: '#000000',
+            strokeThickness: 4 * scale
+        }).setOrigin(0.5).setDepth(30).setScrollFactor(0);
+
+        this.tweens.add({
+            targets: hintText,
+            alpha: 0,
+            delay: 4000,
+            duration: 1000,
+            onComplete: () => hintText.destroy()
+        });
+    }
   }
 
   create() {
@@ -1024,6 +1100,14 @@ class SectionHunt extends Phaser.Scene {
 
     // Bolt Optimization: Render Stamp for single-pass drawing
     this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+
+    // Idle Hint Timer (2 minutes)
+    this.hintTimer = this.time.addEvent({
+        delay: 120000,
+        callback: this.showIdleHint,
+        callbackScope: this,
+        loop: true
+    });
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0.5, 0.5)
