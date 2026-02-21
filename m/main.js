@@ -404,8 +404,9 @@ class MainMenu extends Phaser.Scene {
         const sectionEggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
         eggIndex += eggCounts[index];
         sectionEggs.forEach((eggId, idx) => {
-          const x = Phaser.Math.Between(200 * scale, (this.game.config.width / scale) - 10 * scale);
-          const y = Phaser.Math.Between(50 * scale, (this.game.config.height / scale) - 10 * scale);
+          // Bolt Fix: Generate eggs within visible screen bounds
+          const x = Phaser.Math.Between(50, this.game.config.width - 50);
+          const y = Phaser.Math.Between(50, this.game.config.height - 50);
           eggData.push({
             eggId: eggId,
             section: section.name,
@@ -453,7 +454,7 @@ class MainMenu extends Phaser.Scene {
         this.fingerCursor = null;
       } else {
         this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-          .setOrigin(0.5, 0.5)
+          .setOrigin(0, 0) // Bolt Fix: Align cursor tip (top-left) with input
           .setDisplaySize(50 * scale, 75 * scale)
           .setDepth(1000); // Ensure cursor is on top of everything
       }
@@ -566,7 +567,7 @@ class MainMenu extends Phaser.Scene {
           if (this.introVideo) {
               this.introVideo.setMute(false);
               const vol = this.registry.get('musicVolume');
-              this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
+              this.introVideo.setVolume((vol !== undefined ? vol : 0.5) * 0.5); // Bolt Fix: 50% relative volume
           }
 
           // Change Button to "Play Now"
@@ -593,12 +594,12 @@ class MainMenu extends Phaser.Scene {
 
       // ROBUST AUTOPLAY STRATEGY for Video
       const musicVol = this.registry.get('musicVolume');
-      introVideo.setVolume(musicVol);
+      introVideo.setVolume(musicVol * 0.5); // Bolt Fix: 50% relative volume
 
       // Update intro volume if changed in settings
       const updateIntroVolume = (parent, key, data) => {
           if (key === 'musicVolume' && introVideo && introVideo.active) {
-              introVideo.setVolume(data);
+              introVideo.setVolume(data * 0.5); // Bolt Fix: 50% relative volume
           }
       };
       this.registry.events.on('changedata', updateIntroVolume);
@@ -764,7 +765,7 @@ class MapScene extends Phaser.Scene {
       this.fingerCursor = null;
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0) // Bolt Fix: Align cursor tip
         .setDisplaySize(50 * scale, 75 * scale);
     }
   }
@@ -862,6 +863,10 @@ class SectionHunt extends Phaser.Scene {
                 .setOrigin(0, 0)
                 .setDisplaySize(this.game.config.width, this.game.config.height)
                 .setDepth(0);
+
+            // Bolt Fix: 50% relative volume
+            const musicVol = this.registry.get('musicVolume');
+            this.sectionImage.setVolume(musicVol * 0.5);
             this.sectionImage.play(true); // Loop
 
             // Error handling for playback issues
@@ -1006,13 +1011,26 @@ class SectionHunt extends Phaser.Scene {
     this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0) // Bolt Fix: Align cursor tip
         .setDepth(8)
         .setScrollFactor(0)
         .setVisible(false);
 
+    // Bolt Fix: Help Prompt
+    this.lastInteractionTime = this.time.now;
+    this.helpText = this.add.text(this.game.config.width / 2, 50 * scale, '', {
+        fontSize: `${28 * scale}px`,
+        fill: '#ffffff',
+        fontFamily: 'Comic Sans MS',
+        backgroundColor: '#000000aa',
+        padding: { x: 10, y: 5 }
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(100).setAlpha(0);
+
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
+      this.lastInteractionTime = this.time.now;
+      if (this.helpText) this.helpText.setAlpha(0);
+
       // Calculate lens position based on pointer
       // Offset matches update loop logic: (-120 * scale, -170 * scale)
       const scale = this.gameScale;
@@ -1050,6 +1068,8 @@ class SectionHunt extends Phaser.Scene {
                this.collectEgg(egg);
                egg.destroy();
                if (egg.symbolSprite) egg.symbolSprite.destroy();
+               this.lastInteractionTime = this.time.now; // Reset on collect
+               if (this.helpText) this.helpText.setAlpha(0);
            }
         }
       });
@@ -1057,6 +1077,22 @@ class SectionHunt extends Phaser.Scene {
   }
 
   update() {
+    // Bolt Fix: Show help if idle
+    if (this.time.now - this.lastInteractionTime > 15000) {
+        const remaining = this.registry.get('eggData').filter(e => e.section === this.sectionName && !e.collected).length;
+        if (remaining > 0 && this.helpText && this.helpText.alpha === 0) {
+            this.helpText.setText(`Eggs left here: ${remaining}`);
+            this.helpText.setAlpha(1);
+            this.tweens.add({
+                targets: this.helpText,
+                alpha: 0,
+                delay: 4000,
+                duration: 1000
+            });
+            this.lastInteractionTime = this.time.now; // Prevent spam
+        }
+    }
+
     const pointer = this.input.activePointer;
     const scale = this.gameScale;
 
