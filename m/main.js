@@ -1163,11 +1163,11 @@ class SectionHunt extends Phaser.Scene {
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
            // Check if clicking on egg OR clicking on handle (when egg is under lens)
-           const distToClick = Phaser.Math.Distance.Between(pointer.x, pointer.y, egg.x, egg.y);
-           const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+           // Bolt Optimization: Use squared distance
+           const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
+           const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
 
            // Increased capture radius logic for easier finding
-          // Bolt Optimization: Use squared distance
            if (distToClickSq < captureRadiusSq || distToLensSq < captureRadiusSq) {
                this.collectEgg(egg);
                egg.destroy();
