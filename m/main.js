@@ -476,7 +476,7 @@ class MainMenu extends Phaser.Scene {
         this.fingerCursor = null;
       } else {
         this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-          .setOrigin(0, 0) // Bolt Fix: Align cursor tip (top-left) with input
+          .setOrigin(0, 0) // Bolt Fix: Align cursor tip
           .setDisplaySize(100 * scale, 150 * scale)
           .setDepth(1000); // Ensure cursor is on top of everything
       }
@@ -596,7 +596,6 @@ class MainMenu extends Phaser.Scene {
                   const vol = this.registry.get('musicVolume');
                   this.introVideo.setVolume((vol !== undefined ? vol : 0.5) * 0.5);
               }
-
               // Pop in effect
               this.tweens.add({
                   targets: startBtnContainer,
@@ -988,6 +987,7 @@ class SectionHunt extends Phaser.Scene {
             // Bolt Fix: 50% relative volume
             const musicVol = this.registry.get('musicVolume');
             this.sectionImage.setVolume(musicVol * 0.5);
+
             this.sectionImage.play(true); // Loop
 
             // Error handling for playback issues
@@ -1048,9 +1048,8 @@ class SectionHunt extends Phaser.Scene {
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
           // console.log(`SectionHunt: Bounds check PASSED for egg-${eggData.eggId}`);
-          const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          const thresholdSq = (150 * scale) * (150 * scale);
-          if (distSq < thresholdSq) {
+          const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
+          if (distance < 150 * scale) {
             // console.log(`SectionHunt: Distance check PASSED for egg-${eggData.eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
@@ -1163,9 +1162,8 @@ class SectionHunt extends Phaser.Scene {
 
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
-      this.lastInputTime = this.time.now;
-      if (this.helpText) this.helpText.setAlpha(0);
-
+        this.lastInputTime = this.time.now;
+        if (this.helpText) this.helpText.setAlpha(0);
       // Calculate lens position based on pointer
       const scale = this.gameScale;
 
@@ -1184,11 +1182,10 @@ class SectionHunt extends Phaser.Scene {
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
            // Check if clicking on egg OR clicking on handle (when egg is under lens)
+           // Bolt Optimization: Use squared distance
            const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
            const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
 
-           // Increased capture radius logic for easier finding
-           // Bolt Optimization: Use squared distance
            if (distToClickSq < captureRadiusSq || distToLensSq < captureRadiusSq) {
                this.collectEgg(egg);
                egg.destroy();
@@ -1218,9 +1215,6 @@ class SectionHunt extends Phaser.Scene {
                 delay: 4000,
                 duration: 1000
             });
-            // Reset lastEggTime slightly to prevent spamming immediately after fade out,
-            // but effectively we want to keep helping if they are still stuck.
-            // Resetting it to now restarts the 90s timer.
             this.lastEggTime = this.time.now;
         }
     }
@@ -1571,8 +1565,8 @@ class EggZamRoom extends Phaser.Scene {
       this.fingerCursor = null;
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-          .setOrigin(0, 0) // Bolt Fix: Align cursor tip
-          .setDisplaySize(100 * this.gameScale, 150 * this.gameScale)
+        .setOrigin(0, 0)
+        .setDisplaySize(100 * this.gameScale, 150 * this.gameScale)
         .setDepth(7);
     }
   }
