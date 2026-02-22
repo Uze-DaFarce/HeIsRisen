@@ -6,7 +6,10 @@
 The project is split into two distinct versions:
 - **Desktop Version**: Located in the root directory.
 - **Mobile Version**: Located in the `m/` directory.
-
+    ### Critical:
+    - **IN PRODUCTION ENVIRONMENT**: They are both under the root so ./m/ is mobile and ./HeIsRisen/ is desktop!!
+    - So like https://mt-sin.ai/ is root, and the games are at https://mt-sin.ai/HeIsRisen/ and https://mt-sin.ai/m/ there is also a webapp https://mt-sin.ai/365DBR/
+    - **IN GITHUB**: the root (./) is "mt-sin.ai", "HeIsRisen" is for both games. m/ is a sub-directory (only in the repository) and "HeIsRisen" 
 ## File Structure
 
 ### Root Directory (Desktop)
@@ -92,3 +95,35 @@ The project is split into two distinct versions:
     - Add error handling for missing assets.
 4.  **Gameplay Polish**:
     - The "Magnifying Glass" mechanic on mobile might need adjustment for better usability (currently implemented but noted as potentially problematic in comments).
+
+# Codebase Documentation
+
+## Project Structure
+- `index.html`: Desktop entry point.
+- `main.js`: Desktop game logic.
+- `m/index.html`: Mobile entry point.
+- `m/main.js`: Mobile game logic.
+
+## Platform Differences (Crucial)
+The gameplay mechanics for `SectionHunt` (the magnifying glass search) are **intentionally different** between Desktop and Mobile to account for input methods (Mouse vs Touch) and screen size.
+
+### Desktop (`main.js`)
+- **Input:** Mouse.
+- **Magnifying Glass:**
+  - Uses a `RenderTexture` with an internal Camera (`zoomedView.camera`).
+  - Masking is applied via `createGeometryMask` on a Graphics object.
+  - The lens is smaller (Radius: 50, Diameter: 100).
+  - The zoom level is moderate (2x).
+  - Interaction relies on mouse hover and precise clicking.
+
+### Mobile (`m/main.js`)
+- **Input:** Touch.
+- **Magnifying Glass:**
+  - Uses manual coordinate calculation (`(x - scrollX) * zoom`) because `RenderTexture` cameras behave differently on some mobile contexts or for performance reasons.
+  - **Scale:** All gameplay elements (Cursor, Eggs, Lens) are scaled up (approx 2x) to be touch-friendly.
+  - **Lens:** Significantly larger to allow seeing under the finger.
+  - **Egg Spawning:** Constrained to visible bounds (50px margin) to prevent eggs from being unclickable at the edges.
+  - **Helpers:** Includes an idle help prompt ("Eggs left here: X") to assist users on small screens.
+
+**DO NOT MERGE THESE LOGICS.**
+Future optimizations must respect these differences. "Fixing" the desktop version to look like the mobile version (or vice-versa) without explicit instruction is a regression.
