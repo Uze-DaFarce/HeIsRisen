@@ -475,7 +475,7 @@ class MainMenu extends Phaser.Scene {
         this.fingerCursor = null;
       } else {
         this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-          .setOrigin(0.5, 0.5)
+          .setOrigin(0, 0)
           .setDisplaySize(100 * scale, 150 * scale)
           .setDepth(1000); // Ensure cursor is on top of everything
       }
@@ -588,7 +588,13 @@ class MainMenu extends Phaser.Scene {
 
               // Kill any existing tweens to prevent conflicts
               this.tweens.killTweensOf(startBtnContainer);
-
+              
+              // Unmute Video (Bolt Fix: 50% relative volume)
+              if (this.introVideo) {
+                  this.introVideo.setMute(false);
+                  const vol = this.registry.get('musicVolume');
+                  this.introVideo.setVolume((vol !== undefined ? vol : 0.5) * 0.5);
+              }
               // Pop in effect
               this.tweens.add({
                   targets: startBtnContainer,
@@ -638,7 +644,18 @@ class MainMenu extends Phaser.Scene {
               }
           });
       });
+      
+      // ROBUST AUTOPLAY STRATEGY for Video (Bolt Fix: Volume scaling)
+      const musicVol = this.registry.get('musicVolume');
+      introVideo.setVolume(musicVol * 0.5);
 
+      const updateIntroVolume = (parent, key, data) => {
+          if (key === 'musicVolume' && introVideo && introVideo.active) {
+              introVideo.setVolume(data * 0.5);
+          }
+      };
+      this.registry.events.on('changedata', updateIntroVolume);
+      
       // Clean up on shutdown
       this.events.once('shutdown', () => {
           if (introVideo) {
@@ -769,7 +786,7 @@ class MapScene extends Phaser.Scene {
       this.fingerCursor = null;
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0)
         .setDisplaySize(100 * scale, 150 * scale);
     }
   }
@@ -965,6 +982,11 @@ class SectionHunt extends Phaser.Scene {
                 .setDisplaySize(this.game.config.width, this.game.config.height)
                 .setDepth(0)
                 .disableInteractive(); // Ensure background video is non-interactive
+            
+            // Bolt Fix: 50% relative volume
+            const musicVol = this.registry.get('musicVolume');
+            this.sectionImage.setVolume(musicVol * 0.5);
+          
             this.sectionImage.play(true); // Loop
 
             // Error handling for playback issues
@@ -1135,6 +1157,7 @@ class SectionHunt extends Phaser.Scene {
       const lensX = pointer.x + lensOffsetX;
       const lensY = pointer.y + lensOffsetY;
       const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
+      const captureRadiusSq = captureRadius * captureRadius;
 
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
@@ -1144,7 +1167,8 @@ class SectionHunt extends Phaser.Scene {
            const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
 
            // Increased capture radius logic for easier finding
-           if (distToClick < captureRadius || distToLens < captureRadius) {
+          // Bolt Optimization: Use squared distance
+           if (distToClickSq < captureRadiusSq || distToLensSq < captureRadiusSq) {
                this.collectEgg(egg);
                egg.destroy();
                if (egg.symbolSprite) egg.symbolSprite.destroy();
@@ -1499,7 +1523,7 @@ class EggZamRoom extends Phaser.Scene {
       this.fingerCursor = null;
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0)
         .setDisplaySize(100 * this.gameScale, 150 * this.gameScale)
         .setDepth(7);
     }
