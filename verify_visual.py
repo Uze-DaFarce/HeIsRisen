@@ -15,6 +15,7 @@ def verify_visual():
         page = context.new_page()
 
         try:
+            page.on("console", lambda msg: print(f"Console: {msg.text}"))
             page.goto("http://127.0.0.1:8080/index.html")
             page.wait_for_selector("canvas", state="visible", timeout=10000)
             time.sleep(5)
