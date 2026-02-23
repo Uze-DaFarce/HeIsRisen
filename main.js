@@ -801,6 +801,7 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.camera.scrollX = worldCenter.x - 150;
     this.zoomedView.camera.scrollY = worldCenter.y - 150;
     const magnifierRadius = 50;
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // Bolt Optimization
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
 
@@ -819,8 +820,8 @@ class SectionHunt extends Phaser.Scene {
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-        const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
-        const alpha = distance < magnifierRadius ? 1 : 0;
+        const distanceSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
+        const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
         egg.setAlpha(alpha);
         if (egg.symbolSprite) {
           egg.symbolSprite.setAlpha(alpha);

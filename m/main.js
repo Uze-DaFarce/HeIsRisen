@@ -1208,6 +1208,7 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics.setPosition(lensX, lensY);
 
     const magnifierRadius = 100 * scale; // Visual radius for egg visibility (doubled)
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // Bolt Optimization
     const zoom = 2;
     const diameter = 200 * scale; // Doubled
     const viewWidth = diameter / zoom;
@@ -1237,8 +1238,8 @@ class SectionHunt extends Phaser.Scene {
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
           // Update visibility
-          const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
-          const alpha = distance < magnifierRadius ? 1 : 0;
+          const distanceSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
+          const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
             egg.symbolSprite.setAlpha(alpha);
