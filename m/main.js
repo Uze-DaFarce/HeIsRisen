@@ -1190,14 +1190,9 @@ class SectionHunt extends Phaser.Scene {
       // Calculate lens position based on pointer
       const scale = this.gameScale;
 
-      // New offsets for doubled size (200x250 display size)
-      // Visual lens center is approx (-130 * scale, -180 * scale) relative to handle tip
-      // Shifted "Up and Left" a bit more as requested
-      const lensOffsetX = -130 * scale;
-      const lensOffsetY = -180 * scale;
-
-      const lensX = pointer.x + lensOffsetX;
-      const lensY = pointer.y + lensOffsetY;
+      // Lens is now centered under the finger
+      const lensX = pointer.x;
+      const lensY = pointer.y;
       const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
       const captureRadiusSq = captureRadius * captureRadius;
 
@@ -1232,11 +1227,9 @@ class SectionHunt extends Phaser.Scene {
     // Offset in texture pixels: (-120, -170).
     // We shift it "Up and Left" a bit more per request: (-130, -180).
 
-    const lensOffsetX = -130 * scale;
-    const lensOffsetY = -180 * scale;
-
-    const lensX = pointer.x + lensOffsetX;
-    const lensY = pointer.y + lensOffsetY;
+    // Lens is now centered under the finger
+    const lensX = pointer.x;
+    const lensY = pointer.y;
 
     // Ensure video size is correct once texture loads
     if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active && this.sectionImage.width > 0) {
@@ -1363,7 +1356,10 @@ class SectionHunt extends Phaser.Scene {
         if (this.magnifyingGlass) {
              this.magnifyingGlass.setVisible(true);
              this.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled size
-             this.magnifyingGlass.setPosition(pointer.x, pointer.y);
+             // Offset sprite so visual lens center aligns with pointer
+             // Visual lens center is approx (-130, -180) from handle tip (origin)
+             // So we shift sprite by (+130, +180) to align lens center with pointer
+             this.magnifyingGlass.setPosition(pointer.x + (130 * scale), pointer.y + (180 * scale));
         }
         if (this.zoomedView) this.zoomedView.setVisible(true);
         if (this.maskGraphics) this.maskGraphics.setVisible(true);
@@ -1879,7 +1875,8 @@ function resizeGame() {
       }
       if (scene.magnifyingGlass) {
         scene.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled
-        scene.magnifyingGlass.setPosition(scene.input.x, scene.input.y);
+        // Offset sprite so visual lens center aligns with pointer
+        scene.magnifyingGlass.setPosition(scene.input.x + (130 * scale), scene.input.y + (180 * scale));
       }
     }
     if (scene.scene.key === 'UIScene') {
