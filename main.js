@@ -770,6 +770,7 @@ class SectionHunt extends Phaser.Scene {
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
     const foundEggs = this.registry.get('foundEggs').length;
     this.scoreText = this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
+    this.lastFoundCount = foundEggs; // Bolt Optimization
     this.zoomedView = this.add.renderTexture(0, 0, 200, 200).setDepth(2).setScrollFactor(0);
     this.maskGraphics = this.add.graphics().fillCircle(50, 50, 50).setScrollFactor(0);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
@@ -801,7 +802,6 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.camera.scrollX = worldCenter.x - 150;
     this.zoomedView.camera.scrollY = worldCenter.y - 150;
     const magnifierRadius = 50;
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // Bolt Optimization
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
 
@@ -820,8 +820,8 @@ class SectionHunt extends Phaser.Scene {
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-        const distanceSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
-        const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
+        const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
+        const alpha = distance < magnifierRadius ? 1 : 0;
         egg.setAlpha(alpha);
         if (egg.symbolSprite) {
           egg.symbolSprite.setAlpha(alpha);
@@ -852,7 +852,10 @@ class SectionHunt extends Phaser.Scene {
 
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+    if (this.lastFoundCount !== foundEggsCount) {
+        this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+        this.lastFoundCount = foundEggsCount;
+    }
   }
 }
 
@@ -912,6 +915,7 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6
     }).setDepth(5);
+    this.lastFoundCount = foundEggsCount; // Bolt Optimization
     // console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/${TOTAL_EGGS}`);
 
     if (!this.registry.has('correctCategorizations')) {
@@ -1041,8 +1045,9 @@ class EggZamRoom extends Phaser.Scene {
 
   update() {
     const foundEggsCount = this.registry.get('foundEggs').length;
-    if (this.scoreText) {
+    if (this.scoreText && this.lastFoundCount !== foundEggsCount) {
       this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+      this.lastFoundCount = foundEggsCount;
     }
     this.fingerCursor.setPosition(this.input.x, this.input.y);
   }

@@ -1109,6 +1109,7 @@ class SectionHunt extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6 * scale
     }).setDepth(5);
+    this.lastFoundCount = foundEggs; // Bolt Optimization
 
     const diameter = 200 * scale; // Doubled size
     this.zoomedView = this.add.renderTexture(0, 0, diameter, diameter)
@@ -1208,7 +1209,6 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics.setPosition(lensX, lensY);
 
     const magnifierRadius = 100 * scale; // Visual radius for egg visibility (doubled)
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // Bolt Optimization
     const zoom = 2;
     const diameter = 200 * scale; // Doubled
     const viewWidth = diameter / zoom;
@@ -1238,8 +1238,8 @@ class SectionHunt extends Phaser.Scene {
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
           // Update visibility
-          const distanceSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
-          const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
+          const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+          const alpha = distance < magnifierRadius ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
             egg.symbolSprite.setAlpha(alpha);
@@ -1330,7 +1330,10 @@ class SectionHunt extends Phaser.Scene {
     }
 
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+    if (this.lastFoundCount !== foundEggsCount) {
+        this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+        this.lastFoundCount = foundEggsCount;
+    }
   }
 }
 
@@ -1425,6 +1428,7 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6 * this.gameScale
     }).setDepth(5);
+    this.lastFoundCount = foundEggsCount; // Bolt Optimization
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
@@ -1589,8 +1593,9 @@ class EggZamRoom extends Phaser.Scene {
 
   update() {
     const foundEggsCount = this.registry.get('foundEggs').length;
-    if (this.scoreText) {
+    if (this.scoreText && this.lastFoundCount !== foundEggsCount) {
       this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+      this.lastFoundCount = foundEggsCount;
     }
     if (this.fingerCursor) {
       this.fingerCursor.setPosition(this.input.x, this.input.y);
