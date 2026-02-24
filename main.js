@@ -75,40 +75,44 @@ class UIScene extends Phaser.Scene {
     this.createSettingsPanel();
 
     // Add ESC key support
-    this.input.keyboard.on('keydown-ESC', () => {
+    const closeSettings = () => {
         if (this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
             this.gearIcon.setVisible(true);
+            this.gearIcon.setScale(1);
             this.input.setDefaultCursor('none');
         }
-    });
+    };
+    this.input.keyboard.on('keydown-ESC', closeSettings);
+    this.input.keyboard.on('keydown-ENTER', closeSettings);
   }
 
   createGearIcon() {
-    const gear = this.add.graphics();
+    const x = this.cameras.main.width - 60;
+    const y = 60;
+    const gear = this.add.graphics({ x, y });
+
     gear.fillStyle(0xffffff, 1);
 
     // Draw gear shape - reduced size by half
-    const x = this.cameras.main.width - 60;
-    const y = 60;
     const radius = 12.5;
 
-    gear.fillCircle(x, y, radius);
+    gear.fillCircle(0, 0, radius);
 
     // Teeth - adjusted for smaller size
     for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
-        const tx = x + Math.cos(angle) * (radius + 4);
-        const ty = y + Math.sin(angle) * (radius + 4);
+        const tx = Math.cos(angle) * (radius + 4);
+        const ty = Math.sin(angle) * (radius + 4);
         gear.fillCircle(tx, ty, 3);
     }
-    gear.fillCircle(x, y, radius); // Redraw center to smooth
+    gear.fillCircle(0, 0, radius); // Redraw center to smooth
 
     // Inner hole
     gear.fillStyle(0x000000, 1);
-    gear.fillCircle(x, y, 5);
+    gear.fillCircle(0, 0, 5);
 
-    const hitArea = new Phaser.Geom.Circle(x, y, 20);
+    const hitArea = new Phaser.Geom.Circle(0, 0, 20);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
     gear.input.cursor = 'pointer';
 
@@ -119,6 +123,8 @@ class UIScene extends Phaser.Scene {
     gear.on('pointerout', () => this.tweens.add({
         targets: gear, scale: 1, duration: 100, ease: 'Sine.easeInOut'
     }));
+
+    addButtonInteraction(this, gear, 'menu-click');
 
     gear.on('pointerdown', () => {
         this.tweens.add({
@@ -219,6 +225,7 @@ class UIScene extends Phaser.Scene {
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
         this.gearIcon.setVisible(true);
+        this.gearIcon.setScale(1);
         this.input.setDefaultCursor('none');
     });
     this.settingsContainer.add(closeBtn);
@@ -429,7 +436,7 @@ class MainMenu extends Phaser.Scene {
     this.input.keyboard.on('keydown-SPACE', startGame);
     this.input.keyboard.on('keydown-ENTER', startGame);
 
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setAngle(180).setDisplaySize(50, 75);
 
     // Instead of starting game on any pointerdown, make startText interactive
     startText.setInteractive({ useHandCursor: true }).on('pointerdown', startGame);
@@ -1056,7 +1063,8 @@ class EggZamRoom extends Phaser.Scene {
     this.displayRandomEggInfo();
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-      .setOrigin(0.5, 0.5)
+      .setOrigin(0, 0)
+      .setAngle(180)
       .setDisplaySize(50, 75)
       .setDepth(7);
   }
