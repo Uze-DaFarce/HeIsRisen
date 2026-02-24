@@ -509,7 +509,8 @@ class MainMenu extends Phaser.Scene {
       } else {
         this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
           .setOrigin(0, 0)
-          .setDisplaySize(100 * scale, 150 * scale)
+          .setAngle(180)
+          .setDisplaySize(50 * scale, 75 * scale)
           .setDepth(1000); // Ensure cursor is on top of everything
       }
 
@@ -598,7 +599,16 @@ class MainMenu extends Phaser.Scene {
               const vol = this.registry.get('musicVolume');
               this.introVideo.setVolume(vol !== undefined ? vol : 0.5);
               // Ensure it's playing
+              this.introVideo.setPaused(false);
               if (this.introVideo.isPaused()) this.introVideo.play(true);
+
+              // Force play again after a short delay to handle fullscreen interruption
+              this.time.delayedCall(200, () => {
+                   if (this.introVideo && this.introVideo.active) {
+                       this.introVideo.setPaused(false);
+                       this.introVideo.play(true);
+                   }
+              });
           }
 
           // Fullscreen
@@ -828,7 +838,8 @@ class MapScene extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0, 0)
-        .setDisplaySize(100 * scale, 150 * scale);
+        .setAngle(180)
+        .setDisplaySize(50 * scale, 75 * scale);
     }
   }
 
@@ -1062,7 +1073,7 @@ class SectionHunt extends Phaser.Scene {
       const egg = this.add.image(eggData.x, eggData.y, `egg-${eggData.eggId}`)
         .setInteractive()
         .setDepth(5)
-        .setDisplaySize(100 * scale, 150 * scale) // Doubled size
+        .setDisplaySize(50 * scale, 75 * scale)
         .setAlpha(0);
       egg.setData('eggId', eggData.eggId);
       egg.setData('symbolDetails', eggData.symbol);
@@ -1071,7 +1082,7 @@ class SectionHunt extends Phaser.Scene {
         if (this.textures.exists(textureKey)) {
           const symbolSprite = this.add.image(eggData.x, eggData.y, textureKey)
             .setDepth(6)
-            .setDisplaySize(100 * scale, 150 * scale) // Doubled size
+            .setDisplaySize(50 * scale, 75 * scale)
             .setAlpha(0);
           egg.symbolSprite = symbolSprite;
           // console.log(`SectionHunt: Added symbol '${eggData.symbol.name}' (${textureKey}) to egg-${eggData.eggId}`);
@@ -1152,7 +1163,7 @@ class SectionHunt extends Phaser.Scene {
     }).setDepth(5);
     this.lastFoundCount = foundEggs; // Bolt Optimization
 
-    const diameter = 200 * scale; // Doubled size
+    const diameter = 150 * scale;
     this.zoomedView = this.add.renderTexture(0, 0, diameter, diameter)
       .setDepth(2)
       .setScrollFactor(0)
@@ -1160,7 +1171,7 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics = this.add.graphics()
       .setScrollFactor(0);
     // Draw circle centered at 0,0 relative to graphics object
-    this.maskGraphics.fillCircle(0, 0, 100 * scale); // Doubled radius
+    this.maskGraphics.fillCircle(0, 0, 75 * scale);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
 
     this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass')
@@ -1180,7 +1191,8 @@ class SectionHunt extends Phaser.Scene {
     });
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-        .setOrigin(0.5, 0.5)
+        .setOrigin(0, 0)
+        .setAngle(180)
         .setDepth(8)
         .setScrollFactor(0)
         .setVisible(false);
@@ -1190,15 +1202,14 @@ class SectionHunt extends Phaser.Scene {
       // Calculate lens position based on pointer
       const scale = this.gameScale;
 
-      // New offsets for doubled size (200x250 display size)
-      // Visual lens center is approx (-130 * scale, -180 * scale) relative to handle tip
-      // Shifted "Up and Left" a bit more as requested
-      const lensOffsetX = -130 * scale;
-      const lensOffsetY = -180 * scale;
+      // New offsets for reverted size (150x187.5 display size, 0.75x of doubled)
+      // Visual lens center is approx (-97.5 * scale, -135 * scale) relative to handle tip
+      const lensOffsetX = -97.5 * scale;
+      const lensOffsetY = -135 * scale;
 
       const lensX = pointer.x + lensOffsetX;
       const lensY = pointer.y + lensOffsetY;
-      const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
+      const captureRadius = 80 * scale; // Slightly larger than visual radius (75)
       const captureRadiusSq = captureRadius * captureRadius;
 
       // Check all eggs
@@ -1224,16 +1235,11 @@ class SectionHunt extends Phaser.Scene {
     const pointer = this.input.activePointer;
     const scale = this.gameScale;
 
-    // Magnifying glass display size is 200*scale x 250*scale.
-    // Texture is 200x250.
-    // Visual scale factor relative to texture is 1.0 * scale.
-    // Handle tip is at bottom-right (200, 250).
-    // Lens center is approx (80, 80).
-    // Offset in texture pixels: (-120, -170).
-    // We shift it "Up and Left" a bit more per request: (-130, -180).
+    // Magnifying glass display size is 150*scale x 187.5*scale.
+    // We shift it "Up and Left" relative to handle tip.
 
-    const lensOffsetX = -130 * scale;
-    const lensOffsetY = -180 * scale;
+    const lensOffsetX = -97.5 * scale;
+    const lensOffsetY = -135 * scale;
 
     const lensX = pointer.x + lensOffsetX;
     const lensY = pointer.y + lensOffsetY;
@@ -1249,9 +1255,9 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.setPosition(lensX, lensY);
     this.maskGraphics.setPosition(lensX, lensY);
 
-    const magnifierRadius = 100 * scale; // Visual radius for egg visibility (doubled)
+    const magnifierRadius = 75 * scale;
     const zoom = 2;
-    const diameter = 200 * scale; // Doubled
+    const diameter = 150 * scale;
     const viewWidth = diameter / zoom;
     const viewHeight = diameter / zoom;
     const scrollX = lensX - viewWidth / 2;
@@ -1356,13 +1362,13 @@ class SectionHunt extends Phaser.Scene {
 
         if (this.fingerCursor) {
             this.fingerCursor.setVisible(true);
-            this.fingerCursor.setDisplaySize(100 * scale, 150 * scale); // Doubled cursor size
+            this.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
             this.fingerCursor.setPosition(pointer.x, pointer.y);
         }
     } else {
         if (this.magnifyingGlass) {
              this.magnifyingGlass.setVisible(true);
-             this.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled size
+             this.magnifyingGlass.setDisplaySize(150 * scale, 187.5 * scale);
              this.magnifyingGlass.setPosition(pointer.x, pointer.y);
         }
         if (this.zoomedView) this.zoomedView.setVisible(true);
@@ -1570,7 +1576,8 @@ class EggZamRoom extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0, 0)
-        .setDisplaySize(100 * this.gameScale, 150 * this.gameScale)
+        .setAngle(180)
+        .setDisplaySize(50 * this.gameScale, 75 * this.gameScale)
         .setDepth(7);
     }
   }
@@ -1831,7 +1838,7 @@ function resizeGame() {
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
       }
       if (scene.fingerCursor) {
-        scene.fingerCursor.setDisplaySize(100 * scale, 150 * scale);
+        scene.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
       }
     }
     if (scene.scene.key === 'SectionHunt') {
@@ -1841,9 +1848,9 @@ function resizeGame() {
       if (scene.eggs) {
         scene.eggs.getChildren().forEach(egg => {
           if (egg && egg.active) {
-            egg.setDisplaySize(100 * scale, 150 * scale); // Doubled
+            egg.setDisplaySize(50 * scale, 75 * scale);
             if (egg.symbolSprite) {
-              egg.symbolSprite.setDisplaySize(100 * scale, 150 * scale); // Doubled
+              egg.symbolSprite.setDisplaySize(50 * scale, 75 * scale);
             }
           }
         });
@@ -1870,15 +1877,15 @@ function resizeGame() {
       }
       if (scene.zoomedView) {
         // Position set in update
-        const diameter = 200 * scale; // Doubled
+        const diameter = 150 * scale;
         scene.zoomedView.setSize(diameter, diameter);
       }
       if (scene.maskGraphics) {
         scene.maskGraphics.clear();
-        scene.maskGraphics.fillCircle(0, 0, 100 * scale); // Doubled radius
+        scene.maskGraphics.fillCircle(0, 0, 75 * scale);
       }
       if (scene.magnifyingGlass) {
-        scene.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled
+        scene.magnifyingGlass.setDisplaySize(150 * scale, 187.5 * scale);
         scene.magnifyingGlass.setPosition(scene.input.x, scene.input.y);
       }
     }
@@ -1950,7 +1957,7 @@ function resizeGame() {
         scene.noEggsText.setPosition(0.36 * width, 0.25 * height);
         scene.noEggsText.setStyle({ fontSize: `${28 * scale}px`, strokeThickness: 3 * scale, wordWrap: { width: 480 * scale, useAdvancedWrap: true } });
       }
-      if (scene.fingerCursor) scene.fingerCursor.setDisplaySize(100 * scale, 150 * scale);
+      if (scene.fingerCursor) scene.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
     }
   });
 }

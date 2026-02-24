@@ -75,14 +75,16 @@ class UIScene extends Phaser.Scene {
     this.createSettingsPanel();
 
     // Add ESC key support
-    this.input.keyboard.on('keydown-ESC', () => {
+    const closeSettings = () => {
         if (this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
             this.gearIcon.setVisible(true);
             this.gearIcon.setScale(1);
             this.input.setDefaultCursor('none');
         }
-    });
+    };
+    this.input.keyboard.on('keydown-ESC', closeSettings);
+    this.input.keyboard.on('keydown-ENTER', closeSettings);
   }
 
   createGearIcon() {
@@ -413,7 +415,7 @@ class MainMenu extends Phaser.Scene {
     this.input.keyboard.on('keydown-SPACE', startGame);
     this.input.keyboard.on('keydown-ENTER', startGame);
 
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setAngle(180).setDisplaySize(50, 75);
 
     // Instead of starting game on any pointerdown, make startText interactive
     startText.setInteractive({ useHandCursor: true }).on('pointerdown', startGame);
@@ -1040,7 +1042,8 @@ class EggZamRoom extends Phaser.Scene {
     this.displayRandomEggInfo();
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-      .setOrigin(0.5, 0.5)
+      .setOrigin(0, 0)
+      .setAngle(180)
       .setDisplaySize(50, 75)
       .setDepth(7);
   }
