@@ -1088,9 +1088,8 @@ class SectionHunt extends Phaser.Scene {
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
           // console.log(`SectionHunt: Bounds check PASSED for egg-${eggData.eggId}`);
-          // Bolt Optimization: Use squared distance check
-          const distanceSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          if (distanceSq < (150 * scale) * (150 * scale)) {
+          const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
+          if (distance < 150 * scale) {
             // console.log(`SectionHunt: Distance check PASSED for egg-${eggData.eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
@@ -1171,6 +1170,10 @@ class SectionHunt extends Phaser.Scene {
 
     // Bolt Optimization: Render Stamp for single-pass drawing
     this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+
+    // Bolt Optimization: Track last lens position for dirty checking
+    this.lastLensX = null;
+    this.lastLensY = null;
 
     // Idle Hint Timer (2 minutes)
     this.hintTimer = this.time.addEvent({
@@ -1258,60 +1261,64 @@ class SectionHunt extends Phaser.Scene {
     const scrollX = lensX - viewWidth / 2;
     const scrollY = lensY - viewHeight / 2;
 
-    this.zoomedView.clear();
+    // Bolt Optimization: Update if video (always dirty) OR lens moved significantly
+    const isVideo = (this.sectionName === 'grand-prismatic');
+    if (isVideo || this.lastLensX === null || Math.abs(this.lastLensX - lensX) > 0.1 || Math.abs(this.lastLensY - lensY) > 0.1) {
+        this.lastLensX = lensX;
+        this.lastLensY = lensY;
 
-    // Draw background using renderStamp to avoid dirtying scene object
-    if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active) {
-         this.renderStamp.texture = this.sectionImage.texture;
-         this.renderStamp.frame = this.sectionImage.frame;
-    } else {
-         this.renderStamp.setTexture(this.sectionName);
+        this.zoomedView.clear();
+
+        // Draw background using renderStamp to avoid dirtying scene object
+        if (isVideo && this.sectionImage && this.sectionImage.active) {
+             this.renderStamp.texture = this.sectionImage.texture;
+             this.renderStamp.frame = this.sectionImage.frame;
+        } else {
+             this.renderStamp.setTexture(this.sectionName);
+        }
+        this.renderStamp.setOrigin(0, 0);
+        this.renderStamp.setDisplaySize(this.game.config.width, this.game.config.height);
+        this.renderStamp.setScale(this.renderStamp.scaleX * zoom, this.renderStamp.scaleY * zoom);
+        this.renderStamp.setAngle(0);
+        this.renderStamp.setRotation(0);
+        this.renderStamp.setFlipX(false);
+        this.renderStamp.setFlipY(false);
+        this.zoomedView.draw(this.renderStamp, (0 - scrollX) * zoom, (0 - scrollY) * zoom);
+
+        // Single pass for visibility update and drawing
+        this.eggs.getChildren().forEach(egg => {
+            if (egg && egg.active) {
+                // Update visibility
+                const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+                const alpha = distance < magnifierRadius ? 1 : 0;
+                egg.setAlpha(alpha);
+                if (egg.symbolSprite) {
+                    egg.symbolSprite.setAlpha(alpha);
+                }
+
+                if (egg.visible && egg.alpha > 0) {
+                    // Draw Egg using renderStamp
+                    this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
+                    this.renderStamp.setAngle(egg.angle);
+                    this.renderStamp.setFlipX(egg.flipX);
+                    this.renderStamp.setFlipY(egg.flipY);
+                    this.renderStamp.setOrigin(0.5, 0.5);
+                    this.renderStamp.setScale(egg.scaleX * zoom, egg.scaleY * zoom);
+                    this.zoomedView.draw(this.renderStamp, (egg.x - scrollX) * zoom, (egg.y - scrollY) * zoom);
+
+                    // Draw Symbol using renderStamp
+                    if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
+                        this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
+                        this.renderStamp.setAngle(egg.symbolSprite.angle);
+                        this.renderStamp.setFlipX(egg.symbolSprite.flipX);
+                        this.renderStamp.setFlipY(egg.symbolSprite.flipY);
+                        this.renderStamp.setScale(egg.symbolSprite.scaleX * zoom, egg.symbolSprite.scaleY * zoom);
+                        this.zoomedView.draw(this.renderStamp, (egg.symbolSprite.x - scrollX) * zoom, (egg.symbolSprite.y - scrollY) * zoom);
+                    }
+                }
+            }
+        });
     }
-    this.renderStamp.setOrigin(0, 0);
-    this.renderStamp.setDisplaySize(this.game.config.width, this.game.config.height);
-    this.renderStamp.setScale(this.renderStamp.scaleX * zoom, this.renderStamp.scaleY * zoom);
-    this.renderStamp.setAngle(0);
-    this.renderStamp.setRotation(0);
-    this.renderStamp.setFlipX(false);
-    this.renderStamp.setFlipY(false);
-    this.zoomedView.draw(this.renderStamp, (0 - scrollX) * zoom, (0 - scrollY) * zoom);
-
-    // Single pass for visibility update and drawing
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // Bolt Optimization: Pre-calculate squared radius
-
-    this.eggs.getChildren().forEach(egg => {
-      if (egg && egg.active) {
-          // Update visibility
-          // Bolt Optimization: Use squared distance check
-          const distanceSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
-          const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
-          egg.setAlpha(alpha);
-          if (egg.symbolSprite) {
-            egg.symbolSprite.setAlpha(alpha);
-          }
-
-          if (egg.visible && egg.alpha > 0) {
-             // Draw Egg using renderStamp
-             this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
-             this.renderStamp.setAngle(egg.angle);
-             this.renderStamp.setFlipX(egg.flipX);
-             this.renderStamp.setFlipY(egg.flipY);
-             this.renderStamp.setOrigin(0.5, 0.5);
-             this.renderStamp.setScale(egg.scaleX * zoom, egg.scaleY * zoom);
-             this.zoomedView.draw(this.renderStamp, (egg.x - scrollX) * zoom, (egg.y - scrollY) * zoom);
-
-             // Draw Symbol using renderStamp
-             if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
-                 this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
-                 this.renderStamp.setAngle(egg.symbolSprite.angle);
-                 this.renderStamp.setFlipX(egg.symbolSprite.flipX);
-                 this.renderStamp.setFlipY(egg.symbolSprite.flipY);
-                 this.renderStamp.setScale(egg.symbolSprite.scaleX * zoom, egg.symbolSprite.scaleY * zoom);
-                 this.zoomedView.draw(this.renderStamp, (egg.symbolSprite.x - scrollX) * zoom, (egg.symbolSprite.y - scrollY) * zoom);
-             }
-          }
-      }
-    });
 
     // Handle Button Hover and Cursor Swap
     const buttons = [this.eggZitButton, this.eggsAmminHaul];
