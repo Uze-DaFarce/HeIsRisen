@@ -330,8 +330,11 @@ class MainMenu extends Phaser.Scene {
       // Preload all symbols
       if (data && data.symbols) {
         data.symbols.forEach(symbol => {
-          if (symbol.filename) {
+          // Sentinel: Validate symbol path to prevent traversal/malicious loading
+          if (this.isValidSymbol(symbol)) {
             this.load.image(symbol.filename, symbol.filename);
+          } else {
+            console.warn(`Security: Skipped invalid symbol filename: ${symbol.filename}`);
           }
         });
       }
@@ -464,6 +467,13 @@ class MainMenu extends Phaser.Scene {
     if (symbolsData) {
       // console.log('MainMenu: Found symbols data in cache:', symbolsData);
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
+        // Sentinel: Filter invalid symbols before setting registry
+        const validSymbols = symbolsData.symbols.filter(s => this.isValidSymbol(s));
+        if (validSymbols.length !== symbolsData.symbols.length) {
+            console.warn(`Security: Filtered ${symbolsData.symbols.length - validSymbols.length} invalid symbols.`);
+            symbolsData.symbols = validSymbols;
+        }
+
         // console.log(`MainMenu: Data contains a 'symbols' array with ${symbolsData.symbols.length} items. Setting registry...`);
         this.registry.set('symbols', symbolsData);
         const checkRegistry = this.registry.get('symbols');
@@ -478,6 +488,14 @@ class MainMenu extends Phaser.Scene {
     } else {
       console.error('MainMenu: ERROR - Failed to get symbols data from cache. Check the preload path and Network tab for loading errors.');
     }
+  }
+
+  isValidSymbol(s) {
+    // Sentinel: validate structure and prevent path traversal
+    return s && typeof s === 'object' &&
+           typeof s.filename === 'string' &&
+           !s.filename.includes('..') &&
+           /^[a-zA-Z0-9_\-\/]+\.(png|jpg|jpeg)$/i.test(s.filename);
   }
 
   update() {

@@ -358,11 +358,14 @@ class MainMenu extends Phaser.Scene {
       if (data && data.symbols) {
         const symbolBasePath = ''; // symbols.json paths are relative to assets/
         data.symbols.forEach(symbol => {
-          if (symbol.filename) {
+          // Sentinel: Validate symbol path to prevent traversal/malicious loading
+          if (this.isValidSymbol(symbol)) {
             // Check if texture already exists to avoid warnings/errors
             if (!this.textures.exists(symbol.filename)) {
               this.load.image(symbol.filename, symbolBasePath + symbol.filename);
             }
+          } else {
+            console.warn(`Security: Skipped invalid symbol filename: ${symbol.filename}`);
           }
         });
         // console.log(`MainMenu: Queued ${data.symbols.length} symbol images for loading.`);
@@ -409,6 +412,14 @@ class MainMenu extends Phaser.Scene {
         console.error('MainMenu: Invalid symbols data:', symbolsData);
         return;
       }
+
+      // Sentinel: Filter invalid symbols before using them in game logic
+      const validSymbols = symbolsData.symbols.filter(s => this.isValidSymbol(s));
+      if (validSymbols.length !== symbolsData.symbols.length) {
+          console.warn(`Security: Filtered ${symbolsData.symbols.length - validSymbols.length} invalid symbols.`);
+          symbolsData.symbols = validSymbols;
+      }
+
       if (symbolsData.symbols.length !== TOTAL_EGGS) {
         console.error(`MainMenu: Expected ${TOTAL_EGGS} symbols, found ${symbolsData.symbols.length}`);
       }
@@ -695,6 +706,14 @@ class MainMenu extends Phaser.Scene {
        // Manually trigger the global error handler
        window.dispatchEvent(new ErrorEvent('error', { message: error.message }));
     }
+  }
+
+  isValidSymbol(s) {
+    // Sentinel: validate structure and prevent path traversal
+    return s && typeof s === 'object' &&
+           typeof s.filename === 'string' &&
+           !s.filename.includes('..') &&
+           /^[a-zA-Z0-9_\-\/]+\.(png|jpg|jpeg)$/i.test(s.filename);
   }
 
   update() {
