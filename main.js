@@ -79,37 +79,41 @@ class UIScene extends Phaser.Scene {
         if (this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
             this.gearIcon.setVisible(true);
+            this.gearIcon.setScale(1);
             this.input.setDefaultCursor('none');
         }
     });
   }
 
   createGearIcon() {
-    const gear = this.add.graphics();
+    const x = this.cameras.main.width - 60;
+    const y = 60;
+    const gear = this.add.graphics({ x, y });
+
     gear.fillStyle(0xffffff, 1);
 
     // Draw gear shape - reduced size by half
-    const x = this.cameras.main.width - 60;
-    const y = 60;
     const radius = 12.5;
 
-    gear.fillCircle(x, y, radius);
+    gear.fillCircle(0, 0, radius);
 
     // Teeth - adjusted for smaller size
     for (let i = 0; i < 8; i++) {
         const angle = (i / 8) * Math.PI * 2;
-        const tx = x + Math.cos(angle) * (radius + 4);
-        const ty = y + Math.sin(angle) * (radius + 4);
+        const tx = Math.cos(angle) * (radius + 4);
+        const ty = Math.sin(angle) * (radius + 4);
         gear.fillCircle(tx, ty, 3);
     }
-    gear.fillCircle(x, y, radius); // Redraw center to smooth
+    gear.fillCircle(0, 0, radius); // Redraw center to smooth
 
     // Inner hole
     gear.fillStyle(0x000000, 1);
-    gear.fillCircle(x, y, 5);
+    gear.fillCircle(0, 0, 5);
 
-    const hitArea = new Phaser.Geom.Circle(x, y, 20);
+    const hitArea = new Phaser.Geom.Circle(0, 0, 20);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+
+    addButtonInteraction(this, gear, 'menu-click');
 
     gear.on('pointerdown', () => {
         this.openSettings();
@@ -196,6 +200,7 @@ class UIScene extends Phaser.Scene {
     closeBtn.on('pointerdown', () => {
         this.settingsContainer.setVisible(false);
         this.gearIcon.setVisible(true);
+        this.gearIcon.setScale(1);
         this.input.setDefaultCursor('none');
     });
     this.settingsContainer.add(closeBtn);
