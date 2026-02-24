@@ -1688,23 +1688,6 @@ const config = {
 const game = new Phaser.Game(config);
 window.game = game; // Expose for debugging/verification
 
-// Global error handler for mobile debugging
-window.addEventListener('error', function (event) {
-    const errorMsg = event.message || "Unknown error";
-    // Create a temporary text element to show error on screen
-    const div = document.createElement('div');
-    div.style.position = 'absolute';
-    div.style.top = '0';
-    div.style.left = '0';
-    div.style.width = '100%';
-    div.style.backgroundColor = 'red';
-    div.style.color = 'white';
-    div.style.zIndex = '10000';
-    div.style.fontSize = '14px';
-    div.style.padding = '10px';
-    div.innerText = 'Global Error: ' + errorMsg;
-    document.body.appendChild(div);
-});
 
 /**
  * Adds a "press" animation to a game object on touch.
