@@ -259,10 +259,31 @@ class MainMenu extends Phaser.Scene {
 
   preload() {
     // Bolt Optimization: Centralized asset preloading to prevent gameplay stutter
-    const loadingText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'Loading...', {
-        font: '24px monospace',
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Loading Bar Background
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
+
+    // Loading Text
+    const loadingText = this.add.text(width / 2, height / 2 + 50, 'Loading... 0%', {
+        fontFamily: 'Comic Sans MS',
+        fontSize: '24px',
         fill: '#ffffff'
     }).setOrigin(0.5);
+
+    this.load.on('progress', (value) => {
+        // Update Text
+        loadingText.setText(`Loading... ${Math.floor(value * 100)}%`);
+
+        // Update Bar
+        progressBar.clear();
+        progressBar.fillStyle(0xffff00, 1);
+        progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
+    });
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json');
@@ -320,6 +341,8 @@ class MainMenu extends Phaser.Scene {
     });
 
     this.load.on('complete', () => {
+        progressBar.destroy();
+        progressBox.destroy();
         loadingText.destroy();
     });
 
@@ -333,7 +356,11 @@ class MainMenu extends Phaser.Scene {
 
     // Add Intro Video - centered
     const introVideo = this.add.video(640, 360, 'intro-video');
-    introVideo.play(true); // Loop
+    try {
+        introVideo.play(true); // Loop
+    } catch (e) {
+        console.warn('Video autoplay synchronous error:', e);
+    }
 
     // Store reference for update loop
     this.introVideo = introVideo;
