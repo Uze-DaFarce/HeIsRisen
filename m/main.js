@@ -1190,16 +1190,20 @@ class SectionHunt extends Phaser.Scene {
       // Calculate lens position based on pointer
       const scale = this.gameScale;
 
-      // Lens is now centered under the finger
-      const lensX = pointer.x;
-      const lensY = pointer.y;
+      // Lens is visually offset from finger (Up and Left)
+      const lensOffsetX = -130 * scale;
+      const lensOffsetY = -180 * scale;
+
+      const lensX = pointer.x + lensOffsetX;
+      const lensY = pointer.y + lensOffsetY;
+
       const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
       const captureRadiusSq = captureRadius * captureRadius;
 
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
-           // Check if clicking on egg OR clicking on handle (when egg is under lens)
+           // Check if clicking on egg (under finger) OR clicking on lens (visual)
            // Bolt Optimization: Use squared distance
            const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
            const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
@@ -1227,9 +1231,11 @@ class SectionHunt extends Phaser.Scene {
     // Offset in texture pixels: (-120, -170).
     // We shift it "Up and Left" a bit more per request: (-130, -180).
 
-    // Lens is now centered under the finger
-    const lensX = pointer.x;
-    const lensY = pointer.y;
+    const lensOffsetX = -130 * scale;
+    const lensOffsetY = -180 * scale;
+
+    const lensX = pointer.x + lensOffsetX;
+    const lensY = pointer.y + lensOffsetY;
 
     // Ensure video size is correct once texture loads
     if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active && this.sectionImage.width > 0) {
@@ -1247,8 +1253,11 @@ class SectionHunt extends Phaser.Scene {
     const diameter = 200 * scale; // Doubled
     const viewWidth = diameter / zoom;
     const viewHeight = diameter / zoom;
-    const scrollX = lensX - viewWidth / 2;
-    const scrollY = lensY - viewHeight / 2;
+
+    // Crucial Change: The zoomed view should show what is under the FINGER (pointer),
+    // even though the lens is visually offset (lensX, lensY).
+    const scrollX = pointer.x - viewWidth / 2;
+    const scrollY = pointer.y - viewHeight / 2;
 
     this.zoomedView.clear();
 
@@ -1271,8 +1280,17 @@ class SectionHunt extends Phaser.Scene {
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-          // Update visibility
-          const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+          // Update visibility based on FINGER position (pointer) or LENS visual position
+          // If the egg is under the finger, it should be visible in the zoomed view.
+          // If the egg is under the lens (visual), it should also be visible (legacy/safety).
+          // But crucially, if it's under the finger, it must render.
+
+          const distToFinger = Phaser.Math.Distance.Between(pointer.x, pointer.y, egg.x, egg.y);
+          const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+
+          // Use the closer distance to determine visibility
+          const distance = Math.min(distToFinger, distToLens);
+
           const alpha = distance < magnifierRadius ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
@@ -1356,10 +1374,7 @@ class SectionHunt extends Phaser.Scene {
         if (this.magnifyingGlass) {
              this.magnifyingGlass.setVisible(true);
              this.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled size
-             // Offset sprite so visual lens center aligns with pointer
-             // Visual lens center is approx (-130, -180) from handle tip (origin)
-             // So we shift sprite by (+130, +180) to align lens center with pointer
-             this.magnifyingGlass.setPosition(pointer.x + (130 * scale), pointer.y + (180 * scale));
+             this.magnifyingGlass.setPosition(pointer.x, pointer.y);
         }
         if (this.zoomedView) this.zoomedView.setVisible(true);
         if (this.maskGraphics) this.maskGraphics.setVisible(true);
@@ -1875,8 +1890,7 @@ function resizeGame() {
       }
       if (scene.magnifyingGlass) {
         scene.magnifyingGlass.setDisplaySize(200 * scale, 250 * scale); // Doubled
-        // Offset sprite so visual lens center aligns with pointer
-        scene.magnifyingGlass.setPosition(scene.input.x + (130 * scale), scene.input.y + (180 * scale));
+        scene.magnifyingGlass.setPosition(scene.input.x, scene.input.y);
       }
     }
     if (scene.scene.key === 'UIScene') {
