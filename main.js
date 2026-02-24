@@ -824,10 +824,6 @@ class SectionHunt extends Phaser.Scene {
     // Bolt Optimization: Render Stamp for single-pass drawing
     this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
 
-    // Bolt Optimization: Track last lens position for dirty checking
-    this.lastLensX = null;
-    this.lastLensY = null;
-
     // Idle Hint Timer (2 minutes)
     this.hintTimer = this.time.addEvent({
         delay: 120000,
@@ -838,7 +834,6 @@ class SectionHunt extends Phaser.Scene {
   }
 
   update() {
-    // console.log('SectionHunt update running');
     const pointer = this.input.activePointer;
     const offset = 35;
     const rtX = pointer.x + offset - 75;
@@ -855,56 +850,53 @@ class SectionHunt extends Phaser.Scene {
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
 
-    // Bolt Optimization: Only update zoomedView if lens has moved
-    if (this.lastLensX === null || Math.abs(this.lastLensX - magnifierScreenX) > 0.1 || Math.abs(this.lastLensY - magnifierScreenY) > 0.1) {
-        this.lastLensX = magnifierScreenX;
-        this.lastLensY = magnifierScreenY;
+    this.zoomedView.clear();
 
-        this.zoomedView.clear();
+    // Draw background using renderStamp to avoid dirtying scene object
+    this.renderStamp.setTexture(this.sectionName);
+    this.renderStamp.setOrigin(0, 0);
+    this.renderStamp.setDisplaySize(1280, 720);
+    this.renderStamp.setAngle(0);
+    this.renderStamp.setRotation(0);
+    this.renderStamp.setFlipX(false);
+    this.renderStamp.setFlipY(false);
+    this.zoomedView.draw(this.renderStamp, 0, 0);
 
-        // Draw background using renderStamp to avoid dirtying scene object
-        this.renderStamp.setTexture(this.sectionName);
-        this.renderStamp.setOrigin(0, 0);
-        this.renderStamp.setDisplaySize(1280, 720);
-        this.renderStamp.setAngle(0);
-        this.renderStamp.setRotation(0);
-        this.renderStamp.setFlipX(false);
-        this.renderStamp.setFlipY(false);
-        this.zoomedView.draw(this.renderStamp, 0, 0);
+    // Single pass for visibility update and drawing
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // Bolt Optimization: Pre-calculate squared radius
 
-        // Single pass for visibility update and drawing
-        this.eggs.getChildren().forEach(egg => {
-            if (egg && egg.active) {
-                const distance = Phaser.Math.Distance.Between(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
-                const alpha = distance < magnifierRadius ? 1 : 0;
-                egg.setAlpha(alpha);
-                if (egg.symbolSprite) {
-                    egg.symbolSprite.setAlpha(alpha);
-                }
+    this.eggs.getChildren().forEach(egg => {
+        if (egg && egg.active) {
+            // Bolt Optimization: Use squared distance check
+            const distanceSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
+            const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
+            egg.setAlpha(alpha);
+            if (egg.symbolSprite) {
+                egg.symbolSprite.setAlpha(alpha);
+            }
 
-                if (alpha > 0) {
-                    // Draw egg using renderStamp
-                    this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
-                    this.renderStamp.setAngle(egg.angle);
-                    this.renderStamp.setFlipX(egg.flipX);
-                    this.renderStamp.setFlipY(egg.flipY);
-                    this.renderStamp.setOrigin(0.5, 0.5);
-                    this.renderStamp.setScale(egg.scaleX, egg.scaleY);
-                    this.zoomedView.draw(this.renderStamp, egg.x - this.zoomedView.camera.scrollX, egg.y - this.zoomedView.camera.scrollY);
+            if (alpha > 0) {
+                // Draw egg using renderStamp
+                this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
+                this.renderStamp.setAngle(egg.angle);
+                this.renderStamp.setFlipX(egg.flipX);
+                this.renderStamp.setFlipY(egg.flipY);
+                this.renderStamp.setOrigin(0.5, 0.5);
+                this.renderStamp.setScale(egg.scaleX, egg.scaleY);
+                this.zoomedView.draw(this.renderStamp, egg.x - this.zoomedView.camera.scrollX, egg.y - this.zoomedView.camera.scrollY);
 
-                    // Draw symbol using renderStamp
-                    if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
-                        this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
-                        this.renderStamp.setAngle(egg.symbolSprite.angle);
-                        this.renderStamp.setFlipX(egg.symbolSprite.flipX);
-                        this.renderStamp.setFlipY(egg.symbolSprite.flipY);
-                        this.renderStamp.setScale(egg.symbolSprite.scaleX, egg.symbolSprite.scaleY);
-                        this.zoomedView.draw(this.renderStamp, egg.symbolSprite.x - this.zoomedView.camera.scrollX, egg.symbolSprite.y - this.zoomedView.camera.scrollY);
-                    }
+                // Draw symbol using renderStamp
+                if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
+                    this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
+                    this.renderStamp.setAngle(egg.symbolSprite.angle);
+                    this.renderStamp.setFlipX(egg.symbolSprite.flipX);
+                    this.renderStamp.setFlipY(egg.symbolSprite.flipY);
+                    this.renderStamp.setScale(egg.symbolSprite.scaleX, egg.symbolSprite.scaleY);
+                    this.zoomedView.draw(this.renderStamp, egg.symbolSprite.x - this.zoomedView.camera.scrollX, egg.symbolSprite.y - this.zoomedView.camera.scrollY);
                 }
             }
-        });
-    }
+        }
+    });
 
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
     const foundEggsCount = this.registry.get('foundEggs').length;
