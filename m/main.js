@@ -1190,21 +1190,20 @@ class SectionHunt extends Phaser.Scene {
       // Calculate lens position based on pointer
       const scale = this.gameScale;
 
-      // New offsets for doubled size (200x250 display size)
-      // Visual lens center is approx (-130 * scale, -180 * scale) relative to handle tip
-      // Shifted "Up and Left" a bit more as requested
+      // Lens is visually offset from finger (Up and Left)
       const lensOffsetX = -130 * scale;
       const lensOffsetY = -180 * scale;
 
       const lensX = pointer.x + lensOffsetX;
       const lensY = pointer.y + lensOffsetY;
+
       const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
       const captureRadiusSq = captureRadius * captureRadius;
 
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
-           // Check if clicking on egg OR clicking on handle (when egg is under lens)
+           // Check if clicking on egg (under finger) OR clicking on lens (visual)
            // Bolt Optimization: Use squared distance
            const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
            const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
@@ -1254,8 +1253,11 @@ class SectionHunt extends Phaser.Scene {
     const diameter = 200 * scale; // Doubled
     const viewWidth = diameter / zoom;
     const viewHeight = diameter / zoom;
-    const scrollX = lensX - viewWidth / 2;
-    const scrollY = lensY - viewHeight / 2;
+
+    // Crucial Change: The zoomed view should show what is under the FINGER (pointer),
+    // even though the lens is visually offset (lensX, lensY).
+    const scrollX = pointer.x - viewWidth / 2;
+    const scrollY = pointer.y - viewHeight / 2;
 
     this.zoomedView.clear();
 
@@ -1278,8 +1280,17 @@ class SectionHunt extends Phaser.Scene {
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-          // Update visibility
-          const distance = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+          // Update visibility based on FINGER position (pointer) or LENS visual position
+          // If the egg is under the finger, it should be visible in the zoomed view.
+          // If the egg is under the lens (visual), it should also be visible (legacy/safety).
+          // But crucially, if it's under the finger, it must render.
+
+          const distToFinger = Phaser.Math.Distance.Between(pointer.x, pointer.y, egg.x, egg.y);
+          const distToLens = Phaser.Math.Distance.Between(lensX, lensY, egg.x, egg.y);
+
+          // Use the closer distance to determine visibility
+          const distance = Math.min(distToFinger, distToLens);
+
           const alpha = distance < magnifierRadius ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
