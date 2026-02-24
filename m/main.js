@@ -114,7 +114,10 @@ class UIScene extends Phaser.Scene {
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
-        this.openSettings();
+        this.tweens.add({
+            targets: gear, scaleX: 0.9, scaleY: 0.9, duration: 50, ease: 'Power1', yoyo: true,
+            onComplete: () => this.openSettings()
+        });
     });
 
     this.gearIcon = gear;
@@ -204,9 +207,15 @@ class UIScene extends Phaser.Scene {
     closeBtn.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     closeBtn.on('pointerdown', () => {
-        this.settingsContainer.setVisible(false);
-        this.gearIcon.setVisible(true);
-        this.input.setDefaultCursor('none');
+        this.tweens.add({
+            targets: closeBtn, scaleX: 0.9, scaleY: 0.9, duration: 50, ease: 'Power1', yoyo: true,
+            onComplete: () => {
+                this.settingsContainer.setVisible(false);
+                this.gearIcon.setVisible(true);
+                this.input.setDefaultCursor('none');
+                closeBtn.setScale(1); // Reset
+            }
+        });
     });
     this.settingsContainer.add(closeBtn);
 
@@ -233,8 +242,8 @@ class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.settingsContainer.add(text);
 
-    // Increase track hit area for easier tapping
-    const track = this.add.rectangle(centerX, y + 10, trackWidth, 30, 0x888888).setAlpha(0.01).setInteractive();
+    // Increase track hit area for easier tapping (60px height)
+    const track = this.add.rectangle(centerX, y + 10, trackWidth, 60, 0x888888).setAlpha(0.01).setInteractive();
     // Visual track
     const visualTrack = this.add.rectangle(centerX, y + 10, trackWidth, 4, 0x888888);
     this.settingsContainer.add(track);
@@ -242,37 +251,36 @@ class UIScene extends Phaser.Scene {
 
     // Handle
     let currentVol = 0.5;
-    // Check registry first
-    if (type === 'music' && this.registry.has('musicVolume')) currentVol = this.registry.get('musicVolume');
-    else if (type === 'ambient' && this.registry.has('ambientVolume')) currentVol = this.registry.get('ambientVolume');
-    else if (type === 'sfx' && this.registry.has('sfxVolume')) currentVol = this.registry.get('sfxVolume');
+    if (this.registry.has(`${type}Volume`)) currentVol = this.registry.get(`${type}Volume`);
 
     const handleX = startX + (currentVol * trackWidth);
-    // Larger handle hit area
-    const handle = this.add.circle(handleX, y + 10, 20, 0xffffff).setInteractive({ draggable: true });
+    // Larger handle hit area (30px radius = 60px target)
+    // Handle container for easier dragging and visual hierarchy
+    const handle = this.add.container(handleX, y + 10);
+    handle.setSize(60, 60); // 30px radius * 2
+    handle.setInteractive(new Phaser.Geom.Circle(0, 0, 30), Phaser.Geom.Circle.Contains);
+    this.input.setDraggable(handle);
+
+    // Visuals
+    const outer = this.add.circle(0, 0, 15, 0xffffff);
+    handle.add(outer);
+
     this.settingsContainer.add(handle);
 
     const updateVolume = (x) => {
         const clampedX = Phaser.Math.Clamp(x, startX, endX);
         handle.x = clampedX;
         const volume = (clampedX - startX) / trackWidth;
-
-        // Update Registry which triggers events
-        if (type === 'music') this.registry.set('musicVolume', volume);
-        else if (type === 'ambient') this.registry.set('ambientVolume', volume);
-        else if (type === 'sfx') this.registry.set('sfxVolume', volume);
+        this.registry.set(`${type}Volume`, volume);
     };
 
-    handle.on('drag', (pointer, dragX, dragY) => {
-        updateVolume(dragX);
-    });
+    handle.on('drag', (p, x) => updateVolume(x));
+    track.on('pointerdown', (p) => updateVolume(p.x));
 
-    track.on('pointerdown', (pointer) => {
-        // pointer.x is world coordinate, but since container is at 0,0, it maps directly.
-        // If container moves, we'd need local transform.
-        // Assuming container is fullscreen overlay at 0,0.
-        updateVolume(pointer.x);
-    });
+    // Tactile feedback
+    handle.on('pointerdown', () => this.tweens.add({ targets: handle, scale: 1.3, duration: 100, ease: 'Back.out' }));
+    handle.on('pointerup', () => this.tweens.add({ targets: handle, scale: 1, duration: 100, ease: 'Back.out' }));
+    handle.on('pointerout', () => this.tweens.add({ targets: handle, scale: 1, duration: 100, ease: 'Back.out' }));
   }
 
   openSettings() {

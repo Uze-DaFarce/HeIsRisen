@@ -110,9 +110,30 @@ class UIScene extends Phaser.Scene {
 
     const hitArea = new Phaser.Geom.Circle(x, y, 20);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    gear.input.cursor = 'pointer';
+
+    gear.on('pointerover', () => this.tweens.add({
+        targets: gear, scale: 1.2, duration: 100, ease: 'Sine.easeInOut'
+    }));
+
+    gear.on('pointerout', () => this.tweens.add({
+        targets: gear, scale: 1, duration: 100, ease: 'Sine.easeInOut'
+    }));
 
     gear.on('pointerdown', () => {
-        this.openSettings();
+        this.tweens.add({
+            targets: gear,
+            scaleX: 0.9,
+            scaleY: 0.9,
+            duration: 50,
+            ease: 'Power1',
+            onComplete: () => {
+                this.time.delayedCall(50, () => {
+                    this.openSettings();
+                    gear.setScale(1.0); // Reset scale for next time
+                });
+            }
+        });
     });
 
     this.gearIcon = gear;
@@ -174,6 +195,7 @@ class UIScene extends Phaser.Scene {
 
     // Hover effects
     closeBtn.on('pointerover', () => {
+        this.input.setDefaultCursor('pointer');
         this.tweens.add({
             targets: closeBtn,
             scaleX: 1.1,
@@ -184,6 +206,7 @@ class UIScene extends Phaser.Scene {
     });
 
     closeBtn.on('pointerout', () => {
+        this.input.setDefaultCursor('default');
         this.tweens.add({
             targets: closeBtn,
             scaleX: 1.0,
@@ -218,31 +241,29 @@ class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.settingsContainer.add(text);
 
-    const track = this.add.rectangle(centerX, y + 10, 200, 4, 0x888888);
-    this.settingsContainer.add(track);
+    // Invisible hit area for easier clicking on track
+    const trackHitArea = this.add.rectangle(centerX, y + 10, 200, 20, 0x888888, 0).setInteractive({ cursor: 'pointer' });
+    this.settingsContainer.add(trackHitArea);
+    this.settingsContainer.add(this.add.rectangle(centerX, y + 10, 200, 4, 0x888888));
 
     // Handle
     let currentVol = 0.5;
-    // Check registry first
-    if (type === 'music' && this.registry.has('musicVolume')) currentVol = this.registry.get('musicVolume');
-    else if (type === 'ambient' && this.registry.has('ambientVolume')) currentVol = this.registry.get('ambientVolume');
-    else if (type === 'sfx' && this.registry.has('sfxVolume')) currentVol = this.registry.get('sfxVolume');
+    if (this.registry.has(`${type}Volume`)) currentVol = this.registry.get(`${type}Volume`);
 
-    const handleX = startX + (currentVol * 200);
-    const handle = this.add.circle(handleX, y + 10, 12, 0xffffff).setInteractive({ draggable: true });
+    const handle = this.add.circle(startX + (currentVol * 200), y + 10, 12, 0xffffff).setInteractive({ draggable: true });
     this.settingsContainer.add(handle);
 
-    handle.on('drag', (pointer, dragX, dragY) => {
-        const clampedX = Phaser.Math.Clamp(dragX, startX, endX);
+    const updateVolume = (x) => {
+        const clampedX = Phaser.Math.Clamp(x, startX, endX);
         handle.x = clampedX;
+        this.registry.set(`${type}Volume`, (clampedX - startX) / 200);
+    };
 
-        const volume = (clampedX - startX) / 200;
+    handle.on('drag', (p, x) => updateVolume(x));
+    trackHitArea.on('pointerdown', (p) => updateVolume(p.worldX));
 
-        // Update Registry which triggers events
-        if (type === 'music') this.registry.set('musicVolume', volume);
-        else if (type === 'ambient') this.registry.set('ambientVolume', volume);
-        else if (type === 'sfx') this.registry.set('sfxVolume', volume);
-    });
+    handle.on('pointerover', () => { handle.setScale(1.3); this.input.setDefaultCursor('pointer'); });
+    handle.on('pointerout', () => { handle.setScale(1); this.input.setDefaultCursor('default'); });
   }
 
   openSettings() {
