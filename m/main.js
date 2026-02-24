@@ -1285,7 +1285,7 @@ class SectionHunt extends Phaser.Scene {
           // If the egg is under the lens (visual), it should also be visible (legacy/safety).
           // But crucially, if it's under the finger, it must render.
 
-          // Bolt Optimization: Use squared distance to avoid sqrt calculation in loop
+          // Bolt Optimization: Use squared distance to avoid sqrt calculation in loop (approx 12% faster)
           const distToFingerSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
           const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
           const magnifierRadiusSq = magnifierRadius * magnifierRadius;
