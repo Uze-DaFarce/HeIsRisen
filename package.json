@@ -10,7 +10,8 @@
         "phaser": "^3.88.2"
     },
     "devDependencies": {
-        "http-server": "^14.1.1"
+        "http-server": "^14.1.1",
+        "playwright": "^1.58.2"
     },
     "author": "daybydaykids.com",
     "license": "MIT",
