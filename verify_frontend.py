@@ -24,7 +24,7 @@ def verify_frontend():
         page = context.new_page()
 
         try:
-            page.goto("http://localhost:8080/m/index.html")
+            page.goto("http://127.0.0.1:8080/m/index.html")
             page.wait_for_selector("canvas", state="visible", timeout=10000)
 
             # Wait for scene initialization and animations

@@ -288,17 +288,39 @@ class MainMenu extends Phaser.Scene {
   }
 
   preload() {
-    // Add loading text
-    const loadingText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'Loading... 0%', {
-      font: '20px monospace',
+    // Add loading text and progress bar
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Scale factors for mobile responsiveness (relative to base 1280x720 logic or viewport)
+    // Using viewport center is safe.
+
+    // Loading Bar Background
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    // Centered, width 320, height 50
+    progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
+
+    const loadingText = this.add.text(width / 2, height / 2 + 50, 'Loading... 0%', {
+      fontFamily: 'Comic Sans MS',
+      fontSize: '24px',
       fill: '#ffffff'
     }).setOrigin(0.5, 0.5);
 
     this.load.on('progress', (value) => {
+      // Update Text
       loadingText.setText(`Loading... ${Math.floor(value * 100)}%`);
+
+      // Update Bar
+      progressBar.clear();
+      progressBar.fillStyle(0xffff00, 1);
+      progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
     });
 
     this.load.on('complete', () => {
+      progressBar.destroy();
+      progressBox.destroy();
       loadingText.destroy();
     });
 
@@ -336,11 +358,14 @@ class MainMenu extends Phaser.Scene {
       if (data && data.symbols) {
         const symbolBasePath = ''; // symbols.json paths are relative to assets/
         data.symbols.forEach(symbol => {
-          if (symbol.filename) {
+          // Sentinel: Validate symbol path to prevent traversal/malicious loading
+          if (this.isValidSymbol(symbol)) {
             // Check if texture already exists to avoid warnings/errors
             if (!this.textures.exists(symbol.filename)) {
               this.load.image(symbol.filename, symbolBasePath + symbol.filename);
             }
+          } else {
+            console.warn(`Security: Skipped invalid symbol filename: ${symbol.filename}`);
           }
         });
         // console.log(`MainMenu: Queued ${data.symbols.length} symbol images for loading.`);
@@ -387,6 +412,14 @@ class MainMenu extends Phaser.Scene {
         console.error('MainMenu: Invalid symbols data:', symbolsData);
         return;
       }
+
+      // Sentinel: Filter invalid symbols before using them in game logic
+      const validSymbols = symbolsData.symbols.filter(s => this.isValidSymbol(s));
+      if (validSymbols.length !== symbolsData.symbols.length) {
+          console.warn(`Security: Filtered ${symbolsData.symbols.length - validSymbols.length} invalid symbols.`);
+          symbolsData.symbols = validSymbols;
+      }
+
       if (symbolsData.symbols.length !== TOTAL_EGGS) {
         console.error(`MainMenu: Expected ${TOTAL_EGGS} symbols, found ${symbolsData.symbols.length}`);
       }
@@ -673,6 +706,14 @@ class MainMenu extends Phaser.Scene {
        // Manually trigger the global error handler
        window.dispatchEvent(new ErrorEvent('error', { message: error.message }));
     }
+  }
+
+  isValidSymbol(s) {
+    // Sentinel: validate structure and prevent path traversal
+    return s && typeof s === 'object' &&
+           typeof s.filename === 'string' &&
+           !s.filename.includes('..') &&
+           /^[a-zA-Z0-9_\-\/]+\.(png|jpg|jpeg)$/i.test(s.filename);
   }
 
   update() {
@@ -1047,10 +1088,8 @@ class SectionHunt extends Phaser.Scene {
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
           // console.log(`SectionHunt: Bounds check PASSED for egg-${eggData.eggId}`);
-          // Bolt Optimization: Use squared distance for performance
-          const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          const collectRadius = 150 * scale;
-          if (distSq < collectRadius * collectRadius) {
+          const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
+          if (distance < 150 * scale) {
             // console.log(`SectionHunt: Distance check PASSED for egg-${eggData.eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
@@ -1111,6 +1150,7 @@ class SectionHunt extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6 * scale
     }).setDepth(5);
+    this.lastFoundCount = foundEggs; // Bolt Optimization
 
     const diameter = 200 * scale; // Doubled size
     this.zoomedView = this.add.renderTexture(0, 0, diameter, diameter)
@@ -1150,21 +1190,20 @@ class SectionHunt extends Phaser.Scene {
       // Calculate lens position based on pointer
       const scale = this.gameScale;
 
-      // New offsets for doubled size (200x250 display size)
-      // Visual lens center is approx (-130 * scale, -180 * scale) relative to handle tip
-      // Shifted "Up and Left" a bit more as requested
+      // Lens is visually offset from finger (Up and Left)
       const lensOffsetX = -130 * scale;
       const lensOffsetY = -180 * scale;
 
       const lensX = pointer.x + lensOffsetX;
       const lensY = pointer.y + lensOffsetY;
+
       const captureRadius = 110 * scale; // Slightly larger than visual radius (100)
       const captureRadiusSq = captureRadius * captureRadius;
 
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
-           // Check if clicking on egg OR clicking on handle (when egg is under lens)
+           // Check if clicking on egg (under finger) OR clicking on lens (visual)
            // Bolt Optimization: Use squared distance
            const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
            const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
@@ -1210,13 +1249,15 @@ class SectionHunt extends Phaser.Scene {
     this.maskGraphics.setPosition(lensX, lensY);
 
     const magnifierRadius = 100 * scale; // Visual radius for egg visibility (doubled)
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius;
     const zoom = 2;
     const diameter = 200 * scale; // Doubled
     const viewWidth = diameter / zoom;
     const viewHeight = diameter / zoom;
-    const scrollX = lensX - viewWidth / 2;
-    const scrollY = lensY - viewHeight / 2;
+
+    // Crucial Change: The zoomed view should show what is under the FINGER (pointer),
+    // even though the lens is visually offset (lensX, lensY).
+    const scrollX = pointer.x - viewWidth / 2;
+    const scrollY = pointer.y - viewHeight / 2;
 
     this.zoomedView.clear();
 
@@ -1239,10 +1280,20 @@ class SectionHunt extends Phaser.Scene {
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-          // Update visibility
+          // Update visibility based on FINGER position (pointer) or LENS visual position
+          // If the egg is under the finger, it should be visible in the zoomed view.
+          // If the egg is under the lens (visual), it should also be visible (legacy/safety).
+          // But crucially, if it's under the finger, it must render.
+
           // Bolt Optimization: Use squared distance to avoid sqrt calculation in loop
-          const distSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
-          const alpha = distSq < magnifierRadiusSq ? 1 : 0;
+          const distToFingerSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
+          const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
+          const magnifierRadiusSq = magnifierRadius * magnifierRadius;
+
+          // Use the closer distance to determine visibility (comparison in squared space)
+          const distanceSq = Math.min(distToFingerSq, distToLensSq);
+
+          const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
             egg.symbolSprite.setAlpha(alpha);
@@ -1333,7 +1384,10 @@ class SectionHunt extends Phaser.Scene {
     }
 
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+    if (this.lastFoundCount !== foundEggsCount) {
+        this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+        this.lastFoundCount = foundEggsCount;
+    }
   }
 }
 
@@ -1428,6 +1482,7 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6 * this.gameScale
     }).setDepth(5);
+    this.lastFoundCount = foundEggsCount; // Bolt Optimization
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
@@ -1592,8 +1647,9 @@ class EggZamRoom extends Phaser.Scene {
 
   update() {
     const foundEggsCount = this.registry.get('foundEggs').length;
-    if (this.scoreText) {
+    if (this.scoreText && this.lastFoundCount !== foundEggsCount) {
       this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+      this.lastFoundCount = foundEggsCount;
     }
     if (this.fingerCursor) {
       this.fingerCursor.setPosition(this.input.x, this.input.y);

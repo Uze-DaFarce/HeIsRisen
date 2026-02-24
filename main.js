@@ -259,10 +259,31 @@ class MainMenu extends Phaser.Scene {
 
   preload() {
     // Bolt Optimization: Centralized asset preloading to prevent gameplay stutter
-    const loadingText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'Loading...', {
-        font: '24px monospace',
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Loading Bar Background
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
+
+    // Loading Text
+    const loadingText = this.add.text(width / 2, height / 2 + 50, 'Loading... 0%', {
+        fontFamily: 'Comic Sans MS',
+        fontSize: '24px',
         fill: '#ffffff'
     }).setOrigin(0.5);
+
+    this.load.on('progress', (value) => {
+        // Update Text
+        loadingText.setText(`Loading... ${Math.floor(value * 100)}%`);
+
+        // Update Bar
+        progressBar.clear();
+        progressBar.fillStyle(0xffff00, 1);
+        progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
+    });
 
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json');
@@ -309,14 +330,19 @@ class MainMenu extends Phaser.Scene {
       // Preload all symbols
       if (data && data.symbols) {
         data.symbols.forEach(symbol => {
-          if (symbol.filename) {
+          // Sentinel: Validate symbol path to prevent traversal/malicious loading
+          if (this.isValidSymbol(symbol)) {
             this.load.image(symbol.filename, symbol.filename);
+          } else {
+            console.warn(`Security: Skipped invalid symbol filename: ${symbol.filename}`);
           }
         });
       }
     });
 
     this.load.on('complete', () => {
+        progressBar.destroy();
+        progressBox.destroy();
         loadingText.destroy();
     });
 
@@ -330,7 +356,11 @@ class MainMenu extends Phaser.Scene {
 
     // Add Intro Video - centered
     const introVideo = this.add.video(640, 360, 'intro-video');
-    introVideo.play(true); // Loop
+    try {
+        introVideo.play(true); // Loop
+    } catch (e) {
+        console.warn('Video autoplay synchronous error:', e);
+    }
 
     // Store reference for update loop
     this.introVideo = introVideo;
@@ -437,6 +467,13 @@ class MainMenu extends Phaser.Scene {
     if (symbolsData) {
       // console.log('MainMenu: Found symbols data in cache:', symbolsData);
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
+        // Sentinel: Filter invalid symbols before setting registry
+        const validSymbols = symbolsData.symbols.filter(s => this.isValidSymbol(s));
+        if (validSymbols.length !== symbolsData.symbols.length) {
+            console.warn(`Security: Filtered ${symbolsData.symbols.length - validSymbols.length} invalid symbols.`);
+            symbolsData.symbols = validSymbols;
+        }
+
         // console.log(`MainMenu: Data contains a 'symbols' array with ${symbolsData.symbols.length} items. Setting registry...`);
         this.registry.set('symbols', symbolsData);
         const checkRegistry = this.registry.get('symbols');
@@ -451,6 +488,14 @@ class MainMenu extends Phaser.Scene {
     } else {
       console.error('MainMenu: ERROR - Failed to get symbols data from cache. Check the preload path and Network tab for loading errors.');
     }
+  }
+
+  isValidSymbol(s) {
+    // Sentinel: validate structure and prevent path traversal
+    return s && typeof s === 'object' &&
+           typeof s.filename === 'string' &&
+           !s.filename.includes('..') &&
+           /^[a-zA-Z0-9_\-\/]+\.(png|jpg|jpeg)$/i.test(s.filename);
   }
 
   update() {
@@ -771,6 +816,7 @@ class SectionHunt extends Phaser.Scene {
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
     const foundEggs = this.registry.get('foundEggs').length;
     this.scoreText = this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
+    this.lastFoundCount = foundEggs; // Bolt Optimization
     this.zoomedView = this.add.renderTexture(0, 0, 200, 200).setDepth(2).setScrollFactor(0);
     this.maskGraphics = this.add.graphics().fillCircle(50, 50, 50).setScrollFactor(0);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
@@ -802,7 +848,7 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.camera.scrollX = worldCenter.x - 150;
     this.zoomedView.camera.scrollY = worldCenter.y - 150;
     const magnifierRadius = 50;
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius;
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // 2500
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
 
@@ -823,6 +869,7 @@ class SectionHunt extends Phaser.Scene {
       if (egg && egg.active) {
         // Bolt Optimization: Use squared distance to avoid sqrt calculation in loop
         const distSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
+        // Ensure magnifierRadiusSq is calculated correctly above
         const alpha = distSq < magnifierRadiusSq ? 1 : 0;
         egg.setAlpha(alpha);
         if (egg.symbolSprite) {
@@ -854,7 +901,10 @@ class SectionHunt extends Phaser.Scene {
 
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+    if (this.lastFoundCount !== foundEggsCount) {
+        this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+        this.lastFoundCount = foundEggsCount;
+    }
   }
 }
 
@@ -914,6 +964,7 @@ class EggZamRoom extends Phaser.Scene {
       stroke: '#fff',
       strokeThickness: 6
     }).setDepth(5);
+    this.lastFoundCount = foundEggsCount; // Bolt Optimization
     // console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/${TOTAL_EGGS}`);
 
     if (!this.registry.has('correctCategorizations')) {
@@ -1043,8 +1094,9 @@ class EggZamRoom extends Phaser.Scene {
 
   update() {
     const foundEggsCount = this.registry.get('foundEggs').length;
-    if (this.scoreText) {
+    if (this.scoreText && this.lastFoundCount !== foundEggsCount) {
       this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+      this.lastFoundCount = foundEggsCount;
     }
     this.fingerCursor.setPosition(this.input.x, this.input.y);
   }
