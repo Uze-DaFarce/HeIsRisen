@@ -353,7 +353,11 @@ class MainMenu extends Phaser.Scene {
 
     // Add Intro Video - centered
     const introVideo = this.add.video(640, 360, 'intro-video');
-    introVideo.play(true); // Loop
+    try {
+        introVideo.play(true); // Loop
+    } catch (e) {
+        console.warn('Video autoplay synchronous error:', e);
+    }
 
     // Store reference for update loop
     this.introVideo = introVideo;

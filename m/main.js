@@ -288,17 +288,39 @@ class MainMenu extends Phaser.Scene {
   }
 
   preload() {
-    // Add loading text
-    const loadingText = this.add.text(this.cameras.main.width / 2, this.cameras.main.height / 2, 'Loading... 0%', {
-      font: '20px monospace',
+    // Add loading text and progress bar
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Scale factors for mobile responsiveness (relative to base 1280x720 logic or viewport)
+    // Using viewport center is safe.
+
+    // Loading Bar Background
+    const progressBar = this.add.graphics();
+    const progressBox = this.add.graphics();
+    progressBox.fillStyle(0x222222, 0.8);
+    // Centered, width 320, height 50
+    progressBox.fillRect(width / 2 - 160, height / 2 - 25, 320, 50);
+
+    const loadingText = this.add.text(width / 2, height / 2 + 50, 'Loading... 0%', {
+      fontFamily: 'Comic Sans MS',
+      fontSize: '24px',
       fill: '#ffffff'
     }).setOrigin(0.5, 0.5);
 
     this.load.on('progress', (value) => {
+      // Update Text
       loadingText.setText(`Loading... ${Math.floor(value * 100)}%`);
+
+      // Update Bar
+      progressBar.clear();
+      progressBar.fillStyle(0xffff00, 1);
+      progressBar.fillRect(width / 2 - 150, height / 2 - 15, 300 * value, 30);
     });
 
     this.load.on('complete', () => {
+      progressBar.destroy();
+      progressBox.destroy();
       loadingText.destroy();
     });
 
