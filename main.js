@@ -587,6 +587,10 @@ class MapScene extends Phaser.Scene {
     this.sound.play('drive2', { volume: 0.5 });
 
     const mapImage = this.add.image(0, 0, 'yellowstone-main-map').setOrigin(0, 0);
+
+    // Create hover graphics for highlighting map sections
+    this.hoverGraphics = this.add.graphics().setDepth(10);
+
     // console.log(`Map display size: ${mapImage.displayWidth}x${mapImage.displayHeight}, Position: (${mapImage.x}, ${mapImage.y})`);
     mapSections.forEach(section => {
       const zoneX = section.coords.x;
@@ -595,6 +599,36 @@ class MapScene extends Phaser.Scene {
       const zoneHeight = section.coords.height;
       const zone = this.add.zone(zoneX, zoneY, zoneWidth, zoneHeight).setOrigin(0, 0);
       zone.setInteractive();
+
+      zone.on('pointerover', () => {
+          this.hoverGraphics.clear();
+          this.hoverGraphics.lineStyle(4, 0xffff00, 1);
+          this.hoverGraphics.strokeRect(zoneX, zoneY, zoneWidth, zoneHeight);
+          this.hoverGraphics.fillStyle(0xffff00, 0.2);
+          this.hoverGraphics.fillRect(zoneX, zoneY, zoneWidth, zoneHeight);
+
+          if (this.fingerCursor) {
+              this.tweens.add({
+                  targets: this.fingerCursor,
+                  scale: 1.2,
+                  duration: 100,
+                  ease: 'Sine.easeInOut'
+              });
+          }
+      });
+
+      zone.on('pointerout', () => {
+          this.hoverGraphics.clear();
+          if (this.fingerCursor) {
+              this.tweens.add({
+                  targets: this.fingerCursor,
+                  scale: 1.0,
+                  duration: 100,
+                  ease: 'Sine.easeInOut'
+              });
+          }
+      });
+
       zone.on('pointerdown', () => {
         // console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
         this.sound.play('drive1', { volume: 0.5 });
