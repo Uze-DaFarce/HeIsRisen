@@ -1040,7 +1040,7 @@ class EggZamRoom extends Phaser.Scene {
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
       strokeThickness: 6
-    }).setDepth(5);
+    }).setDepth(5).setOrigin(0.5);
     // console.log('EggZamRoom: Added correct categorization text at (100, 150)');
 
     // Create hover graphics for highlighting bottles
