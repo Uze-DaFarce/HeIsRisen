@@ -1043,8 +1043,47 @@ class EggZamRoom extends Phaser.Scene {
     }).setDepth(5);
     // console.log('EggZamRoom: Added correct categorization text at (100, 150)');
 
+    // Create hover graphics for highlighting bottles
+    this.hoverGraphics = this.add.graphics().setDepth(10);
+
     const leftBottleZone = this.add.zone(450, 300, 100, 200).setOrigin(0, 0).setInteractive();
     const rightBottleZone = this.add.zone(750, 300, 100, 200).setOrigin(0, 0).setInteractive();
+
+    const addZoneHover = (zone) => {
+        zone.on('pointerover', () => {
+            this.hoverGraphics.clear();
+            this.hoverGraphics.lineStyle(4, 0xffff00, 1);
+            this.hoverGraphics.strokeRect(zone.x, zone.y, zone.width, zone.height);
+            this.hoverGraphics.fillStyle(0xffff00, 0.2);
+            this.hoverGraphics.fillRect(zone.x, zone.y, zone.width, zone.height);
+
+            if (this.fingerCursor) {
+                this.tweens.killTweensOf(this.fingerCursor);
+                this.tweens.add({
+                    targets: this.fingerCursor,
+                    scale: 1.2,
+                    duration: 100,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        });
+
+        zone.on('pointerout', () => {
+            this.hoverGraphics.clear();
+            if (this.fingerCursor) {
+                this.tweens.killTweensOf(this.fingerCursor);
+                this.tweens.add({
+                    targets: this.fingerCursor,
+                    scale: 1.0,
+                    duration: 100,
+                    ease: 'Sine.easeInOut'
+                });
+            }
+        });
+    };
+
+    addZoneHover(leftBottleZone);
+    addZoneHover(rightBottleZone);
 
     leftBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized) {
