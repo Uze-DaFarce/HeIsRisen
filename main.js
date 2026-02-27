@@ -425,19 +425,10 @@ class MainMenu extends Phaser.Scene {
     }
     this.introVideo = introVideo; // Store reference for resizing
 
-    // Fit video to cover screen
-    // Note: introVideo.width might be 0 initially if not fully loaded metadata
-    // We should rely on resize or use displayWidth/displayHeight if set
-
-    if (introVideo.width > 0) {
-        const scaleX = width / introVideo.width;
-        const scaleY = height / introVideo.height;
-        const videoScale = Math.max(scaleX, scaleY);
-        introVideo.setScale(videoScale);
-    } else {
-        // Fallback or wait for texture
-        // We will rely on resize event which fires or we can force a resize check in update/timeout
-    }
+    // FORCE FULLSCREEN IMMEDIATELY to prevent zoomed-in start
+    // We set the display size to match the screen initially.
+    // Once metadata loads, the update loop or resize will correct aspect ratio to "Cover"
+    introVideo.setDisplaySize(width, height);
 
     // Initial Overlay Text "Click anywhere to start"
     const tapToStartText = this.add.text(width / 2, height / 2, 'Click anywhere to start', {
@@ -648,7 +639,7 @@ class MainMenu extends Phaser.Scene {
            this.introVideo.setPosition(this.scale.width / 2, this.scale.height / 2);
        }
 
-       // Ensure scaled if dimensions valid
+       // Gracefully switch to ASPECT RATIO PRESERVED "Cover" once metadata is ready
        if (this.introVideo.width > 0 && this.introVideo.height > 0) {
            const width = this.scale.width;
            const height = this.scale.height;
@@ -656,10 +647,11 @@ class MainMenu extends Phaser.Scene {
            const scaleY = height / this.introVideo.height;
            const desiredScale = Math.max(scaleX, scaleY);
 
-           // If current scale is default (1) but desired is different, apply it
-           // Use a small epsilon to avoid float jitter
-           if (Math.abs(this.introVideo.scaleX - desiredScale) > 0.01) {
-               console.log(`MainMenu: Applying delayed scale. Video: ${this.introVideo.width}x${this.introVideo.height}, Screen: ${width}x${height}, Scale: ${desiredScale}`);
+           // We check if we need to apply the correct aspect ratio scale
+           // instead of the initial squashed/stretched setDisplaySize
+           const currentScaleX = this.introVideo.scaleX;
+
+           if (Math.abs(currentScaleX - desiredScale) > 0.01) {
                this.introVideo.setScale(desiredScale);
            }
        }
@@ -1105,7 +1097,13 @@ class SectionHunt extends Phaser.Scene {
     // Note: mask needs to be moved in update
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
 
-    this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass').setOrigin(0.25, 0.2).setDepth(7).setScrollFactor(0);
+    // FIX: Explicitly size the magnifying glass so it doesn't default to full texture size if huge
+    this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass')
+        .setOrigin(0.25, 0.2)
+        .setDepth(7)
+        .setScrollFactor(0)
+        .setDisplaySize(240, 240) // Reasonable size for lens
+        .disableInteractive(); // Ensure it doesn't block clicks
 
     // Render Stamp
     if (this.isUsingVideo) {
@@ -1196,11 +1194,18 @@ class SectionHunt extends Phaser.Scene {
     // Draw background
     if (this.isUsingVideo && this.sectionVideo) {
         // Ensure video is playing/ready
-        if (this.sectionVideo.width === 0) {
-             // If video dimensions not loaded, we can't draw effectively or it draws nothing.
-             // We can try fallback to static image for the lens if available?
-             // Or just skip drawing.
-        } else {
+        if (this.sectionVideo.width > 0) {
+             // Draw the video texture into the lens at the correct offset
+             // The video is centered at (width/2, height/2) and scaled.
+             // We need to draw it such that the lens reveals the correct part.
+
+             // Since the video object is already scaled and positioned in the world (depth 0),
+             // drawing it directly to the RT (which has camera scroll set to world pos) *should* work
+             // IF the object's coordinates align.
+
+             // However, Video objects in Phaser 3 RTs can be tricky.
+             // Best approach: Draw the video texture frame.
+
              this.zoomedView.draw(this.sectionVideo, this.sectionVideo.x, this.sectionVideo.y);
         }
     } else {
