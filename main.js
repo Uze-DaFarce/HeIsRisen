@@ -431,8 +431,8 @@ class MainMenu extends Phaser.Scene {
     const videoScale = Math.max(scaleX, scaleY);
     introVideo.setScale(videoScale);
 
-    // Initial Overlay Text "Tap anywhere to start"
-    const tapToStartText = this.add.text(width / 2, height / 2, 'Tap anywhere to start', {
+    // Initial Overlay Text "Click anywhere to start"
+    const tapToStartText = this.add.text(width / 2, height / 2, 'Click anywhere to start', {
         fontSize: '48px',
         fontFamily: 'Comic Sans MS',
         fill: '#ffffff',
