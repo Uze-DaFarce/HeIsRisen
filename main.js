@@ -1173,9 +1173,9 @@ class SectionHunt extends Phaser.Scene {
     // User feedback: ZoomedView is offset UP/LEFT by ~20px relative to loop.
     // This implies the Loop is DOWN/RIGHT of the pointer.
     // To align Loop to Pointer (where ZoomedView is), we must shift the Sprite UP/LEFT.
-    // Trying offset (-20, -20)
-    const glassOffsetX = -20;
-    const glassOffsetY = -20;
+    // Adjusted based on feedback: Shift Sprite Right (+10 from -20) and Up (-10 from -20).
+    const glassOffsetX = -10;
+    const glassOffsetY = -30;
     this.magnifyingGlass.setPosition(pointer.x + glassOffsetX, pointer.y + glassOffsetY);
 
     // ZoomedView must be centered on the "loop".
