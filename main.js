@@ -1124,6 +1124,10 @@ class SectionHunt extends Phaser.Scene {
         loop: true
     });
 
+    // Bolt: Optimization state tracking
+    this.lastInputX = 0;
+    this.lastInputY = 0;
+
     this.scale.on('resize', this.resize, this);
   }
 
@@ -1164,6 +1168,19 @@ class SectionHunt extends Phaser.Scene {
 
   update() {
     const pointer = this.input.activePointer;
+
+    // Bolt Optimization: Dirty Check
+    // If using a static background and input hasn't moved, skip expensive redraw
+    // Video backgrounds (isUsingVideo) are considered always dirty
+    const inputDirty = (pointer.x !== this.lastInputX || pointer.y !== this.lastInputY);
+    const contentDirty = this.isUsingVideo;
+
+    if (!inputDirty && !contentDirty) {
+        return;
+    }
+
+    this.lastInputX = pointer.x;
+    this.lastInputY = pointer.y;
 
     // Magnifier logic
     const offset = 35;

@@ -1,7 +1,5 @@
-## 2024-05-22 - [Phaser 3 Asset Loading Redundancy]
-**Learning:** Phaser 3 scenes re-run `preload()` every time they are started. If assets (like 60+ images) are defined in `preload()` of a gameplay scene that is revisited, they are re-requested and re-processed, causing significant performance overhead and network traffic.
-**Action:** Centralize static/global asset loading in a dedicated `Boot` or `MainMenu` scene. In gameplay scenes, remove the redundant `load.image` calls or wrap them in `if (!this.textures.exists(key))` checks. This pattern was applied to both the desktop (`main.js`) and mobile (`m/main.js`) versions of the game.
-
-## 2024-05-22 - [Map Section SVG Preloading]
-**Learning:** Loading large SVG assets for map sections on-demand in `SectionHunt` caused a delay when entering each section. Since there are a small number of sections (11), preloading them all in `MainMenu` eliminates this friction.
-**Action:** Added a `filecomplete` listener in `MainMenu` to iterate over the `map_sections` JSON and preload all section SVGs upfront. Removed individual SVG loading from `SectionHunt`.
+## 2025-05-24 - Canvas Redraw Optimization in Phaser
+**Learning:** In Phaser `update()` loops, blindly redrawing to a `RenderTexture` (e.g., for a magnifying glass effect) every frame is a significant performance waste, especially when the input (mouse/touch) is static.
+**Action:** Implemented a dirty-check pattern: `if (!inputDirty && !contentDirty) return;`.
+**Insight:** Video backgrounds (`contentDirty = true`) require continuous redraws, but static image backgrounds (`contentDirty = false`) can skip rendering entirely when the user is idle. This saves GPU cycles and battery life on mobile devices.
+**Verification:** Verified using Playwright by injecting a spy on `zoomedView.clear()` and asserting call count is 0 when input is static.
