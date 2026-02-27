@@ -1,6 +1,36 @@
 // Define all scene classes first
 const TOTAL_EGGS = 60;
 
+class CursorScene extends Phaser.Scene {
+  constructor() {
+    super({ key: 'CursorScene', active: true });
+  }
+
+  create() {
+    // If not loaded yet (e.g. boot), wait?
+    // Assets are loaded in MainMenu. CursorScene starts active but MainMenu preloads.
+    // If MainMenu hasn't loaded 'finger-cursor', this will fail.
+    // Better to launch CursorScene FROM MainMenu after preload.
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
+        .setOrigin(0, 0)
+        .setDepth(10000); // Always on top
+  }
+
+  update() {
+    const pointer = this.input.activePointer;
+    if (this.fingerCursor) {
+        this.fingerCursor.setPosition(pointer.x, pointer.y);
+        // Ensure size is maintained (scale with window?)
+        // Simple fixed size or ratio
+        const scale = Math.min(this.scale.width / 1280, this.scale.height / 720);
+        this.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
+
+        // Hide system cursor explicitly here just in case
+        this.input.setDefaultCursor('none');
+    }
+  }
+}
+
 class MusicScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MusicScene' });
@@ -42,6 +72,13 @@ class MusicScene extends Phaser.Scene {
     if (this.registry.has('musicVolume')) this.musicVolume = this.registry.get('musicVolume');
     if (this.registry.has('ambientVolume')) this.ambientVolume = this.registry.get('ambientVolume');
     if (this.registry.has('sfxVolume')) this.sfxVolume = this.registry.get('sfxVolume');
+
+    // Save settings on change
+    this.registry.events.on('changedata', (parent, key, data) => {
+        if (['musicVolume', 'ambientVolume', 'sfxVolume'].includes(key)) {
+            localStorage.setItem(key, data);
+        }
+    });
   }
 
   scheduleAmbientSound() {
@@ -476,16 +513,26 @@ class MainMenu extends Phaser.Scene {
     startBtnContainer.setSize(buttonWidth, buttonHeight);
     startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
 
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75).setDepth(1000);
+    // Cursor handled by CursorScene
 
-    // Initialize volume registry
-    if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
-    if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', 0.5);
-    if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', 0.5);
+    // Initialize volume registry (Load from localStorage if available)
+    const savedMusic = localStorage.getItem('musicVolume');
+    const savedAmbient = localStorage.getItem('ambientVolume');
+    const savedSfx = localStorage.getItem('sfxVolume');
+
+    if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', savedMusic ? parseFloat(savedMusic) : 0.5);
+    if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', savedAmbient ? parseFloat(savedAmbient) : 0.5);
+    if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', savedSfx ? parseFloat(savedSfx) : 0.5);
 
     // Launch UI Scene
     if (!this.scene.get('UIScene').scene.isActive()) {
         this.scene.launch('UIScene');
+    }
+
+    // Launch Cursor Scene if not active (and assets loaded)
+    if (!this.scene.get('CursorScene').scene.isActive()) {
+        this.scene.launch('CursorScene');
+        this.scene.bringToTop('CursorScene');
     }
 
     // Intro Logic State
@@ -637,8 +684,6 @@ class MainMenu extends Phaser.Scene {
   }
 
   update() {
-    this.fingerCursor.setPosition(this.input.x, this.input.y);
-
     // Fallback scaling check: if video loaded late and width was 0
     if (this.introVideo && this.introVideo.active) {
        // Ensure centered
@@ -763,8 +808,6 @@ class MapScene extends Phaser.Scene {
     const foundEggs = this.registry.get('foundEggs').length;
     this.scoreText = this.add.text(0, 0, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
 
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75);
-
     // Initial Layout update
     this.updateLayout(width, height);
 
@@ -822,7 +865,6 @@ class MapScene extends Phaser.Scene {
   }
 
   update() {
-    this.fingerCursor.setPosition(this.input.x, this.input.y);
   }
 }
 
@@ -957,9 +999,18 @@ class SectionHunt extends Phaser.Scene {
     // Check if video exists in cache
     const videoKey = `${this.sectionName}-video`;
 
-    // Attempt to load video if key exists and file loaded, otherwise fallback
-    // Note: cache.video.exists checks if the key exists in cache, not if loaded successfully
+    // Validate video existence AND content
+    let useVideo = false;
     if (this.cache.video.exists(videoKey)) {
+        const videoData = this.cache.video.get(videoKey);
+        // If blob URL or standard, we hope it loaded. MainMenu preloads it.
+        // If load failed, it might still be in cache but broken?
+        // We'll try to add it. If it has 0 duration/width after play attempt, we fallback?
+        // Actually, checking if the texture exists might be safer if Phaser generated one.
+        useVideo = true;
+    }
+
+    if (useVideo) {
         // Use Video Background
         this.sectionVideo = this.add.video(width/2, height/2, videoKey)
             .setDisplaySize(1280 * scale, 720 * scale)
@@ -969,8 +1020,18 @@ class SectionHunt extends Phaser.Scene {
         this.sectionVideo.setMute(true); // Mute background videos
         this.sectionVideo.disableInteractive(); // Should not block clicks
 
-        this.isUsingVideo = true;
-    } else {
+        // Safety check: if video errors on play or is empty
+        if (this.sectionVideo.video && (this.sectionVideo.video.videoWidth === 0 && this.sectionVideo.video.readyState === 0)) {
+             // Likely failed to load or is invalid. Fallback.
+             console.warn(`SectionHunt: Video ${videoKey} appears invalid/empty. Falling back.`);
+             this.sectionVideo.destroy();
+             useVideo = false;
+        } else {
+             this.isUsingVideo = true;
+        }
+    }
+
+    if (!useVideo) {
         // Fallback to Image
         let textureKey = this.sectionName;
         if (!this.textures.exists(textureKey)) {
@@ -1142,7 +1203,8 @@ class SectionHunt extends Phaser.Scene {
 
       const scaleX = width / 1280;
       const scaleY = height / 720;
-      const scale = Math.max(scaleX, scaleY);
+      // SWITCH TO FIT (Contain) to prevent cutting off bottom
+      const scale = Math.min(scaleX, scaleY);
 
       this.bgScale = scale;
       this.bgOffsetX = (width - 1280 * scale) / 2;
@@ -1450,11 +1512,6 @@ class EggZamRoom extends Phaser.Scene {
 
     this.displayRandomEggInfo(offsetX, offsetY, uiScale);
 
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
-      .setOrigin(0, 0)
-      .setDisplaySize(50, 75)
-      .setDepth(7);
-
     // Store scale params for update/resize if needed (or just restart scene on resize)
     this.uiParams = { offsetX, offsetY, uiScale };
 
@@ -1517,7 +1574,6 @@ class EggZamRoom extends Phaser.Scene {
       this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
       this.lastFoundCount = foundEggsCount;
     }
-    this.fingerCursor.setPosition(this.input.x, this.input.y);
   }
 }
 
@@ -1584,7 +1640,7 @@ const config = {
       width: '100%',
       height: '100%'
   },
-  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene, UIScene],
+  scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene, UIScene, CursorScene],
   parent: 'game',
   backgroundColor: '#000000',
 };
