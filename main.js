@@ -1080,7 +1080,7 @@ class SectionHunt extends Phaser.Scene {
     this.lastFoundCount = foundEggs;
 
     // Fixed size Render Texture for Magnifier (Lens)
-    const lensDiameter = 200;
+    const lensDiameter = 100;
     this.zoomedView = this.add.renderTexture(0, 0, lensDiameter, lensDiameter).setDepth(2).setScrollFactor(0);
     this.zoomedView.setOrigin(0.5, 0.5); // Center origin
 
@@ -1110,7 +1110,7 @@ class SectionHunt extends Phaser.Scene {
         // If clicking UI, ignore
         if (pointer.y < 200 * uiScale && pointer.x < 200 * uiScale) return; // Approximate UI blocking
 
-        const captureRadiusSq = 75 * 75; // Lens capture radius (approx)
+        const captureRadiusSq = 50 * 50; // Lens capture radius (approx half of 100 diameter)
 
         this.eggs.getChildren().forEach(egg => {
             if (egg.active) {
@@ -1186,7 +1186,7 @@ class SectionHunt extends Phaser.Scene {
 
     // Zoom logic
     const zoom = 2;
-    const lensDiameter = 200;
+    const lensDiameter = 100;
     const viewWidth = lensDiameter / zoom;
     const viewHeight = lensDiameter / zoom;
 
