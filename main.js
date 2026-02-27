@@ -799,7 +799,10 @@ class MapScene extends Phaser.Scene {
       this.mapZones.push(zone);
     });
 
-    this.eggsAmminHaul = this.add.image(0, 0, 'eggs-ammin-haul').setOrigin(0, 0).setInteractive();
+    this.eggsAmminHaul = this.add.image(0, 0, 'eggs-ammin-haul')
+        .setOrigin(0, 0)
+        .setInteractive()
+        .setDepth(100); // Ensure it is above map zones
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
     addTooltip(this, this.eggsAmminHaul, 'View Collection');
     this.eggsAmminHaul.on('pointerdown', () => {
@@ -855,7 +858,7 @@ class MapScene extends Phaser.Scene {
       const uiScale = Math.min(scaleX, scaleY);
 
       if (this.eggsAmminHaul) {
-          this.eggsAmminHaul.setScale(uiScale);
+          this.eggsAmminHaul.setDisplaySize(137 * uiScale, 150 * uiScale);
           this.eggsAmminHaul.setPosition(0, 200 * uiScale);
       }
 
@@ -1023,8 +1026,22 @@ class SectionHunt extends Phaser.Scene {
             .setDepth(0);
 
         this.sectionVideo.play(true); // Loop
-        this.sectionVideo.setMute(true); // Mute background videos
+        this.sectionVideo.setMute(false); // Enable background video audio
+        // Initialize volume from Ambient setting
+        const ambientVol = this.registry.get('ambientVolume') || 0.5;
+        this.sectionVideo.setVolume(ambientVol);
         this.sectionVideo.disableInteractive(); // Should not block clicks
+
+        // Listen for volume changes
+        const updateAmbientVolume = (parent, key, data) => {
+             if (key === 'ambientVolume' && this.sectionVideo && this.sectionVideo.active) {
+                 this.sectionVideo.setVolume(data);
+             }
+        };
+        this.registry.events.on('changedata', updateAmbientVolume);
+        this.events.once('shutdown', () => {
+             this.registry.events.off('changedata', updateAmbientVolume);
+        });
 
         // Video has started loading. We assume it works unless it errors.
         // We attach an error handler to fallback if playback fails later.
