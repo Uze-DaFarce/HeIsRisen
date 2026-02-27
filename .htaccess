@@ -18,8 +18,10 @@
   # Prevent MIME sniffing
   Header set X-Content-Type-Options "nosniff"
 
-  # Privacy: Block FLoC/Topics API
-  Header set Permissions-Policy "interest-cohort=()"
+  # Override Permissions Policy to ensure game features work
+  # The root policy blocks `publickey-credentials-get` and `geolocation`. We enable them here.
+  # This prevents strict root policies from breaking the game.
+  Header set Permissions-Policy "geolocation=(self), microphone=(), camera=(), payment=(), usb=(), interest-cohort=(), browsing-topics=(), publickey-credentials-get=(self)"
 
   # Referrer Policy
   Header set Referrer-Policy "strict-origin-when-cross-origin"
