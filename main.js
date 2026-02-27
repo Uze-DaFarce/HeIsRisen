@@ -85,6 +85,28 @@ class UIScene extends Phaser.Scene {
     };
     this.input.keyboard.on('keydown-ESC', closeSettings);
     this.input.keyboard.on('keydown-ENTER', closeSettings);
+
+    this.scale.on('resize', this.resize, this);
+  }
+
+  resize(gameSize) {
+      const width = gameSize.width;
+      const height = gameSize.height;
+
+      if (this.gearIcon) {
+          this.gearIcon.x = width - 60;
+          this.gearIcon.y = 60;
+      }
+
+      if (this.settingsContainer) {
+          // Re-center settings panel
+          this.settingsContainer.getAll().forEach(child => {
+              // Update overlay
+              if (child.width === this.cameras.main.width && child.height === this.cameras.main.height) {
+                  child.setSize(width, height);
+              }
+          });
+      }
   }
 
   createGearIcon() {
@@ -347,7 +369,6 @@ class MainMenu extends Phaser.Scene {
              this.load.svg(section.name, `assets/map/sections/${section.name}.svg`);
 
              // Preload video backgrounds
-             const videoName = section.background.replace('.svg', '.mp4');
              // Try to load video if we expect it, even if missing (Phaser handles 404s gracefully usually by erroring the file load but not crashing the app if handled)
              // Use a try/catch equivalent or assume file exists if strict
              // For safety, let's load it. If it fails, we fall back to SVG in SectionHunt
@@ -390,102 +411,66 @@ class MainMenu extends Phaser.Scene {
   create() {
     this.input.setDefaultCursor('none');
 
-    // Create a container for the intro elements to manage them easily
-    this.introContainer = this.add.container(0, 0);
+    const width = this.scale.width;
+    const height = this.scale.height;
 
-    const width = this.cameras.main.width;
-    const height = this.cameras.main.height;
-
-    // Add Intro Video - centered, initially hidden/paused
+    // Intro Video - centered
     const introVideo = this.add.video(width / 2, height / 2, 'intro-video');
-    introVideo.setVisible(false);
+    introVideo.setMute(true); // Start muted to allow autoplay
+    introVideo.disableInteractive(); // Ensure video ignores input
+    try {
+        introVideo.play(true); // Loop
+    } catch (e) {
+        console.warn('Video autoplay synchronous error:', e);
+    }
+    this.introVideo = introVideo; // Store reference for resizing
 
-    // Ensure video fills the viewport (fullscreen-like behavior)
+    // Fit video to cover screen
     const scaleX = width / introVideo.width;
     const scaleY = height / introVideo.height;
-    const scale = Math.max(scaleX, scaleY);
-    introVideo.setScale(scale).setScrollFactor(0);
+    const videoScale = Math.max(scaleX, scaleY);
+    introVideo.setScale(videoScale);
 
-    // Click to Start Overlay
-    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 1)
-        .setInteractive(); // Block clicks initially
+    // Initial Overlay Text "Click anywhere to start"
+    const tapToStartText = this.add.text(width / 2, height / 2, 'Click anywhere to start', {
+        fontSize: '48px',
+        fontFamily: 'Comic Sans MS',
+        fill: '#ffffff',
+        stroke: '#000000',
+        strokeThickness: 6
+    }).setOrigin(0.5).setDepth(100);
+    this.tapToStartText = tapToStartText;
 
-    const startText = this.add.text(width / 2, height / 2, 'Click to Start', {
-      fontSize: '48px',
+    // "Play Now" Button Container (Initially Hidden)
+    const buttonWidth = 400;
+    const buttonHeight = 100;
+    const btnX = width / 2;
+    const btnY = height * 0.8; // Position relative to height
+
+    const startBtnContainer = this.add.container(btnX, btnY).setVisible(false).setDepth(101);
+    this.startBtnContainer = startBtnContainer;
+
+    const btnBg = this.add.graphics();
+    btnBg.fillStyle(0xff0000, 1);
+    btnBg.fillRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, 16);
+    btnBg.lineStyle(4, 0xffffff, 1);
+    btnBg.strokeRoundedRect(-buttonWidth / 2, -buttonHeight / 2, buttonWidth, buttonHeight, 16);
+    startBtnContainer.add(btnBg);
+
+    const btnText = this.add.text(0, 0, 'PLAY NOW', {
+      fontSize: `40px`,
       fill: '#ffffff',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#000000',
-      strokeThickness: 6
+      strokeThickness: 4
     }).setOrigin(0.5);
+    startBtnContainer.add(btnText);
 
-    this.tweens.add({
-      targets: startText,
-      alpha: 0.2,
-      duration: 800,
-      yoyo: true,
-      repeat: -1
-    });
+    startBtnContainer.setSize(buttonWidth, buttonHeight);
+    startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
 
-    this.introContainer.add([introVideo, overlay, startText]);
-
-    // Store reference for update loop
-    this.introVideo = introVideo;
-
-    const startVideo = () => {
-        // Remove overlay text and background
-        overlay.destroy();
-        startText.destroy();
-
-        // Show and play video
-        introVideo.setVisible(true);
-        introVideo.setMute(false); // Ensure audio is on
-
-        try {
-            introVideo.play(false); // Play once, don't loop
-        } catch (e) {
-            console.warn('Video playback error:', e);
-            startGame(); // Fallback if video fails
-        }
-
-        // When video ends, start game
-        introVideo.on('complete', () => {
-            startGame();
-        });
-
-        // Allow skipping with space/enter/click during video
-        this.input.keyboard.on('keydown-SPACE', startGame);
-        this.input.keyboard.on('keydown-ENTER', startGame);
-
-        // Remove the initial click listener so subsequent clicks don't restart video
-        overlay.removeInteractive();
-        // Add a transparent overlay to catch clicks for skipping
-        const skipOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
-            .setInteractive()
-            .on('pointerdown', startGame);
-    };
-
-    const startGame = () => {
-      if (this.introVideo) {
-          this.introVideo.stop();
-          this.introVideo.destroy();
-          this.introVideo = null;
-      }
-
-      if (!this.scene.get('MusicScene').scene.isActive()) {
-        this.scene.launch('MusicScene');
-      }
-      const musicScene = this.scene.get('MusicScene');
-      if (musicScene) {
-        this.sound.play('drive1', { volume: 0.5 });
-      }
-      this.scene.start('MapScene');
-    };
-
-    // Trigger video start on first click
-    overlay.on('pointerdown', startVideo);
-
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75);
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75).setDepth(1000);
 
     // Initialize volume registry
     if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
@@ -496,6 +481,85 @@ class MainMenu extends Phaser.Scene {
     if (!this.scene.get('UIScene').scene.isActive()) {
         this.scene.launch('UIScene');
     }
+
+    // Intro Logic State
+    let introState = 'waiting'; // waiting -> playing -> ready
+
+    // 1. Waiting: Loop Muted. On Click -> Playing
+    this.input.once('pointerdown', () => {
+        if (introState !== 'waiting') return;
+        introState = 'playing';
+
+        tapToStartText.setVisible(false);
+
+        // Resume Audio
+        if (this.sound.context.state === 'suspended') {
+            this.sound.context.resume();
+        }
+
+        // Unmute and Restart Video
+        if (introVideo) {
+            introVideo.setMute(false);
+            const vol = this.registry.get('musicVolume');
+            introVideo.setVolume(vol);
+            introVideo.play(true); // Restart loop with sound
+        }
+
+        // Request Fullscreen (Desktop logic)
+        if (this.scale.fullscreen.available) {
+            this.scale.startFullscreen();
+        }
+
+        // Show Play Button after delay
+        this.time.delayedCall(3000, () => {
+            introState = 'ready';
+            startBtnContainer.setVisible(true);
+            startBtnContainer.setScale(0);
+
+            this.tweens.add({
+                targets: startBtnContainer,
+                scaleX: 1,
+                scaleY: 1,
+                duration: 500,
+                ease: 'Back.out',
+                onComplete: () => {
+                    this.tweens.add({
+                        targets: startBtnContainer,
+                        scaleX: 1.05,
+                        scaleY: 1.05,
+                        duration: 800,
+                        yoyo: true,
+                        repeat: -1,
+                        ease: 'Sine.easeInOut'
+                    });
+                }
+            });
+        });
+    });
+
+    // 2. Play Button Logic
+    startBtnContainer.on('pointerdown', () => {
+        this.tweens.add({
+            targets: introVideo,
+            volume: 0,
+            duration: 500,
+            onComplete: () => {
+                if (introVideo) {
+                    introVideo.stop();
+                    introVideo.destroy();
+                    this.introVideo = null;
+                }
+                if (!this.scene.get('MusicScene').scene.isActive()) {
+                    this.scene.launch('MusicScene');
+                }
+                const musicScene = this.scene.get('MusicScene');
+                if (musicScene) {
+                    this.sound.play('drive1', { volume: 0.5 });
+                }
+                this.scene.start('MapScene');
+            }
+        });
+    });
 
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
@@ -512,24 +576,39 @@ class MainMenu extends Phaser.Scene {
         }
     });
 
-    // Console logs for debugging
-    // console.log('MainMenu: Attempting to get symbols data from cache...');
-    const symbolsData = this.cache.json.get('symbols');
+    // Handle Resize
+    this.scale.on('resize', this.resize, this);
 
+    const symbolsData = this.cache.json.get('symbols');
     if (symbolsData) {
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
         const validSymbols = symbolsData.symbols.filter(s => this.isValidSymbol(s));
-        if (validSymbols.length !== symbolsData.symbols.length) {
-            console.warn(`Security: Filtered ${symbolsData.symbols.length - validSymbols.length} invalid symbols.`);
-            symbolsData.symbols = validSymbols;
-        }
         this.registry.set('symbols', symbolsData);
-      } else {
-        console.error("MainMenu: ERROR - symbolsData loaded, but it does NOT contain a 'symbols' array property! Check assets/symbols.json structure.", symbolsData);
       }
-    } else {
-      console.error('MainMenu: ERROR - Failed to get symbols data from cache. Check the preload path and Network tab for loading errors.');
     }
+  }
+
+  resize(gameSize) {
+      const width = gameSize.width;
+      const height = gameSize.height;
+
+      this.cameras.main.setViewport(0, 0, width, height);
+
+      if (this.introVideo && this.introVideo.active) {
+          this.introVideo.setPosition(width/2, height/2);
+          const scaleX = width / this.introVideo.width;
+          const scaleY = height / this.introVideo.height;
+          const videoScale = Math.max(scaleX, scaleY);
+          this.introVideo.setScale(videoScale);
+      }
+
+      if (this.tapToStartText) {
+          this.tapToStartText.setPosition(width/2, height/2);
+      }
+
+      if (this.startBtnContainer) {
+          this.startBtnContainer.setPosition(width/2, height * 0.8);
+      }
   }
 
   isValidSymbol(s) {
@@ -542,17 +621,6 @@ class MainMenu extends Phaser.Scene {
 
   update() {
     this.fingerCursor.setPosition(this.input.x, this.input.y);
-
-    // Ensure video size is correct if it changes
-    if (this.introVideo && this.introVideo.active && this.introVideo.width > 0) {
-       // Re-apply scale logic if needed
-       const width = this.cameras.main.width;
-       const height = this.cameras.main.height;
-       const scaleX = width / this.introVideo.width;
-       const scaleY = height / this.introVideo.height;
-       const scale = Math.max(scaleX, scaleY);
-       this.introVideo.setScale(scale);
-    }
   }
 }
 
@@ -563,6 +631,15 @@ class MapScene extends Phaser.Scene {
 
   create() {
     this.input.setDefaultCursor('none');
+
+    // Scale logic
+    const width = this.scale.width;
+    const height = this.scale.height;
+
+    // We want to fit the map 1280x720 into the screen while maintaining aspect ratio?
+    // Or cover? The user requested "full screen maximized viewport".
+    // For the map, "cover" makes sense to fill the screen.
+
     const mapSections = this.cache.json.get('map_sections');
 
     // Distribute eggs randomly (3-8 per section) while summing to TOTAL_EGGS
@@ -571,19 +648,15 @@ class MapScene extends Phaser.Scene {
     const numSections = mapSections.length;
 
     for (let i = 0; i < numSections - 1; i++) {
-        // Calculate max possible for this section to leave at least 3 for remaining sections
         const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
-        // Calculate min possible for this section to leave at most 8 for remaining sections
         const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
-
         const max = Math.min(8, maxPossible);
         const min = Math.max(3, minPossible);
-
         const count = Phaser.Math.Between(min, max);
         eggCounts.push(count);
         remainingEggs -= count;
     }
-    eggCounts.push(remainingEggs); // Last section gets the rest
+    eggCounts.push(remainingEggs);
 
     const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: TOTAL_EGGS }, (_, i) => i + 1));
     const sections = mapSections.map(section => ({ name: section.name, eggs: [] }));
@@ -604,27 +677,25 @@ class MapScene extends Phaser.Scene {
     }
     this.sound.play('drive2', { volume: 0.5 });
 
-    const mapImage = this.add.image(0, 0, 'yellowstone-main-map').setOrigin(0, 0);
+    this.mapImage = this.add.image(width/2, height/2, 'yellowstone-main-map');
+    this.updateLayout(width, height);
 
     // Create hover graphics for highlighting map sections
     this.hoverGraphics = this.add.graphics().setDepth(10);
+    this.mapZones = [];
 
-    // console.log(`Map display size: ${mapImage.displayWidth}x${mapImage.displayHeight}, Position: (${mapImage.x}, ${mapImage.y})`);
     mapSections.forEach(section => {
-      const zoneX = section.coords.x;
-      const zoneY = section.coords.y;
-      const zoneWidth = section.coords.width;
-      const zoneHeight = section.coords.height;
-      const zone = this.add.zone(zoneX, zoneY, zoneWidth, zoneHeight).setOrigin(0, 0);
+      const zone = this.add.zone(0, 0, 1, 1).setOrigin(0, 0);
+      zone.name = section.name;
+      zone.sectionData = section; // Store original coords
       zone.setInteractive();
 
       zone.on('pointerover', () => {
           this.hoverGraphics.clear();
           this.hoverGraphics.lineStyle(4, 0xffff00, 1);
-          this.hoverGraphics.strokeRect(zoneX, zoneY, zoneWidth, zoneHeight);
+          this.hoverGraphics.strokeRect(zone.x, zone.y, zone.width, zone.height);
           this.hoverGraphics.fillStyle(0xffff00, 0.2);
-          this.hoverGraphics.fillRect(zoneX, zoneY, zoneWidth, zoneHeight);
-
+          this.hoverGraphics.fillRect(zone.x, zone.y, zone.width, zone.height);
       });
 
       zone.on('pointerout', () => {
@@ -632,28 +703,81 @@ class MapScene extends Phaser.Scene {
       });
 
       zone.on('pointerdown', () => {
-        // console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
         this.sound.play('drive1', { volume: 0.5 });
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
+
+      this.mapZones.push(zone);
     });
 
-    const eggsAmminHaul = this.add.image(0, 200, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
-      .setInteractive();
-
-    addButtonInteraction(this, eggsAmminHaul, 'menu-click');
-
-    // Delayed transition to allow sound and animation to play
-    eggsAmminHaul.on('pointerdown', () => {
+    this.eggsAmminHaul = this.add.image(0, 0, 'eggs-ammin-haul').setOrigin(0, 0);
+    addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
+    this.eggsAmminHaul.on('pointerdown', () => {
          this.time.delayedCall(100, () => {
              this.scene.start('EggZamRoom');
          });
     });
 
-    this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
+    this.scoreImage = this.add.image(0, 0, 'score').setOrigin(0, 0);
     const foundEggs = this.registry.get('foundEggs').length;
-    this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
+    this.scoreText = this.add.text(0, 0, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
+
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75);
+
+    // Initial Layout update
+    this.updateLayout(width, height);
+
+    this.scale.on('resize', this.resize, this);
+  }
+
+  resize(gameSize) {
+      this.updateLayout(gameSize.width, gameSize.height);
+  }
+
+  updateLayout(width, height) {
+      this.cameras.main.setViewport(0, 0, width, height);
+
+      // Calculate scale to cover
+      const scaleX = width / 1280;
+      const scaleY = height / 720;
+      const scale = Math.max(scaleX, scaleY);
+
+      // Center map
+      this.mapImage.setPosition(width/2, height/2);
+      this.mapImage.setScale(scale);
+
+      // Calculate offset for map centering
+      const mapWidth = 1280 * scale;
+      const mapHeight = 720 * scale;
+      const offsetX = (width - mapWidth) / 2;
+      const offsetY = (height - mapHeight) / 2;
+
+      // Update Zones
+      if (this.mapZones) {
+          this.mapZones.forEach(zone => {
+              const d = zone.sectionData.coords;
+              zone.setPosition(offsetX + d.x * scale, offsetY + d.y * scale);
+              zone.setSize(d.width * scale, d.height * scale);
+          });
+      }
+
+      // UI Elements - Scale with MIN to stay on screen and proportional
+      const uiScale = Math.min(scaleX, scaleY);
+
+      if (this.eggsAmminHaul) {
+          this.eggsAmminHaul.setScale(uiScale);
+          this.eggsAmminHaul.setPosition(0, 200 * uiScale);
+      }
+
+      if (this.scoreImage) {
+          this.scoreImage.setScale(uiScale);
+          this.scoreImage.setPosition(0, 0);
+      }
+
+      if (this.scoreText) {
+          this.scoreText.setScale(uiScale);
+          this.scoreText.setPosition(50 * uiScale, 98 * uiScale);
+      }
   }
 
   update() {
@@ -677,11 +801,9 @@ class SectionHunt extends Phaser.Scene {
       symbolData: egg.getData('symbolDetails'),
       categorized: false
     };
-    // console.log('SectionHunt: Collecting egg with symbolData:', eggData.symbolData);
     if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
       this.sound.play('collect');
 
-      // Get symbol texture if available
       let symbolTexture = null;
       if (egg.symbolSprite && egg.symbolSprite.active) {
           symbolTexture = egg.symbolSprite.texture.key;
@@ -691,11 +813,9 @@ class SectionHunt extends Phaser.Scene {
       foundEggs.push(eggData);
       this.registry.set('foundEggs', foundEggs);
 
-      // Reset hint timer on success
       if (this.hintTimer) {
           this.hintTimer.reset({ delay: 120000, callback: this.showIdleHint, callbackScope: this, loop: true });
       }
-      // console.log('Egg collected:', eggData.eggId, 'with symbol:', eggData.symbolData ? eggData.symbolData.name : 'none');
     }
   }
 
@@ -749,17 +869,15 @@ class SectionHunt extends Phaser.Scene {
 
     if (!currentSection) return;
 
-    // Count how many eggs from this section are NOT yet found
     const eggsInSection = currentSection.eggs; // Array of IDs
     const foundIds = foundEggs.map(e => e.eggId);
     const remainingCount = eggsInSection.filter(id => !foundIds.includes(id)).length;
 
     if (remainingCount > 0) {
-        // Play gentle cue
         const musicScene = this.scene.get('MusicScene');
         if (musicScene) musicScene.playSFX('menu-click');
 
-        const hintText = this.add.text(640, 680, `Hint: ${remainingCount} eggs left here!`, {
+        const hintText = this.add.text(this.scale.width / 2, this.scale.height * 0.8, `Hint: ${remainingCount} eggs left here!`, {
             fontSize: '32px',
             fontFamily: 'Comic Sans MS',
             fill: '#ffffff',
@@ -781,170 +899,227 @@ class SectionHunt extends Phaser.Scene {
 
   create() {
     this.input.setDefaultCursor('none');
-    this.cameras.main.setBounds(0, 0, 1280, 720);
+
+    // Scale logic
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const scaleX = width / 1280;
+    const scaleY = height / 720;
+    const scale = Math.max(scaleX, scaleY); // Cover
+
+    this.bgScale = scale;
+    this.bgOffsetX = (width - 1280 * scale) / 2;
+    this.bgOffsetY = (height - 720 * scale) / 2;
+
+    this.cameras.main.setViewport(0, 0, width, height);
 
     // Check if video exists in cache
     const videoKey = `${this.sectionName}-video`;
 
     if (this.cache.video.exists(videoKey)) {
         // Use Video Background
-        this.sectionVideo = this.add.video(0, 0, videoKey)
-            .setOrigin(0, 0)
-            .setDisplaySize(1280, 720)
+        this.sectionVideo = this.add.video(width/2, height/2, videoKey)
+            .setDisplaySize(1280 * scale, 720 * scale)
             .setDepth(0);
 
         this.sectionVideo.play(true); // Loop
         this.sectionVideo.setMute(true); // Mute background videos
+        this.sectionVideo.setInteractive(false); // Should not block clicks
 
-        // Disable interaction
-        this.sectionVideo.setInteractive(false);
-
-        // For render stamp compatibility
         this.isUsingVideo = true;
     } else {
         // Fallback to Image
-        this.sectionImage = this.add.image(0, 0, this.sectionName)
-            .setOrigin(0, 0)
-            .setDisplaySize(1280, 720)
+        // If the SVG key (this.sectionName) exists, use it.
+        // If not, it means the preload might have failed or wasn't keyed correctly.
+        // MainMenu.preload keys the SVG with 'section.name'.
+
+        // Safety check: if texture key doesn't exist, log warning
+        if (!this.textures.exists(this.sectionName)) {
+            console.error(`SectionHunt: Texture '${this.sectionName}' missing!`);
+        }
+
+        this.sectionImage = this.add.image(width/2, height/2, this.sectionName)
+            .setDisplaySize(1280 * scale, 720 * scale)
             .setDepth(0);
         this.isUsingVideo = false;
     }
 
     const symbolsData = this.registry.get('symbols');
     const symbols = (symbolsData && symbolsData.symbols) ? symbolsData.symbols : [];
-    if (!symbols.length) {
-      console.error('Symbols data not found in registry for create method. Cannot place symbols.');
-    }
+
     const shuffledSymbols = Phaser.Utils.Array.Shuffle([...symbols]);
     const sections = this.registry.get('sections');
     const section = sections.find(s => s.name === this.sectionName);
-    if (!section) {
-      console.error(`Section data not found for: ${this.sectionName} in create`);
-      return;
-    }
+
     this.eggs = this.add.group();
-    // console.log(`Creating ${section.eggs.length} eggs for section ${this.sectionName}`);
-    section.eggs.forEach((eggId, index) => {
-      const x = Phaser.Math.Between(200, 1270);
-      const y = Phaser.Math.Between(100, 710);
-      const egg = this.add.image(x, y, `egg-${eggId}`)
-        .setInteractive()
-        .setDepth(5)
-        .setDisplaySize(50, 75)
-        .setAlpha(0);
-      egg.setData('eggId', eggId);
-      const symbol = (index < shuffledSymbols.length) ? shuffledSymbols[index] : null;
-      egg.setData('symbolDetails', symbol);
-      if (symbol && symbol.filename) {
-        const textureKey = symbol.filename;
-        if (this.textures.exists(textureKey)) {
-          const symbolSprite = this.add.image(x, y, textureKey)
-            .setDepth(6)
+
+    if (section) {
+        section.eggs.forEach((eggId, index) => {
+          // Calculate egg position relative to the SCALED background
+          // Original range: X (200-1270), Y (100-710)
+
+          const originalX = Phaser.Math.Between(200, 1270);
+          const originalY = Phaser.Math.Between(100, 710);
+
+          const x = this.bgOffsetX + (originalX * scale);
+          const y = this.bgOffsetY + (originalY * scale);
+
+          const egg = this.add.image(x, y, `egg-${eggId}`)
+            .setInteractive()
+            .setDepth(5)
             .setDisplaySize(50, 75)
-            .setAlpha(0);
-          egg.symbolSprite = symbolSprite;
-          // console.log(`Added symbol '${symbol.name}' (${textureKey}) to egg-${eggId}`);
-        } else {
-          console.warn(`CREATE WARN: Texture key '${textureKey}' not found for symbol '${symbol.name}'. Check preload path.`);
-          egg.symbolSprite = null;
-        }
-      } else {
-        // console.log(`No symbol assigned or symbol missing filename for egg-${eggId}. Index: ${index}`);
-        egg.symbolSprite = null;
-      }
-      egg.on('pointerdown', () => {
-        // console.log(`Click ATTEMPTED on egg-${eggId} at (${egg.x}, ${egg.y})`);
-        const pointer = this.input.activePointer;
-        if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
-          // console.log(`Bounds check PASSED for egg-${eggId}`);
-          // Bolt Optimization: Use squared distance for performance
-          const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          if (distSq < 150 * 150) {
-            // console.log(`Distance check PASSED for egg-${eggId}, collecting!`);
-            this.collectEgg(egg);
-            egg.destroy();
-            if (egg.symbolSprite) {
-              egg.symbolSprite.destroy();
-            }
-            const foundEggs = this.registry.get('foundEggs').length;
-            if (this.scoreText) {
-              this.scoreText.setText(`${foundEggs}/${TOTAL_EGGS}`);
-            } else {
-              console.warn('scoreText not found when updating score.');
-            }
-          } else {
-            // console.log(`Distance check FAILED for egg-${eggId}. Dist: ${distance}`);
+            .setAlpha(0); // Invisible until magnified
+
+          egg.setData('eggId', eggId);
+          const symbol = (index < shuffledSymbols.length) ? shuffledSymbols[index] : null;
+          egg.setData('symbolDetails', symbol);
+
+          if (symbol && symbol.filename && this.textures.exists(symbol.filename)) {
+              const symbolSprite = this.add.image(x, y, symbol.filename)
+                .setDepth(6)
+                .setDisplaySize(50, 75)
+                .setAlpha(0);
+              egg.symbolSprite = symbolSprite;
           }
-        } else {
-          // console.log(`Bounds check FAILED for egg-${eggId}`);
-        }
-      });
-      this.eggs.add(egg);
-    });
-    const eggZitButton = this.add.image(0, 200, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150, 131)
-      .setInteractive().on('pointerdown', () => {
-        // console.log('Click on eggZitButton');
-        this.scene.start('MapScene');
-      }).setDepth(4).setScrollFactor(0);
-    addButtonInteraction(this, eggZitButton, 'drive1');
 
-    const eggsAmminHaul = this.add.image(0, 350, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137, 150)
-      .setInteractive().on('pointerdown', () => {
-        // console.log('Click on eggsAmminHaul');
-        this.scene.start('EggZamRoom');
-      }).setDepth(4).setScrollFactor(0);
-    addButtonInteraction(this, eggsAmminHaul, 'menu-click');
+          // IMPORTANT: Explicit click handler for the egg
+          egg.on('pointerdown', (pointer) => {
+             const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
+             if (distSq < 100 * 100) { // Slightly generous click radius
+                this.collectEgg(egg);
+                egg.destroy();
+                if (egg.symbolSprite) egg.symbolSprite.destroy();
+                this.updateScore();
+             }
+          });
 
-    // Delayed transition to allow sound and animation to play
-    eggsAmminHaul.on('pointerdown', () => {
-        // console.log('Click on eggsAmminHaul');
+          this.eggs.add(egg);
+        });
+    }
+
+    // UI Elements (Scaled by MIN to fit)
+    const uiScale = Math.min(scaleX, scaleY);
+
+    this.eggZitButton = this.add.image(0, 200 * uiScale, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150 * uiScale, 150 * uiScale)
+      .setInteractive()
+      .setDepth(4).setScrollFactor(0);
+    this.eggZitButton.on('pointerdown', () => this.scene.start('MapScene'));
+    addButtonInteraction(this, this.eggZitButton, 'drive1');
+
+    this.eggsAmminHaul = this.add.image(0, 350 * uiScale, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137 * uiScale, 150 * uiScale)
+      .setInteractive()
+      .setDepth(4).setScrollFactor(0);
+    this.eggsAmminHaul.on('pointerdown', () => {
         this.time.delayedCall(100, () => {
              this.scene.start('EggZamRoom');
         });
     });
+    addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
 
     this.sound.play('drive2', { volume: 0.5 });
-    this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200).setDepth(4).setScrollFactor(0);
+
+    this.scoreImage = this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200 * uiScale, 200 * uiScale).setDepth(4).setScrollFactor(0);
     const foundEggs = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 }).setDepth(5);
-    this.lastFoundCount = foundEggs; // Bolt Optimization
+    this.scoreText = this.add.text(50 * uiScale, 98 * uiScale, `${foundEggs}/${TOTAL_EGGS}`, {
+        fontSize: `${42 * uiScale}px`,
+        fill: '#000',
+        fontStyle: 'bold',
+        fontFamily: 'Comic Sans MS',
+        stroke: '#fff',
+        strokeThickness: 6 * uiScale
+    }).setDepth(5);
+
+    this.lastFoundCount = foundEggs;
+
+    // Render Texture for Magnifier
     this.zoomedView = this.add.renderTexture(0, 0, 200, 200).setDepth(2).setScrollFactor(0);
-    this.maskGraphics = this.add.graphics().fillCircle(50, 50, 50).setScrollFactor(0);
+    this.maskGraphics = this.add.graphics().fillCircle(100, 100, 50).setScrollFactor(0);
+    // Note: mask needs to be moved in update
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
+
     this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass').setOrigin(0.25, 0.2).setDepth(7).setScrollFactor(0);
 
-    // Bolt Optimization: Render Stamp for single-pass drawing
-    if (!this.isUsingVideo) {
-        this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+    // Render Stamp
+    if (this.isUsingVideo) {
+        // We'll draw the video directly
     } else {
-        // For video, we'll use a dynamic approach in update, but we still need the stamp for eggs/symbols
-        this.renderStamp = this.make.image({ x: 0, y: 0, key: 'egg-1', add: false }); // Placeholder key
+        this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
     }
+    // Stamp for eggs
+    this.eggStamp = this.make.image({ x: 0, y: 0, key: 'egg-1', add: false });
 
-    // Idle Hint Timer (2 minutes)
+    // Idle Hint Timer
     this.hintTimer = this.time.addEvent({
         delay: 120000,
         callback: this.showIdleHint,
         callbackScope: this,
         loop: true
     });
+
+    this.scale.on('resize', this.resize, this);
+  }
+
+  updateScore() {
+      const foundEggs = this.registry.get('foundEggs').length;
+      if (this.scoreText) this.scoreText.setText(`${foundEggs}/${TOTAL_EGGS}`);
+  }
+
+  resize(gameSize) {
+      const width = gameSize.width;
+      const height = gameSize.height;
+
+      this.cameras.main.setViewport(0, 0, width, height);
+
+      const scaleX = width / 1280;
+      const scaleY = height / 720;
+      const scale = Math.max(scaleX, scaleY);
+
+      this.bgScale = scale;
+      this.bgOffsetX = (width - 1280 * scale) / 2;
+      this.bgOffsetY = (height - 720 * scale) / 2;
+
+      if (this.isUsingVideo && this.sectionVideo) {
+          this.sectionVideo.setPosition(width/2, height/2);
+          this.sectionVideo.setDisplaySize(1280 * scale, 720 * scale);
+      } else if (this.sectionImage) {
+          this.sectionImage.setPosition(width/2, height/2);
+          this.sectionImage.setDisplaySize(1280 * scale, 720 * scale);
+      }
+
+      // UI Resize
+      const uiScale = Math.min(scaleX, scaleY);
+      this.eggZitButton.setPosition(0, 200 * uiScale).setDisplaySize(150 * uiScale, 150 * uiScale);
+      this.eggsAmminHaul.setPosition(0, 350 * uiScale).setDisplaySize(137 * uiScale, 150 * uiScale);
+      this.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
+      this.scoreText.setPosition(50 * uiScale, 98 * uiScale).setFontSize(`${42 * uiScale}px`);
   }
 
   update() {
     const pointer = this.input.activePointer;
+
+    // Magnifier logic
     const offset = 35;
     const rtX = pointer.x + offset - 75;
     const rtY = pointer.y + offset - 53;
+
     this.zoomedView.setPosition(rtX, rtY);
-    this.maskGraphics.setPosition(rtX, rtY);
+
+    // Update mask position to match RT
+    this.maskGraphics.clear();
+    this.maskGraphics.fillCircle(100, 100, 50); // Circle in center of 200x200 RT local space
+    this.maskGraphics.setPosition(rtX, rtY); // Move graphics object to RT pos
+
     this.zoomedView.camera.setZoom(2);
+
     const centerX = pointer.x + offset;
     const centerY = pointer.y + offset;
-    const worldCenter = this.cameras.main.getWorldPoint(centerX, centerY);
-    this.zoomedView.camera.scrollX = worldCenter.x - 150;
-    this.zoomedView.camera.scrollY = worldCenter.y - 150;
+
+    // World point to center camera on
+    this.zoomedView.camera.scrollX = centerX - 100; // 100 is half of RT width (200)
+    this.zoomedView.camera.scrollY = centerY - 100;
+
     const magnifierRadius = 50;
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius; // 2500
+    const magnifierRadiusSq = magnifierRadius * magnifierRadius;
     const magnifierScreenX = pointer.x;
     const magnifierScreenY = pointer.y;
 
@@ -952,61 +1127,50 @@ class SectionHunt extends Phaser.Scene {
 
     // Draw background
     if (this.isUsingVideo && this.sectionVideo) {
-        // Draw the current video frame
-        this.zoomedView.draw(this.sectionVideo, 0, 0);
-    } else if (this.renderStamp) {
-        // Draw static image
+        // Draw the object at its world position
+        this.zoomedView.draw(this.sectionVideo);
+
+    } else {
+        if (!this.renderStamp) this.renderStamp = this.make.image({key: this.sectionName, add:false});
         this.renderStamp.setTexture(this.sectionName);
         this.renderStamp.setOrigin(0, 0);
-        this.renderStamp.setDisplaySize(1280, 720);
-        this.renderStamp.setAngle(0);
-        this.renderStamp.setRotation(0);
-        this.renderStamp.setFlipX(false);
-        this.renderStamp.setFlipY(false);
-        this.zoomedView.draw(this.renderStamp, 0, 0);
+        this.renderStamp.setDisplaySize(1280 * this.bgScale, 720 * this.bgScale);
+
+        // Draw the stamp at the background's world position
+        this.zoomedView.draw(this.renderStamp, this.bgOffsetX, this.bgOffsetY);
     }
 
-    // Single pass for visibility update and drawing
+    // Draw Eggs
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-        // Bolt Optimization: Use squared distance to avoid sqrt calculation in loop
         const distSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
-        // Ensure magnifierRadiusSq is calculated correctly above
         const alpha = distSq < magnifierRadiusSq ? 1 : 0;
+
         egg.setAlpha(alpha);
-        if (egg.symbolSprite) {
-          egg.symbolSprite.setAlpha(alpha);
-        }
+        if (egg.symbolSprite) egg.symbolSprite.setAlpha(alpha);
 
         if (alpha > 0) {
-            // Draw egg using renderStamp
-            this.renderStamp.setTexture(egg.texture.key, egg.frame.name);
-            this.renderStamp.setAngle(egg.angle);
-            this.renderStamp.setFlipX(egg.flipX);
-            this.renderStamp.setFlipY(egg.flipY);
-            this.renderStamp.setOrigin(0.5, 0.5);
-            this.renderStamp.setScale(egg.scaleX, egg.scaleY);
-            this.zoomedView.draw(this.renderStamp, egg.x - this.zoomedView.camera.scrollX, egg.y - this.zoomedView.camera.scrollY);
+            // Use eggStamp
+            this.eggStamp.setTexture(egg.texture.key, egg.frame.name);
+            this.eggStamp.setAngle(egg.angle);
+            this.eggStamp.setFlipX(egg.flipX);
+            this.eggStamp.setFlipY(egg.flipY);
+            this.eggStamp.setOrigin(0.5, 0.5);
+            this.eggStamp.setScale(egg.scaleX, egg.scaleY);
 
-            // Draw symbol using renderStamp
-            if (egg.symbolSprite && egg.symbolSprite.active && egg.symbolSprite.visible) {
-                this.renderStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
-                this.renderStamp.setAngle(egg.symbolSprite.angle);
-                this.renderStamp.setFlipX(egg.symbolSprite.flipX);
-                this.renderStamp.setFlipY(egg.symbolSprite.flipY);
-                this.renderStamp.setScale(egg.symbolSprite.scaleX, egg.symbolSprite.scaleY);
-                this.zoomedView.draw(this.renderStamp, egg.symbolSprite.x - this.zoomedView.camera.scrollX, egg.symbolSprite.y - this.zoomedView.camera.scrollY);
+            // Draw egg at its world position
+            this.zoomedView.draw(this.eggStamp, egg.x, egg.y);
+
+            if (egg.symbolSprite && egg.symbolSprite.active) {
+                this.eggStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
+                this.eggStamp.setScale(egg.symbolSprite.scaleX, egg.symbolSprite.scaleY);
+                this.zoomedView.draw(this.eggStamp, egg.symbolSprite.x, egg.symbolSprite.y);
             }
         }
       }
     });
 
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
-    const foundEggsCount = this.registry.get('foundEggs').length;
-    if (this.lastFoundCount !== foundEggsCount) {
-        this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
-        this.lastFoundCount = foundEggsCount;
-    }
   }
 }
 
@@ -1022,72 +1186,88 @@ class EggZamRoom extends Phaser.Scene {
 
   create() {
     this.input.setDefaultCursor('none');
-    this.cameras.main.setBounds(0, 0, 1280, 720);
 
-    this.add.image(0, 0, 'egg-zam-room')
-      .setOrigin(0, 0)
-      .setDepth(0)
-      .setDisplaySize(1280, 720);
-    // console.log('EggZamRoom: Added background image at (0, 0) with size 1280x720');
+    // Scale logic
+    const width = this.scale.width;
+    const height = this.scale.height;
+    const scaleX = width / 1280;
+    const scaleY = height / 720;
+    const scale = Math.min(scaleX, scaleY); // Fit logic for minigame usually better, but let's try cover or contained fit
+    // Background is 1280x720. Let's cover.
+    const bgScale = Math.max(scaleX, scaleY);
 
-    const examiner = this.add.image(390, 250, 'egg-zamminer')
-      .setOrigin(0, 0)
-      .setDepth(2);
-    // console.log('EggZamRoom: Added egg-zamminer at (390, 250)');
+    // Position background centered
+    this.add.image(width/2, height/2, 'egg-zam-room')
+      .setDisplaySize(1280 * bgScale, 720 * bgScale)
+      .setDepth(0);
 
-    this.add.image(200, 50, 'symbol-result-summary-diag')
+    const examiner = this.add.image(0, 0, 'egg-zamminer').setOrigin(0, 0).setDepth(2);
+    // Original pos: 390, 250. Size? Default.
+    // Let's assume original design was 1280x720 fixed.
+    // We scale everything by 'scale' (min) to ensure UI fits on screen.
+    // But we need to center the "game area" in the viewport.
+
+    const uiScale = Math.min(scaleX, scaleY);
+    const offsetX = (width - 1280 * uiScale) / 2;
+    const offsetY = (height - 720 * uiScale) / 2;
+
+    // Examiner
+    examiner.setPosition(offsetX + 390 * uiScale, offsetY + 250 * uiScale);
+    examiner.setScale(uiScale);
+
+    this.examiner = examiner; // Store for relative positioning
+
+    this.add.image(offsetX + 200 * uiScale, offsetY + 50 * uiScale, 'symbol-result-summary-diag')
       .setOrigin(0, 0)
-      .setDisplaySize(900, 600)
+      .setDisplaySize(900 * uiScale, 600 * uiScale)
       .setDepth(1)
       .setAlpha(0);
-    // console.log('EggZamRoom: Added symbol-result-summary-diag at (200, 50)');
 
-    const eggZitButton = this.add.image(0, 200, 'egg-zit-button')
+    const eggZitButton = this.add.image(0, 200 * uiScale, 'egg-zit-button')
       .setOrigin(0, 0)
-      .setDisplaySize(150, 131)
+      .setDisplaySize(150 * uiScale, 131 * uiScale)
       .setInteractive()
       .on('pointerdown', () => this.scene.start('MapScene'))
-      .setDepth(4)
-      .setScrollFactor(0);
+      .setDepth(4).setScrollFactor(0);
     addButtonInteraction(this, eggZitButton, 'drive1');
-    // console.log('EggZamRoom: Added egg-zit-button at (0, 200)');
 
     this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
-      .setDisplaySize(200, 200)
-      .setDepth(4)
-      .setScrollFactor(0);
+      .setDisplaySize(200 * uiScale, 200 * uiScale)
+      .setDepth(4).setScrollFactor(0);
+
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50, 98, `${foundEggsCount}/${TOTAL_EGGS}`, {
-      fontSize: '42px',
+    this.scoreText = this.add.text(50 * uiScale, 98 * uiScale, `${foundEggsCount}/${TOTAL_EGGS}`, {
+      fontSize: `${42 * uiScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6
+      strokeThickness: 6 * uiScale
     }).setDepth(5);
-    this.lastFoundCount = foundEggsCount; // Bolt Optimization
-    // console.log('EggZamRoom: Added score at (0, 0) with text:', `${foundEggsCount}/${TOTAL_EGGS}`);
+    this.lastFoundCount = foundEggsCount;
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
     }
 
-    this.correctText = this.add.text(100, 150, `Correct: ${this.registry.get('correctCategorizations')}`, {
-      fontSize: '32px',
+    this.correctText = this.add.text(100 * uiScale, 150 * uiScale, `Correct: ${this.registry.get('correctCategorizations')}`, {
+      fontSize: `${32 * uiScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6
+      strokeThickness: 6 * uiScale
     }).setDepth(5).setOrigin(0.5);
-    // console.log('EggZamRoom: Added correct categorization text at (100, 150)');
 
     // Create hover graphics for highlighting bottles
     this.hoverGraphics = this.add.graphics().setDepth(10);
 
-    const leftBottleZone = this.add.zone(450, 300, 100, 200).setOrigin(0, 0).setInteractive();
-    const rightBottleZone = this.add.zone(750, 300, 100, 200).setOrigin(0, 0).setInteractive();
+    // Zones need to be positioned relative to the SCALED examiner/room
+    // Original: 450, 300, 100x200
+    const leftBottleZone = this.add.zone(offsetX + 450 * uiScale, offsetY + 300 * uiScale, 100 * uiScale, 200 * uiScale).setOrigin(0, 0).setInteractive();
+    // Original: 750, 300, 100x200
+    const rightBottleZone = this.add.zone(offsetX + 750 * uiScale, offsetY + 300 * uiScale, 100 * uiScale, 200 * uiScale).setOrigin(0, 0).setInteractive();
 
     const addZoneHover = (zone) => {
         zone.on('pointerover', () => {
@@ -1108,7 +1288,6 @@ class EggZamRoom extends Phaser.Scene {
 
     leftBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized) {
-        // console.log('Left bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
         const isChristian = this.currentEgg.symbolData.category === 'Christian';
         if (isChristian) {
           this.sound.play('success');
@@ -1116,25 +1295,22 @@ class EggZamRoom extends Phaser.Scene {
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
           this.currentEgg.categorized = true;
-          this.displayRandomEggInfo();
-          // console.log('Correct categorization: Egg is Christian, left bottle clicked');
+          this.displayRandomEggInfo(offsetX, offsetY, uiScale);
         } else {
           this.sound.play('error');
-          const wrongText = this.add.text(420, 220, "Try again!", {
-            fontSize: '28px',
+          const wrongText = this.add.text(offsetX + 420 * uiScale, offsetY + 220 * uiScale, "Try again!", {
+            fontSize: `${28 * uiScale}px`,
             fill: '#f00',
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS'
           }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-          // console.log('Incorrect categorization: Egg is Pagan, left bottle clicked');
         }
       }
     });
 
     rightBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized) {
-        // console.log('Right bottle clicked. Current egg symbolData:', this.currentEgg.symbolData);
         const isPagan = this.currentEgg.symbolData.category === 'Pagan';
         if (isPagan) {
           this.sound.play('success');
@@ -1142,49 +1318,53 @@ class EggZamRoom extends Phaser.Scene {
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
           this.currentEgg.categorized = true;
-          this.displayRandomEggInfo();
-          // console.log('Correct categorization: Egg is Pagan, right bottle clicked');
+          this.displayRandomEggInfo(offsetX, offsetY, uiScale);
         } else {
           this.sound.play('error');
-          const wrongText = this.add.text(420, 220, "Try again!", {
-            fontSize: '28px',
+          const wrongText = this.add.text(offsetX + 420 * uiScale, offsetY + 220 * uiScale, "Try again!", {
+            fontSize: `${28 * uiScale}px`,
             fill: '#f00',
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS'
           }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-          // console.log('Incorrect categorization: Egg is Christian, right bottle clicked');
         }
       }
     });
 
-    this.displayRandomEggInfo();
+    this.displayRandomEggInfo(offsetX, offsetY, uiScale);
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
       .setOrigin(0, 0)
       .setDisplaySize(50, 75)
       .setDepth(7);
+
+    // Store scale params for update/resize if needed (or just restart scene on resize)
+    this.uiParams = { offsetX, offsetY, uiScale };
+
+    this.scale.on('resize', () => {
+        this.scene.restart(); // Simplest way to handle resizing complex UI layouts
+    });
   }
 
-  displayRandomEggInfo() {
+  displayRandomEggInfo(offsetX, offsetY, scale) {
     const foundEggs = this.registry.get('foundEggs');
 
     if (this.currentEgg === null || this.currentEgg.categorized) {
       const uncategorizedEggs = foundEggs.filter(egg => !egg.categorized);
       if (uncategorizedEggs.length > 0) {
         this.currentEgg = Phaser.Utils.Array.GetRandom(uncategorizedEggs);
-        // console.log('Displaying new egg. SymbolData:', this.currentEgg.symbolData);
       } else {
         this.currentEgg = null;
         if (this.noEggsText) this.noEggsText.destroy();
-        this.noEggsText = this.add.text(420, 220, "All eggs have been categorized!", {
-          fontSize: '28px',
+        this.noEggsText = this.add.text(offsetX + 420 * scale, offsetY + 220 * scale, "All eggs have been categorized!", {
+          fontSize: `${28 * scale}px`,
           fill: '#000',
           fontStyle: 'bold',
           fontFamily: 'Comic Sans MS',
           stroke: '#fff',
-          strokeThickness: 3,
-          wordWrap: { width: 480, useAdvancedWrap: true }
+          strokeThickness: 3 * scale,
+          wordWrap: { width: 480 * scale, useAdvancedWrap: true }
         }).setOrigin(0, 0);
         return;
       }
@@ -1197,18 +1377,19 @@ class EggZamRoom extends Phaser.Scene {
 
     if (this.currentEgg) {
       const { eggId, symbolData } = this.currentEgg;
-      const eggPosX = 630; // Updated position
-      const eggPosY = 350; // Updated position
-      const symbolPosX = eggPosX + 0; // Updated position
-      const symbolPosY = eggPosY + 0; // Updated position
+      const eggPosX = offsetX + 630 * scale;
+      const eggPosY = offsetY + 350 * scale;
+      const symbolPosX = eggPosX;
+      const symbolPosY = eggPosY;
+
       if (this.textures.exists(`egg-${eggId}`)) {
         this.displayedEggImage = this.add.image(eggPosX, eggPosY, `egg-${eggId}`)
-          .setDisplaySize(100, 125)
+          .setDisplaySize(100 * scale, 125 * scale)
           .setDepth(3);
       }
       if (symbolData && symbolData.filename && this.textures.exists(symbolData.filename)) {
         this.displayedSymbolImage = this.add.image(symbolPosX, symbolPosY, symbolData.filename)
-          .setDisplaySize(100, 125)
+          .setDisplaySize(100 * scale, 125 * scale)
           .setDepth(3);
       }
     }
@@ -1226,17 +1407,12 @@ class EggZamRoom extends Phaser.Scene {
 
 /**
  * Adds a "pop" animation to a game object on hover.
- * @param {Phaser.Scene} scene - The scene the object belongs to.
- * @param {Phaser.GameObjects.GameObject} button - The game object to animate.
- * @param {string} [soundKey='success'] - The key of the sound to play on click.
  */
 function addButtonInteraction(scene, button, soundKey = 'success') {
   const originalScaleX = button.scaleX;
   const originalScaleY = button.scaleY;
-  let isHovered = false;
 
   button.on('pointerover', () => {
-    isHovered = true;
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
@@ -1248,7 +1424,6 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
   });
 
   button.on('pointerout', () => {
-    isHovered = false;
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
@@ -1260,15 +1435,10 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
   });
 
   button.on('pointerdown', () => {
-    // Try to play sound via MusicScene if available to ensure persistence
     const musicScene = scene.scene.get('MusicScene');
     if (musicScene && musicScene.scene.isActive()) {
         musicScene.playSFX(soundKey);
-    } else if (soundKey && scene.sound.get(soundKey)) {
-        scene.sound.play(soundKey, { volume: 0.5 });
     }
-
-    scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
       scaleX: originalScaleX * 0.9,
@@ -1279,12 +1449,10 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
   });
 
   button.on('pointerup', () => {
-    const targetScale = isHovered ? 1.1 : 1.0;
-    scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
-      scaleX: originalScaleX * targetScale,
-      scaleY: originalScaleY * targetScale,
+      scaleX: originalScaleX * 1.1, // Return to hover state
+      scaleY: originalScaleY * 1.1,
       duration: 100,
       ease: 'Power1'
     });
@@ -1294,8 +1462,12 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
 // Game configuration
 const config = {
   type: Phaser.AUTO,
-  width: 1280,
-  height: 720,
+  scale: {
+      mode: Phaser.Scale.RESIZE, // Fill the window
+      parent: 'game',
+      width: '100%',
+      height: '100%'
+  },
   scene: [MainMenu, MapScene, SectionHunt, EggZamRoom, MusicScene, UIScene],
   parent: 'game',
   backgroundColor: '#000000',
