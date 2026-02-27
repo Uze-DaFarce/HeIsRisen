@@ -17,6 +17,8 @@ const { chromium } = require('playwright');
   });
   const page = await context.newPage();
 
+  page.on('console', msg => console.log('BROWSER LOG:', msg.text()));
+
   console.log('Navigating to game...');
   await page.goto('http://127.0.0.1:8080/index.html');
   await page.waitForSelector('canvas');
@@ -45,7 +47,10 @@ const { chromium } = require('playwright');
   await page.waitForFunction(() => {
       return window.game.scene.isActive('SectionHunt');
   }, { timeout: 10000 });
-  await page.waitForTimeout(2000);
+
+  // Allow time for update() loop to fix scaling
+  await page.waitForTimeout(3000);
+
   await page.screenshot({ path: 'verification/section_hunt_cover_direct.png' });
   console.log('Captured section_hunt_cover_direct.png');
 

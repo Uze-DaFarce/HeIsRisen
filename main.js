@@ -640,6 +640,30 @@ class MainMenu extends Phaser.Scene {
 
   update() {
     this.fingerCursor.setPosition(this.input.x, this.input.y);
+
+    // Fallback scaling check: if video loaded late and width was 0
+    if (this.introVideo && this.introVideo.active) {
+       // Ensure centered
+       if (this.introVideo.x !== this.scale.width / 2 || this.introVideo.y !== this.scale.height / 2) {
+           this.introVideo.setPosition(this.scale.width / 2, this.scale.height / 2);
+       }
+
+       // Ensure scaled if dimensions valid
+       if (this.introVideo.width > 0 && this.introVideo.height > 0) {
+           const width = this.scale.width;
+           const height = this.scale.height;
+           const scaleX = width / this.introVideo.width;
+           const scaleY = height / this.introVideo.height;
+           const desiredScale = Math.max(scaleX, scaleY);
+
+           // If current scale is default (1) but desired is different, apply it
+           // Use a small epsilon to avoid float jitter
+           if (Math.abs(this.introVideo.scaleX - desiredScale) > 0.01) {
+               console.log(`MainMenu: Applying delayed scale. Video: ${this.introVideo.width}x${this.introVideo.height}, Screen: ${width}x${height}, Scale: ${desiredScale}`);
+               this.introVideo.setScale(desiredScale);
+           }
+       }
+    }
   }
 }
 
@@ -1171,11 +1195,14 @@ class SectionHunt extends Phaser.Scene {
 
     // Draw background
     if (this.isUsingVideo && this.sectionVideo) {
-        // Draw the object at its world position
-        // When using a Video object in a RenderTexture with a camera scroll, we draw it at its world position.
-        // The camera scroll handles the "viewing" logic.
-        this.zoomedView.draw(this.sectionVideo, this.sectionVideo.x, this.sectionVideo.y);
-
+        // Ensure video is playing/ready
+        if (this.sectionVideo.width === 0) {
+             // If video dimensions not loaded, we can't draw effectively or it draws nothing.
+             // We can try fallback to static image for the lens if available?
+             // Or just skip drawing.
+        } else {
+             this.zoomedView.draw(this.sectionVideo, this.sectionVideo.x, this.sectionVideo.y);
+        }
     } else {
         // Use the current texture of sectionImage (handles placeholders too)
         const key = this.sectionImage ? this.sectionImage.texture.key : this.sectionName;
@@ -1220,6 +1247,34 @@ class SectionHunt extends Phaser.Scene {
     });
 
     this.magnifyingGlass.setPosition(pointer.x, pointer.y);
+
+    // Robust scaling check for Video in SectionHunt
+    if (this.isUsingVideo && this.sectionVideo && this.sectionVideo.active) {
+        if (this.sectionVideo.width > 0 && this.sectionVideo.height > 0) {
+             // Check if scale matches Cover requirement
+             const width = this.scale.width;
+             const height = this.scale.height;
+             const scaleX = width / 1280;
+             const scaleY = height / 720;
+             const targetScale = Math.max(scaleX, scaleY);
+
+             // Check if current display size matches target
+             // The video native size is sectionVideo.width.
+             // We setDisplaySize(1280 * scale, 720 * scale)
+             const targetDisplayW = 1280 * targetScale;
+
+             if (Math.abs(this.sectionVideo.displayWidth - targetDisplayW) > 5) {
+                 console.log(`SectionHunt: Fixing video scale. Screen: ${width}x${height}, TargetW: ${targetDisplayW}`);
+                 this.sectionVideo.setDisplaySize(1280 * targetScale, 720 * targetScale);
+                 this.sectionVideo.setPosition(width/2, height/2);
+
+                 // Update globals used by lens
+                 this.bgScale = targetScale;
+                 this.bgOffsetX = (width - 1280 * targetScale) / 2;
+                 this.bgOffsetY = (height - 720 * targetScale) / 2;
+             }
+        }
+    }
   }
 }
 
