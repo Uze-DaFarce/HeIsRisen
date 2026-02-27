@@ -426,10 +426,18 @@ class MainMenu extends Phaser.Scene {
     this.introVideo = introVideo; // Store reference for resizing
 
     // Fit video to cover screen
-    const scaleX = width / introVideo.width;
-    const scaleY = height / introVideo.height;
-    const videoScale = Math.max(scaleX, scaleY);
-    introVideo.setScale(videoScale);
+    // Note: introVideo.width might be 0 initially if not fully loaded metadata
+    // We should rely on resize or use displayWidth/displayHeight if set
+
+    if (introVideo.width > 0) {
+        const scaleX = width / introVideo.width;
+        const scaleY = height / introVideo.height;
+        const videoScale = Math.max(scaleX, scaleY);
+        introVideo.setScale(videoScale);
+    } else {
+        // Fallback or wait for texture
+        // We will rely on resize event which fires or we can force a resize check in update/timeout
+    }
 
     // Initial Overlay Text "Click anywhere to start"
     const tapToStartText = this.add.text(width / 2, height / 2, 'Click anywhere to start', {
@@ -579,6 +587,14 @@ class MainMenu extends Phaser.Scene {
     // Handle Resize
     this.scale.on('resize', this.resize, this);
 
+    // Safety: Check video dimensions after a short delay to ensure metadata loaded
+    this.time.delayedCall(100, () => {
+        if (this.introVideo && this.introVideo.active) {
+            // Force resize logic
+            this.resize(this.scale);
+        }
+    });
+
     const symbolsData = this.cache.json.get('symbols');
     if (symbolsData) {
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
@@ -596,10 +612,13 @@ class MainMenu extends Phaser.Scene {
 
       if (this.introVideo && this.introVideo.active) {
           this.introVideo.setPosition(width/2, height/2);
-          const scaleX = width / this.introVideo.width;
-          const scaleY = height / this.introVideo.height;
-          const videoScale = Math.max(scaleX, scaleY);
-          this.introVideo.setScale(videoScale);
+          // Only scale if we have valid dimensions
+          if (this.introVideo.width > 0 && this.introVideo.height > 0) {
+              const scaleX = width / this.introVideo.width;
+              const scaleY = height / this.introVideo.height;
+              const videoScale = Math.max(scaleX, scaleY);
+              this.introVideo.setScale(videoScale);
+          }
       }
 
       if (this.tapToStartText) {
@@ -737,10 +756,10 @@ class MapScene extends Phaser.Scene {
   updateLayout(width, height) {
       this.cameras.main.setViewport(0, 0, width, height);
 
-      // Calculate scale to FIT (maintain aspect ratio, no cropping)
+      // Calculate scale to COVER (Fill screen, center content)
       const scaleX = width / 1280;
       const scaleY = height / 720;
-      const scale = Math.min(scaleX, scaleY);
+      const scale = Math.max(scaleX, scaleY);
 
       // Center map
       this.mapImage.setPosition(width/2, height/2);
@@ -905,7 +924,7 @@ class SectionHunt extends Phaser.Scene {
     const height = this.scale.height;
     const scaleX = width / 1280;
     const scaleY = height / 720;
-    const scale = Math.min(scaleX, scaleY); // Fit
+    const scale = Math.max(scaleX, scaleY); // Cover
 
     this.bgScale = scale;
     this.bgOffsetX = (width - 1280 * scale) / 2;
@@ -1097,7 +1116,7 @@ class SectionHunt extends Phaser.Scene {
 
       const scaleX = width / 1280;
       const scaleY = height / 720;
-      const scale = Math.min(scaleX, scaleY);
+      const scale = Math.max(scaleX, scaleY);
 
       this.bgScale = scale;
       this.bgOffsetX = (width - 1280 * scale) / 2;
