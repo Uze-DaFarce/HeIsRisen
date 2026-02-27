@@ -147,6 +147,7 @@ class UIScene extends Phaser.Scene {
     }));
 
     addButtonInteraction(this, gear, 'menu-click');
+    addTooltip(this, gear, 'Settings');
 
     gear.on('pointerdown', () => {
         this.tweens.add({
@@ -753,8 +754,9 @@ class MapScene extends Phaser.Scene {
       this.mapZones.push(zone);
     });
 
-    this.eggsAmminHaul = this.add.image(0, 0, 'eggs-ammin-haul').setOrigin(0, 0);
+    this.eggsAmminHaul = this.add.image(0, 0, 'eggs-ammin-haul').setOrigin(0, 0).setInteractive();
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
+    addTooltip(this, this.eggsAmminHaul, 'View Collection');
     this.eggsAmminHaul.on('pointerdown', () => {
          this.time.delayedCall(100, () => {
              this.scene.start('EggZamRoom');
@@ -1073,6 +1075,7 @@ class SectionHunt extends Phaser.Scene {
       .setDepth(4).setScrollFactor(0);
     this.eggZitButton.on('pointerdown', () => this.scene.start('MapScene'));
     addButtonInteraction(this, this.eggZitButton, 'drive1');
+    addTooltip(this, this.eggZitButton, 'Back to Map');
 
     this.eggsAmminHaul = this.add.image(0, 350 * uiScale, 'eggs-ammin-haul').setOrigin(0, 0).setDisplaySize(137 * uiScale, 150 * uiScale)
       .setInteractive()
@@ -1083,6 +1086,7 @@ class SectionHunt extends Phaser.Scene {
         });
     });
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
+    addTooltip(this, this.eggsAmminHaul, 'View Collection');
 
     this.sound.play('drive2', { volume: 0.5 });
 
@@ -1334,6 +1338,7 @@ class EggZamRoom extends Phaser.Scene {
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4).setScrollFactor(0);
     addButtonInteraction(this, eggZitButton, 'drive1');
+    addTooltip(this, eggZitButton, 'Back to Map');
 
     this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
@@ -1560,6 +1565,77 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
       duration: 100,
       ease: 'Power1'
     });
+  });
+}
+
+/**
+ * Adds a tooltip to a game object on hover.
+ */
+function addTooltip(scene, object, text) {
+  let tooltipContainer = null;
+
+  object.on('pointerover', (pointer) => {
+    if (tooltipContainer) return;
+
+    const padding = 8;
+    const style = {
+      fontSize: '16px',
+      fontFamily: 'Comic Sans MS',
+      fill: '#ffffff'
+    };
+
+    const textObj = scene.add.text(0, 0, text, style);
+    const width = textObj.width + padding * 2;
+    const height = textObj.height + padding * 2;
+
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x000000, 0.8);
+    bg.fillRoundedRect(-width/2, -height/2, width, height, 5);
+
+    textObj.setOrigin(0.5, 0.5);
+
+    // Position slightly above the pointer
+    // Use pointer.x/y for screen coordinates since tooltip is fixed to screen
+    tooltipContainer = scene.add.container(pointer.x, pointer.y - 30, [bg, textObj]);
+    tooltipContainer.setDepth(1000);
+    tooltipContainer.setScrollFactor(0);
+
+    // Basic bounds check
+    const cam = scene.cameras.main;
+    if (tooltipContainer.x + width/2 > cam.width) {
+        tooltipContainer.x = cam.width - width/2 - 5;
+    }
+    if (tooltipContainer.x - width/2 < 0) {
+        tooltipContainer.x = width/2 + 5;
+    }
+    if (tooltipContainer.y - height/2 < 0) {
+        tooltipContainer.y = pointer.y + 40; // Flip below
+    }
+  });
+
+  object.on('pointermove', (pointer) => {
+    if (tooltipContainer) {
+        tooltipContainer.setPosition(pointer.x, pointer.y - 30);
+
+        const height = tooltipContainer.getBounds().height;
+        if (pointer.y - 30 - height/2 < 0) {
+             tooltipContainer.y = pointer.y + 40;
+        }
+    }
+  });
+
+  object.on('pointerout', () => {
+    if (tooltipContainer) {
+      tooltipContainer.destroy();
+      tooltipContainer = null;
+    }
+  });
+
+  object.once('destroy', () => {
+      if (tooltipContainer) {
+          tooltipContainer.destroy();
+          tooltipContainer = null;
+      }
   });
 }
 
