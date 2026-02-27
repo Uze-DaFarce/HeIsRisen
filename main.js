@@ -1110,7 +1110,7 @@ class SectionHunt extends Phaser.Scene {
         // If clicking UI, ignore
         if (pointer.y < 200 * uiScale && pointer.x < 200 * uiScale) return; // Approximate UI blocking
 
-        const captureRadiusSq = 50 * 50; // Lens capture radius (approx half of 100 diameter)
+        const captureRadiusSq = 50 * 50; // Lens capture radius
 
         this.eggs.getChildren().forEach(egg => {
             if (egg.active) {
@@ -1170,19 +1170,14 @@ class SectionHunt extends Phaser.Scene {
     // Magnifier logic
     // We want the lens (zoomedView) to follow the pointer.
     // Reverting offset to match original Desktop behavior (0.25, 0.2 origin with offset)
-    // User feedback: ZoomedView is offset UP/LEFT by ~20px relative to loop.
-    // This implies the Loop is DOWN/RIGHT of the pointer.
-    // To align Loop to Pointer (where ZoomedView is), we must shift the Sprite UP/LEFT.
-    // Adjusted based on feedback: Shift Sprite Right (+10 from -20) and Up (-10 from -20).
-    const glassOffsetX = -10;
+    // Magnifier logic
+    // We want the lens (zoomedView) to follow the pointer exactly (Anchor).
+    // We move the glass sprite relative to the pointer to align the visual loop.
+    // Offset targets: X: -15 (Left), Y: -30 (Up).
+    const glassOffsetX = -15;
     const glassOffsetY = -30;
+
     this.magnifyingGlass.setPosition(pointer.x + glassOffsetX, pointer.y + glassOffsetY);
-
-    // ZoomedView must be centered on the "loop".
-    // If the glass sprite is positioned at pointer.x, pointer.y with origin 0.25, 0.2...
-    // We need to find where the "center of the loop" is relative to that.
-    // Assuming the "pointer" is meant to be the center of the loop.
-
     this.zoomedView.setPosition(pointer.x, pointer.y);
     this.maskGraphics.setPosition(pointer.x, pointer.y);
 
@@ -1194,7 +1189,6 @@ class SectionHunt extends Phaser.Scene {
 
     // The "camera" of the render texture should be looking at the world coordinates
     // corresponding to the pointer's position.
-    // So we calculate the top-left of the view rectangle in world space.
     const scrollX = pointer.x - viewWidth / 2;
     const scrollY = pointer.y - viewHeight / 2;
 
@@ -1230,11 +1224,12 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.draw(this.renderStamp, drawX, drawY);
 
     // Draw Eggs
-    // Visibility check: If egg is within the visual lens radius
-    const lensRadiusSq = (lensDiameter / 2) * (lensDiameter / 2); // 120^2
+    // Visibility check: If egg is within the visual lens radius (pointer)
+    const lensRadiusSq = (lensDiameter / 2) * (lensDiameter / 2);
 
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
+        // Check distance to the POINTER (center of lens view)
         const distSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
         const alpha = distSq < lensRadiusSq ? 1 : 0;
 
