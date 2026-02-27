@@ -436,7 +436,7 @@ class MainMenu extends Phaser.Scene {
     this.input.keyboard.on('keydown-SPACE', startGame);
     this.input.keyboard.on('keydown-ENTER', startGame);
 
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setAngle(180).setDisplaySize(50, 75);
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75);
 
     // Instead of starting game on any pointerdown, make startText interactive
     startText.setInteractive({ useHandCursor: true }).on('pointerdown', startGame);
@@ -607,26 +607,10 @@ class MapScene extends Phaser.Scene {
           this.hoverGraphics.fillStyle(0xffff00, 0.2);
           this.hoverGraphics.fillRect(zoneX, zoneY, zoneWidth, zoneHeight);
 
-          if (this.fingerCursor) {
-              this.tweens.add({
-                  targets: this.fingerCursor,
-                  scale: 1.2,
-                  duration: 100,
-                  ease: 'Sine.easeInOut'
-              });
-          }
       });
 
       zone.on('pointerout', () => {
           this.hoverGraphics.clear();
-          if (this.fingerCursor) {
-              this.tweens.add({
-                  targets: this.fingerCursor,
-                  scale: 1.0,
-                  duration: 100,
-                  ease: 'Sine.easeInOut'
-              });
-          }
       });
 
       zone.on('pointerdown', () => {
@@ -651,7 +635,7 @@ class MapScene extends Phaser.Scene {
     this.add.image(0, 0, 'score').setOrigin(0, 0).setDisplaySize(200, 200);
     const foundEggs = this.registry.get('foundEggs').length;
     this.add.text(50, 98, `${foundEggs}/${TOTAL_EGGS}`, { fontSize: '42px', fill: '#000', fontStyle: 'bold', fontFamily: 'Comic Sans MS', stroke: '#fff', strokeThickness: 6 });
-    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0.5, 0.5).setDisplaySize(50, 75);
+    this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75);
   }
 
   update() {
@@ -1056,29 +1040,10 @@ class EggZamRoom extends Phaser.Scene {
             this.hoverGraphics.strokeRect(zone.x, zone.y, zone.width, zone.height);
             this.hoverGraphics.fillStyle(0xffff00, 0.2);
             this.hoverGraphics.fillRect(zone.x, zone.y, zone.width, zone.height);
-
-            if (this.fingerCursor) {
-                this.tweens.killTweensOf(this.fingerCursor);
-                this.tweens.add({
-                    targets: this.fingerCursor,
-                    scale: 1.2,
-                    duration: 100,
-                    ease: 'Sine.easeInOut'
-                });
-            }
         });
 
         zone.on('pointerout', () => {
             this.hoverGraphics.clear();
-            if (this.fingerCursor) {
-                this.tweens.killTweensOf(this.fingerCursor);
-                this.tweens.add({
-                    targets: this.fingerCursor,
-                    scale: 1.0,
-                    duration: 100,
-                    ease: 'Sine.easeInOut'
-                });
-            }
         });
     };
 
@@ -1141,7 +1106,6 @@ class EggZamRoom extends Phaser.Scene {
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
       .setOrigin(0, 0)
-      .setAngle(180)
       .setDisplaySize(50, 75)
       .setDepth(7);
   }
