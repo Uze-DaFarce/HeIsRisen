@@ -365,13 +365,11 @@ class MainMenu extends Phaser.Scene {
       if (Array.isArray(data)) {
         data.forEach(section => {
              // Preload section SVGs using the same naming convention as SectionHunt
-             // Fallback to SVG if video not found logic happens in SectionHunt, but we preload SVGs here
              this.load.svg(section.name, `assets/map/sections/${section.name}.svg`);
 
-             // Preload video backgrounds
-             // Try to load video if we expect it, even if missing (Phaser handles 404s gracefully usually by erroring the file load but not crashing the app if handled)
-             // Use a try/catch equivalent or assume file exists if strict
-             // For safety, let's load it. If it fails, we fall back to SVG in SectionHunt
+             // Preload video backgrounds for all sections
+             // We attempt to load the video. If it fails (404), the `loaderror` handler catches it,
+             // and SectionHunt will fallback to the SVG image because `cache.video.exists` will be false.
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
         });
         // console.log(`MainMenu: Queued ${data.length} section SVGs and Videos for loading.`);
@@ -959,6 +957,8 @@ class SectionHunt extends Phaser.Scene {
     // Check if video exists in cache
     const videoKey = `${this.sectionName}-video`;
 
+    // Attempt to load video if key exists and file loaded, otherwise fallback
+    // Note: cache.video.exists checks if the key exists in cache, not if loaded successfully
     if (this.cache.video.exists(videoKey)) {
         // Use Video Background
         this.sectionVideo = this.add.video(width/2, height/2, videoKey)
@@ -967,20 +967,14 @@ class SectionHunt extends Phaser.Scene {
 
         this.sectionVideo.play(true); // Loop
         this.sectionVideo.setMute(true); // Mute background videos
-        this.sectionVideo.setInteractive(false); // Should not block clicks
+        this.sectionVideo.disableInteractive(); // Should not block clicks
 
         this.isUsingVideo = true;
     } else {
         // Fallback to Image
-        // If the SVG key (this.sectionName) exists, use it.
-        // If not, it means the preload might have failed or wasn't keyed correctly.
-        // MainMenu.preload keys the SVG with 'section.name'.
-
-        // Safety check: if texture key doesn't exist, log warning
         let textureKey = this.sectionName;
         if (!this.textures.exists(textureKey)) {
             console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
-            // Attempt to create a placeholder texture if missing
              const graphics = this.make.graphics({x: 0, y: 0, add: false});
              graphics.fillStyle(0x444444);
              graphics.fillRect(0, 0, 1280, 720);
@@ -1024,8 +1018,6 @@ class SectionHunt extends Phaser.Scene {
     if (section) {
         section.eggs.forEach((eggId, index) => {
           // Calculate egg position relative to the SCALED background
-          // Original range: X (200-1270), Y (100-710)
-
           const originalX = Phaser.Math.Between(200, 1270);
           const originalY = Phaser.Math.Between(100, 710);
 
@@ -1033,7 +1025,6 @@ class SectionHunt extends Phaser.Scene {
           const y = this.bgOffsetY + (originalY * scale);
 
           const egg = this.add.image(x, y, `egg-${eggId}`)
-            .setInteractive()
             .setDepth(5)
             .setDisplaySize(50, 75)
             .setAlpha(0); // Invisible until magnified
@@ -1049,18 +1040,7 @@ class SectionHunt extends Phaser.Scene {
                 .setAlpha(0);
               egg.symbolSprite = symbolSprite;
           }
-
-          // IMPORTANT: Explicit click handler for the egg
-          egg.on('pointerdown', (pointer) => {
-             const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
-             if (distSq < 100 * 100) { // Slightly generous click radius
-                this.collectEgg(egg);
-                egg.destroy();
-                if (egg.symbolSprite) egg.symbolSprite.destroy();
-                this.updateScore();
-             }
-          });
-
+          // Note: We removed the individual click handler on egg to use global lens click logic
           this.eggs.add(egg);
         });
     }
@@ -1099,20 +1079,21 @@ class SectionHunt extends Phaser.Scene {
 
     this.lastFoundCount = foundEggs;
 
-    // Render Texture for Magnifier
-    this.zoomedView = this.add.renderTexture(0, 0, 200, 200).setDepth(2).setScrollFactor(0);
-    this.maskGraphics = this.add.graphics().fillCircle(100, 100, 50).setScrollFactor(0);
-    // Note: mask needs to be moved in update
+    // Fixed size Render Texture for Magnifier (Lens)
+    const lensDiameter = 200;
+    this.zoomedView = this.add.renderTexture(0, 0, lensDiameter, lensDiameter).setDepth(2).setScrollFactor(0);
+    this.zoomedView.setOrigin(0.5, 0.5); // Center origin
+
+    this.maskGraphics = this.add.graphics().fillCircle(0, 0, lensDiameter / 2).setScrollFactor(0);
     this.zoomedView.setMask(this.maskGraphics.createGeometryMask());
 
     this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass').setOrigin(0.25, 0.2).setDepth(7).setScrollFactor(0);
 
-    // Render Stamp
-    if (this.isUsingVideo) {
-        // We'll draw the video directly
-    } else {
-        this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
-    }
+    // Render Stamp (reused for drawing video/bg/eggs into lens)
+    // Key: if using video, we swap texture dynamically. If image, we set it here.
+    const key = this.isUsingVideo ? 'placeholder-bg' : (this.sectionImage ? this.sectionImage.texture.key : this.sectionName);
+    this.renderStamp = this.make.image({ x: 0, y: 0, key: key, add: false });
+
     // Stamp for eggs
     this.eggStamp = this.make.image({ x: 0, y: 0, key: 'egg-1', add: false });
 
@@ -1122,6 +1103,27 @@ class SectionHunt extends Phaser.Scene {
         callback: this.showIdleHint,
         callbackScope: this,
         loop: true
+    });
+
+    // Global click handler for egg collection within the lens
+    this.input.on('pointerdown', (pointer) => {
+        // If clicking UI, ignore
+        if (pointer.y < 200 * uiScale && pointer.x < 200 * uiScale) return; // Approximate UI blocking
+
+        const captureRadiusSq = 75 * 75; // Lens capture radius (approx)
+
+        this.eggs.getChildren().forEach(egg => {
+            if (egg.active) {
+                // Check if egg is under the mouse (center of lens)
+                const distSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
+                if (distSq < captureRadiusSq) {
+                     this.collectEgg(egg);
+                     egg.destroy();
+                     if (egg.symbolSprite) egg.symbolSprite.destroy();
+                     this.updateScore();
+                }
+            }
+        });
     });
 
     this.scale.on('resize', this.resize, this);
@@ -1166,87 +1168,104 @@ class SectionHunt extends Phaser.Scene {
     const pointer = this.input.activePointer;
 
     // Magnifier logic
+    // We want the lens (zoomedView) to follow the pointer.
+    // Reverting offset to match original Desktop behavior (0.25, 0.2 origin with offset)
     const offset = 35;
-    const rtX = pointer.x + offset - 75;
-    const rtY = pointer.y + offset - 53;
+    // Calculate position to ensure the "loop" of the glass (at pointer) matches the zoomed view
+    // If origin is 0.25, 0.2, the handle is bottom-right? No, origin is the "anchor".
+    // We simply position the glass at the pointer.
+    this.magnifyingGlass.setPosition(pointer.x, pointer.y);
 
-    this.zoomedView.setPosition(rtX, rtY);
+    // ZoomedView must be centered on the "loop".
+    // If the glass sprite is positioned at pointer.x, pointer.y with origin 0.25, 0.2...
+    // We need to find where the "center of the loop" is relative to that.
+    // Assuming the "pointer" is meant to be the center of the loop.
 
-    // Update mask position to match RT
-    this.maskGraphics.clear();
-    this.maskGraphics.fillCircle(100, 100, 50); // Circle in center of 200x200 RT local space
-    this.maskGraphics.setPosition(rtX, rtY); // Move graphics object to RT pos
+    this.zoomedView.setPosition(pointer.x, pointer.y);
+    this.maskGraphics.setPosition(pointer.x, pointer.y);
 
-    this.zoomedView.camera.setZoom(2);
+    // Zoom logic
+    const zoom = 2;
+    const lensDiameter = 200;
+    const viewWidth = lensDiameter / zoom;
+    const viewHeight = lensDiameter / zoom;
 
-    const centerX = pointer.x + offset;
-    const centerY = pointer.y + offset;
-
-    // World point to center camera on
-    this.zoomedView.camera.scrollX = centerX - 100; // 100 is half of RT width (200)
-    this.zoomedView.camera.scrollY = centerY - 100;
-
-    const magnifierRadius = 50;
-    const magnifierRadiusSq = magnifierRadius * magnifierRadius;
-    const magnifierScreenX = pointer.x;
-    const magnifierScreenY = pointer.y;
+    // The "camera" of the render texture should be looking at the world coordinates
+    // corresponding to the pointer's position.
+    // So we calculate the top-left of the view rectangle in world space.
+    const scrollX = pointer.x - viewWidth / 2;
+    const scrollY = pointer.y - viewHeight / 2;
 
     this.zoomedView.clear();
 
-    // Draw background
-    if (this.isUsingVideo && this.sectionVideo) {
-        // Ensure video is playing/ready
-        if (this.sectionVideo.width === 0) {
-             // If video dimensions not loaded, we can't draw effectively or it draws nothing.
-             // We can try fallback to static image for the lens if available?
-             // Or just skip drawing.
-        } else {
-             this.zoomedView.draw(this.sectionVideo, this.sectionVideo.x, this.sectionVideo.y);
-        }
+    // Draw Background/Video into ZoomedView
+    // We use the renderStamp to draw the scaled background/video frame
+
+    if (this.isUsingVideo && this.sectionVideo && this.sectionVideo.active) {
+        // Swap texture to video frame
+        this.renderStamp.setTexture(this.sectionVideo.texture.key, this.sectionVideo.frame.name);
     } else {
-        // Use the current texture of sectionImage (handles placeholders too)
+        // Use static image texture
         const key = this.sectionImage ? this.sectionImage.texture.key : this.sectionName;
-
-        if (!this.renderStamp) this.renderStamp = this.make.image({key: key, add:false});
         this.renderStamp.setTexture(key);
-        this.renderStamp.setOrigin(0, 0);
-        this.renderStamp.setDisplaySize(1280 * this.bgScale, 720 * this.bgScale);
-
-        // Draw the stamp at the background's world position
-        this.zoomedView.draw(this.renderStamp, this.bgOffsetX, this.bgOffsetY);
     }
 
+    // Ensure stamp is scaled and positioned correctly relative to the "world"
+    this.renderStamp.setOrigin(0, 0);
+    this.renderStamp.setDisplaySize(1280 * this.bgScale, 720 * this.bgScale);
+
+    // Position the stamp relative to the scroll position
+    // If the background is at (bgOffsetX, bgOffsetY) in the world,
+    // and we are looking at (scrollX, scrollY),
+    // then the stamp should be drawn at (bgOffsetX - scrollX, bgOffsetY - scrollY) * zoom
+    // inside the render texture.
+
+    const drawX = (this.bgOffsetX - scrollX) * zoom;
+    const drawY = (this.bgOffsetY - scrollY) * zoom;
+
+    this.renderStamp.setScale((1280 * this.bgScale / this.renderStamp.width) * zoom, (720 * this.bgScale / this.renderStamp.height) * zoom);
+
+    this.zoomedView.draw(this.renderStamp, drawX, drawY);
+
     // Draw Eggs
+    // Visibility check: If egg is within the visual lens radius
+    const lensRadiusSq = (lensDiameter / 2) * (lensDiameter / 2); // 120^2
+
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-        const distSq = Phaser.Math.Distance.Squared(magnifierScreenX, magnifierScreenY, egg.x, egg.y);
-        const alpha = distSq < magnifierRadiusSq ? 1 : 0;
+        const distSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
+        const alpha = distSq < lensRadiusSq ? 1 : 0;
 
         egg.setAlpha(alpha);
         if (egg.symbolSprite) egg.symbolSprite.setAlpha(alpha);
 
         if (alpha > 0) {
-            // Use eggStamp
+            // Draw egg into render texture
             this.eggStamp.setTexture(egg.texture.key, egg.frame.name);
             this.eggStamp.setAngle(egg.angle);
             this.eggStamp.setFlipX(egg.flipX);
             this.eggStamp.setFlipY(egg.flipY);
             this.eggStamp.setOrigin(0.5, 0.5);
-            this.eggStamp.setScale(egg.scaleX, egg.scaleY);
 
-            // Draw egg at its world position
-            this.zoomedView.draw(this.eggStamp, egg.x, egg.y);
+            // Scale egg by zoom factor
+            this.eggStamp.setScale(egg.scaleX * zoom, egg.scaleY * zoom);
+
+            // Calculate position in RT
+            const eggDrawX = (egg.x - scrollX) * zoom;
+            const eggDrawY = (egg.y - scrollY) * zoom;
+
+            this.zoomedView.draw(this.eggStamp, eggDrawX, eggDrawY);
 
             if (egg.symbolSprite && egg.symbolSprite.active) {
                 this.eggStamp.setTexture(egg.symbolSprite.texture.key, egg.symbolSprite.frame.name);
-                this.eggStamp.setScale(egg.symbolSprite.scaleX, egg.symbolSprite.scaleY);
-                this.zoomedView.draw(this.eggStamp, egg.symbolSprite.x, egg.symbolSprite.y);
+                this.eggStamp.setScale(egg.symbolSprite.scaleX * zoom, egg.symbolSprite.scaleY * zoom);
+                const symDrawX = (egg.symbolSprite.x - scrollX) * zoom;
+                const symDrawY = (egg.symbolSprite.y - scrollY) * zoom;
+                this.zoomedView.draw(this.eggStamp, symDrawX, symDrawY);
             }
         }
       }
     });
-
-    this.magnifyingGlass.setPosition(pointer.x, pointer.y);
 
     // Robust scaling check for Video in SectionHunt
     if (this.isUsingVideo && this.sectionVideo && this.sectionVideo.active) {
@@ -1257,14 +1276,10 @@ class SectionHunt extends Phaser.Scene {
              const scaleX = width / 1280;
              const scaleY = height / 720;
              const targetScale = Math.max(scaleX, scaleY);
-
-             // Check if current display size matches target
-             // The video native size is sectionVideo.width.
-             // We setDisplaySize(1280 * scale, 720 * scale)
              const targetDisplayW = 1280 * targetScale;
 
              if (Math.abs(this.sectionVideo.displayWidth - targetDisplayW) > 5) {
-                 console.log(`SectionHunt: Fixing video scale. Screen: ${width}x${height}, TargetW: ${targetDisplayW}`);
+                 // console.log(`SectionHunt: Fixing video scale. Screen: ${width}x${height}, TargetW: ${targetDisplayW}`);
                  this.sectionVideo.setDisplaySize(1280 * targetScale, 720 * targetScale);
                  this.sectionVideo.setPosition(width/2, height/2);
 
