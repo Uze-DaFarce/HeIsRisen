@@ -737,10 +737,10 @@ class MapScene extends Phaser.Scene {
   updateLayout(width, height) {
       this.cameras.main.setViewport(0, 0, width, height);
 
-      // Calculate scale to cover
+      // Calculate scale to FIT (maintain aspect ratio, no cropping)
       const scaleX = width / 1280;
       const scaleY = height / 720;
-      const scale = Math.max(scaleX, scaleY);
+      const scale = Math.min(scaleX, scaleY);
 
       // Center map
       this.mapImage.setPosition(width/2, height/2);
@@ -905,7 +905,7 @@ class SectionHunt extends Phaser.Scene {
     const height = this.scale.height;
     const scaleX = width / 1280;
     const scaleY = height / 720;
-    const scale = Math.max(scaleX, scaleY); // Cover
+    const scale = Math.min(scaleX, scaleY); // Fit
 
     this.bgScale = scale;
     this.bgOffsetX = (width - 1280 * scale) / 2;
@@ -934,11 +934,36 @@ class SectionHunt extends Phaser.Scene {
         // MainMenu.preload keys the SVG with 'section.name'.
 
         // Safety check: if texture key doesn't exist, log warning
-        if (!this.textures.exists(this.sectionName)) {
-            console.error(`SectionHunt: Texture '${this.sectionName}' missing!`);
+        let textureKey = this.sectionName;
+        if (!this.textures.exists(textureKey)) {
+            console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
+            // Attempt to create a placeholder texture if missing
+             const graphics = this.make.graphics({x: 0, y: 0, add: false});
+             graphics.fillStyle(0x444444);
+             graphics.fillRect(0, 0, 1280, 720);
+             graphics.lineStyle(4, 0xff0000);
+             graphics.strokeRect(0, 0, 1280, 720);
+
+             // Add text to the texture
+             const text = this.make.text({
+                 x: 640,
+                 y: 360,
+                 text: `Missing Asset:\n${this.sectionName}`,
+                 origin: { x: 0.5, y: 0.5 },
+                 style: {
+                     font: 'bold 40px Arial',
+                     fill: '#ffffff',
+                     align: 'center'
+                 }
+             });
+
+             graphics.generateTexture('placeholder-bg', 1280, 720);
+             text.destroy();
+             graphics.destroy();
+             textureKey = 'placeholder-bg';
         }
 
-        this.sectionImage = this.add.image(width/2, height/2, this.sectionName)
+        this.sectionImage = this.add.image(width/2, height/2, textureKey)
             .setDisplaySize(1280 * scale, 720 * scale)
             .setDepth(0);
         this.isUsingVideo = false;
@@ -1072,7 +1097,7 @@ class SectionHunt extends Phaser.Scene {
 
       const scaleX = width / 1280;
       const scaleY = height / 720;
-      const scale = Math.max(scaleX, scaleY);
+      const scale = Math.min(scaleX, scaleY);
 
       this.bgScale = scale;
       this.bgOffsetX = (width - 1280 * scale) / 2;
@@ -1128,11 +1153,16 @@ class SectionHunt extends Phaser.Scene {
     // Draw background
     if (this.isUsingVideo && this.sectionVideo) {
         // Draw the object at its world position
-        this.zoomedView.draw(this.sectionVideo);
+        // When using a Video object in a RenderTexture with a camera scroll, we draw it at its world position.
+        // The camera scroll handles the "viewing" logic.
+        this.zoomedView.draw(this.sectionVideo, this.sectionVideo.x, this.sectionVideo.y);
 
     } else {
-        if (!this.renderStamp) this.renderStamp = this.make.image({key: this.sectionName, add:false});
-        this.renderStamp.setTexture(this.sectionName);
+        // Use the current texture of sectionImage (handles placeholders too)
+        const key = this.sectionImage ? this.sectionImage.texture.key : this.sectionName;
+
+        if (!this.renderStamp) this.renderStamp = this.make.image({key: key, add:false});
+        this.renderStamp.setTexture(key);
         this.renderStamp.setOrigin(0, 0);
         this.renderStamp.setDisplaySize(1280 * this.bgScale, 720 * this.bgScale);
 
@@ -1193,8 +1223,8 @@ class EggZamRoom extends Phaser.Scene {
     const scaleX = width / 1280;
     const scaleY = height / 720;
     const scale = Math.min(scaleX, scaleY); // Fit logic for minigame usually better, but let's try cover or contained fit
-    // Background is 1280x720. Let's cover.
-    const bgScale = Math.max(scaleX, scaleY);
+    // Background is 1280x720. Let's FIT.
+    const bgScale = Math.min(scaleX, scaleY);
 
     // Position background centered
     this.add.image(width/2, height/2, 'egg-zam-room')
