@@ -1170,11 +1170,13 @@ class SectionHunt extends Phaser.Scene {
     // Magnifier logic
     // We want the lens (zoomedView) to follow the pointer.
     // Reverting offset to match original Desktop behavior (0.25, 0.2 origin with offset)
-    const offset = 35;
-    // Calculate position to ensure the "loop" of the glass (at pointer) matches the zoomed view
-    // If origin is 0.25, 0.2, the handle is bottom-right? No, origin is the "anchor".
-    // We simply position the glass at the pointer.
-    this.magnifyingGlass.setPosition(pointer.x, pointer.y);
+    // User feedback: ZoomedView is offset UP/LEFT by ~20px relative to loop.
+    // This implies the Loop is DOWN/RIGHT of the pointer.
+    // To align Loop to Pointer (where ZoomedView is), we must shift the Sprite UP/LEFT.
+    // Trying offset (-20, -20)
+    const glassOffsetX = -20;
+    const glassOffsetY = -20;
+    this.magnifyingGlass.setPosition(pointer.x + glassOffsetX, pointer.y + glassOffsetY);
 
     // ZoomedView must be centered on the "loop".
     // If the glass sprite is positioned at pointer.x, pointer.y with origin 0.25, 0.2...
