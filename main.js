@@ -343,9 +343,17 @@ class MainMenu extends Phaser.Scene {
       if (Array.isArray(data)) {
         data.forEach(section => {
              // Preload section SVGs using the same naming convention as SectionHunt
+             // Fallback to SVG if video not found logic happens in SectionHunt, but we preload SVGs here
              this.load.svg(section.name, `assets/map/sections/${section.name}.svg`);
+
+             // Preload video backgrounds
+             const videoName = section.background.replace('.svg', '.mp4');
+             // Try to load video if we expect it, even if missing (Phaser handles 404s gracefully usually by erroring the file load but not crashing the app if handled)
+             // Use a try/catch equivalent or assume file exists if strict
+             // For safety, let's load it. If it fails, we fall back to SVG in SectionHunt
+             this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
         });
-        // console.log(`MainMenu: Queued ${data.length} section SVGs for loading.`);
+        // console.log(`MainMenu: Queued ${data.length} section SVGs and Videos for loading.`);
       }
     });
 
@@ -382,24 +390,27 @@ class MainMenu extends Phaser.Scene {
   create() {
     this.input.setDefaultCursor('none');
 
-    // Add Intro Video - centered
-    const introVideo = this.add.video(640, 360, 'intro-video');
-    try {
-        introVideo.play(true); // Loop
-    } catch (e) {
-        console.warn('Video autoplay synchronous error:', e);
-    }
+    // Create a container for the intro elements to manage them easily
+    this.introContainer = this.add.container(0, 0);
 
-    // Store reference for update loop
-    this.introVideo = introVideo;
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
 
-    // Remove static text overlays as they are likely in the video
-    // this.add.text(520, 0, `He Is Risen!`, ...);
-    // this.add.text(0, 522, `Hunt with P.A.L.`, ...);
-    // this.add.text(0, 580, `for the Meaning of Easter`, ...);
+    // Add Intro Video - centered, initially hidden/paused
+    const introVideo = this.add.video(width / 2, height / 2, 'intro-video');
+    introVideo.setVisible(false);
 
-    // Modified start text instructions
-    const startText = this.add.text(640, 680, 'Click to Start', {
+    // Ensure video fills the viewport (fullscreen-like behavior)
+    const scaleX = width / introVideo.width;
+    const scaleY = height / introVideo.height;
+    const scale = Math.max(scaleX, scaleY);
+    introVideo.setScale(scale).setScrollFactor(0);
+
+    // Click to Start Overlay
+    const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 1)
+        .setInteractive(); // Block clicks initially
+
+    const startText = this.add.text(width / 2, height / 2, 'Click to Start', {
       fontSize: '48px',
       fill: '#ffffff',
       fontStyle: 'bold',
@@ -416,10 +427,49 @@ class MainMenu extends Phaser.Scene {
       repeat: -1
     });
 
+    this.introContainer.add([introVideo, overlay, startText]);
+
+    // Store reference for update loop
+    this.introVideo = introVideo;
+
+    const startVideo = () => {
+        // Remove overlay text and background
+        overlay.destroy();
+        startText.destroy();
+
+        // Show and play video
+        introVideo.setVisible(true);
+        introVideo.setMute(false); // Ensure audio is on
+
+        try {
+            introVideo.play(false); // Play once, don't loop
+        } catch (e) {
+            console.warn('Video playback error:', e);
+            startGame(); // Fallback if video fails
+        }
+
+        // When video ends, start game
+        introVideo.on('complete', () => {
+            startGame();
+        });
+
+        // Allow skipping with space/enter/click during video
+        this.input.keyboard.on('keydown-SPACE', startGame);
+        this.input.keyboard.on('keydown-ENTER', startGame);
+
+        // Remove the initial click listener so subsequent clicks don't restart video
+        overlay.removeInteractive();
+        // Add a transparent overlay to catch clicks for skipping
+        const skipOverlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0)
+            .setInteractive()
+            .on('pointerdown', startGame);
+    };
+
     const startGame = () => {
-      if (introVideo) {
-          introVideo.stop();
-          introVideo.destroy();
+      if (this.introVideo) {
+          this.introVideo.stop();
+          this.introVideo.destroy();
+          this.introVideo = null;
       }
 
       if (!this.scene.get('MusicScene').scene.isActive()) {
@@ -427,19 +477,15 @@ class MainMenu extends Phaser.Scene {
       }
       const musicScene = this.scene.get('MusicScene');
       if (musicScene) {
-        // playSFX might not work if scene isn't fully started yet, but let's try or play locally
         this.sound.play('drive1', { volume: 0.5 });
       }
       this.scene.start('MapScene');
     };
 
-    this.input.keyboard.on('keydown-SPACE', startGame);
-    this.input.keyboard.on('keydown-ENTER', startGame);
+    // Trigger video start on first click
+    overlay.on('pointerdown', startVideo);
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor').setOrigin(0, 0).setDisplaySize(50, 75);
-
-    // Instead of starting game on any pointerdown, make startText interactive
-    startText.setInteractive({ useHandCursor: true }).on('pointerdown', startGame);
 
     // Initialize volume registry
     if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', 0.5);
@@ -451,65 +497,33 @@ class MainMenu extends Phaser.Scene {
         this.scene.launch('UIScene');
     }
 
-    // ROBUST AUTOPLAY STRATEGY for Video Audio
-    const musicVol = this.registry.get('musicVolume');
-    introVideo.setVolume(musicVol);
-
     // Update intro volume if changed in settings
     const updateIntroVolume = (parent, key, data) => {
-        if (key === 'musicVolume' && introVideo && introVideo.active) {
-            introVideo.setVolume(data);
+        if (key === 'musicVolume' && this.introVideo && this.introVideo.active) {
+            this.introVideo.setVolume(data);
         }
     };
     this.registry.events.on('changedata', updateIntroVolume);
     this.events.once('shutdown', () => {
         this.registry.events.off('changedata', updateIntroVolume);
-        if (introVideo) {
-            introVideo.stop();
-            introVideo.destroy();
+        if (this.introVideo) {
+            this.introVideo.stop();
+            this.introVideo.destroy();
         }
     });
 
-    const unlockAudio = () => {
-        if (this.sound.context.state === 'suspended') {
-            this.sound.context.resume();
-        }
-        if (introVideo && introVideo.isPaused()) {
-            introVideo.play(true);
-        }
-        if (introVideo) {
-            introVideo.setMute(false);
-        }
-    };
-
-    // Try to unlock immediately (some browsers might allow if previously interacted)
-    unlockAudio();
-
-    // Unlock on any pointer or keyboard interaction
-    this.input.on('pointerdown', unlockAudio);
-    this.input.keyboard.on('keydown', unlockAudio);
-
+    // Console logs for debugging
     // console.log('MainMenu: Attempting to get symbols data from cache...');
     const symbolsData = this.cache.json.get('symbols');
 
     if (symbolsData) {
-      // console.log('MainMenu: Found symbols data in cache:', symbolsData);
       if (symbolsData.symbols && Array.isArray(symbolsData.symbols)) {
-        // Sentinel: Filter invalid symbols before setting registry
         const validSymbols = symbolsData.symbols.filter(s => this.isValidSymbol(s));
         if (validSymbols.length !== symbolsData.symbols.length) {
             console.warn(`Security: Filtered ${symbolsData.symbols.length - validSymbols.length} invalid symbols.`);
             symbolsData.symbols = validSymbols;
         }
-
-        // console.log(`MainMenu: Data contains a 'symbols' array with ${symbolsData.symbols.length} items. Setting registry...`);
         this.registry.set('symbols', symbolsData);
-        const checkRegistry = this.registry.get('symbols');
-        if (checkRegistry) {
-          // console.log('MainMenu: Successfully set and verified symbols in registry:', checkRegistry);
-        } else {
-          console.error('MainMenu: FAILED to verify symbols in registry immediately after setting!');
-        }
       } else {
         console.error("MainMenu: ERROR - symbolsData loaded, but it does NOT contain a 'symbols' array property! Check assets/symbols.json structure.", symbolsData);
       }
@@ -529,11 +543,15 @@ class MainMenu extends Phaser.Scene {
   update() {
     this.fingerCursor.setPosition(this.input.x, this.input.y);
 
-    // Ensure video size is correct once texture loads
+    // Ensure video size is correct if it changes
     if (this.introVideo && this.introVideo.active && this.introVideo.width > 0) {
-        if (Math.abs(this.introVideo.displayWidth - 1280) > 10) {
-            this.introVideo.setDisplaySize(1280, 720);
-        }
+       // Re-apply scale logic if needed
+       const width = this.cameras.main.width;
+       const height = this.cameras.main.height;
+       const scaleX = width / this.introVideo.width;
+       const scaleY = height / this.introVideo.height;
+       const scale = Math.max(scaleX, scaleY);
+       this.introVideo.setScale(scale);
     }
   }
 }
@@ -764,7 +782,34 @@ class SectionHunt extends Phaser.Scene {
   create() {
     this.input.setDefaultCursor('none');
     this.cameras.main.setBounds(0, 0, 1280, 720);
-    this.sectionImage = this.add.image(0, 0, this.sectionName).setOrigin(0, 0).setDisplaySize(1280, 720).setDepth(0);
+
+    // Check if video exists in cache
+    const videoKey = `${this.sectionName}-video`;
+
+    if (this.cache.video.exists(videoKey)) {
+        // Use Video Background
+        this.sectionVideo = this.add.video(0, 0, videoKey)
+            .setOrigin(0, 0)
+            .setDisplaySize(1280, 720)
+            .setDepth(0);
+
+        this.sectionVideo.play(true); // Loop
+        this.sectionVideo.setMute(true); // Mute background videos
+
+        // Disable interaction
+        this.sectionVideo.setInteractive(false);
+
+        // For render stamp compatibility
+        this.isUsingVideo = true;
+    } else {
+        // Fallback to Image
+        this.sectionImage = this.add.image(0, 0, this.sectionName)
+            .setOrigin(0, 0)
+            .setDisplaySize(1280, 720)
+            .setDepth(0);
+        this.isUsingVideo = false;
+    }
+
     const symbolsData = this.registry.get('symbols');
     const symbols = (symbolsData && symbolsData.symbols) ? symbolsData.symbols : [];
     if (!symbols.length) {
@@ -869,7 +914,12 @@ class SectionHunt extends Phaser.Scene {
     this.magnifyingGlass = this.add.image(0, 0, 'magnifying-glass').setOrigin(0.25, 0.2).setDepth(7).setScrollFactor(0);
 
     // Bolt Optimization: Render Stamp for single-pass drawing
-    this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+    if (!this.isUsingVideo) {
+        this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
+    } else {
+        // For video, we'll use a dynamic approach in update, but we still need the stamp for eggs/symbols
+        this.renderStamp = this.make.image({ x: 0, y: 0, key: 'egg-1', add: false }); // Placeholder key
+    }
 
     // Idle Hint Timer (2 minutes)
     this.hintTimer = this.time.addEvent({
@@ -900,15 +950,21 @@ class SectionHunt extends Phaser.Scene {
 
     this.zoomedView.clear();
 
-    // Draw background using renderStamp to avoid dirtying scene object
-    this.renderStamp.setTexture(this.sectionName);
-    this.renderStamp.setOrigin(0, 0);
-    this.renderStamp.setDisplaySize(1280, 720);
-    this.renderStamp.setAngle(0);
-    this.renderStamp.setRotation(0);
-    this.renderStamp.setFlipX(false);
-    this.renderStamp.setFlipY(false);
-    this.zoomedView.draw(this.renderStamp, 0, 0);
+    // Draw background
+    if (this.isUsingVideo && this.sectionVideo) {
+        // Draw the current video frame
+        this.zoomedView.draw(this.sectionVideo, 0, 0);
+    } else if (this.renderStamp) {
+        // Draw static image
+        this.renderStamp.setTexture(this.sectionName);
+        this.renderStamp.setOrigin(0, 0);
+        this.renderStamp.setDisplaySize(1280, 720);
+        this.renderStamp.setAngle(0);
+        this.renderStamp.setRotation(0);
+        this.renderStamp.setFlipX(false);
+        this.renderStamp.setFlipY(false);
+        this.zoomedView.draw(this.renderStamp, 0, 0);
+    }
 
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
