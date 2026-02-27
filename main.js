@@ -3,7 +3,7 @@ const TOTAL_EGGS = 60;
 
 class CursorScene extends Phaser.Scene {
   constructor() {
-    super({ key: 'CursorScene', active: true });
+    super({ key: 'CursorScene', active: false });
   }
 
   create() {
@@ -653,7 +653,9 @@ class MainMenu extends Phaser.Scene {
       const width = gameSize.width;
       const height = gameSize.height;
 
-      this.cameras.main.setViewport(0, 0, width, height);
+      if (this.cameras && this.cameras.main) {
+          this.cameras.main.setViewport(0, 0, width, height);
+      }
 
       if (this.introVideo && this.introVideo.active) {
           this.introVideo.setPosition(width/2, height/2);
@@ -819,7 +821,9 @@ class MapScene extends Phaser.Scene {
   }
 
   updateLayout(width, height) {
-      this.cameras.main.setViewport(0, 0, width, height);
+      if (this.cameras && this.cameras.main) {
+          this.cameras.main.setViewport(0, 0, width, height);
+      }
 
       // Calculate scale to COVER (Fill screen, center content)
       const scaleX = width / 1280;
@@ -1020,15 +1024,28 @@ class SectionHunt extends Phaser.Scene {
         this.sectionVideo.setMute(true); // Mute background videos
         this.sectionVideo.disableInteractive(); // Should not block clicks
 
-        // Safety check: if video errors on play or is empty
-        if (this.sectionVideo.video && (this.sectionVideo.video.videoWidth === 0 && this.sectionVideo.video.readyState === 0)) {
-             // Likely failed to load or is invalid. Fallback.
-             console.warn(`SectionHunt: Video ${videoKey} appears invalid/empty. Falling back.`);
+        // Video has started loading. We assume it works unless it errors.
+        // We attach an error handler to fallback if playback fails later.
+        this.isUsingVideo = true;
+
+        this.sectionVideo.on('error', () => {
+             console.warn(`SectionHunt: Video ${videoKey} playback error. Falling back.`);
              this.sectionVideo.destroy();
-             useVideo = false;
-        } else {
-             this.isUsingVideo = true;
-        }
+             this.isUsingVideo = false;
+
+             // Inline fallback creation
+             let textureKey = this.sectionName;
+             if (!this.textures.exists(textureKey)) {
+                 textureKey = 'placeholder-bg';
+             }
+
+             // Ensure scene is still active before adding
+             if (this.sys.settings.active) {
+                 this.sectionImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+                    .setDisplaySize(1280 * this.bgScale, 720 * this.bgScale)
+                    .setDepth(0);
+             }
+        });
     }
 
     if (!useVideo) {
@@ -1199,7 +1216,9 @@ class SectionHunt extends Phaser.Scene {
       const width = gameSize.width;
       const height = gameSize.height;
 
-      this.cameras.main.setViewport(0, 0, width, height);
+      if (this.cameras && this.cameras.main) {
+          this.cameras.main.setViewport(0, 0, width, height);
+      }
 
       const scaleX = width / 1280;
       const scaleY = height / 720;
