@@ -916,7 +916,7 @@ class SectionHunt extends Phaser.Scene {
 
       // Reset hint timer
       if (this.hintTimer) {
-          this.hintTimer.reset({ delay: 120000, callback: this.showIdleHint, callbackScope: this, loop: true });
+          this.hintTimer.reset({ delay: 90000, callback: this.showIdleHint, callbackScope: this, loop: true });
       }
 
       let currentScore = this.registry.get('currentScore');
@@ -934,6 +934,40 @@ class SectionHunt extends Phaser.Scene {
       const foundEggsCount = foundEggs.length;
       if (this.scoreText) {
         this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
+      }
+
+      // Goal 2: Level cleared state
+      const sections = this.registry.get('sections');
+      const currentSection = sections.find(s => s.name === this.sectionName);
+      if (currentSection) {
+          const foundIds = foundEggs.map(e => e.eggId);
+          const remainingCount = currentSection.eggs.filter(id => !foundIds.includes(id)).length;
+          if (remainingCount === 0) {
+              const scale = this.gameScale;
+              const clearText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, "Great Job Detective!! You found all the hidden eggs on this map, the others are hidden in other maps.", {
+                  fontSize: `${40 * scale}px`,
+                  fontFamily: 'Comic Sans MS',
+                  fill: '#ffff00',
+                  backgroundColor: '#000000cc',
+                  padding: { x: 20 * scale, y: 10 * scale },
+                  stroke: '#000000',
+                  strokeThickness: 6 * scale,
+                  align: 'center',
+                  wordWrap: { width: 800 * scale, useAdvancedWrap: true }
+              }).setOrigin(0.5).setDepth(35).setScrollFactor(0);
+
+              this.tweens.add({
+                  targets: clearText,
+                  alpha: 0,
+                  delay: 5000,
+                  duration: 1000,
+                  onComplete: () => clearText.destroy()
+              });
+
+              if (this.hintTimer) {
+                  this.hintTimer.remove();
+              }
+          }
       }
     } else {
       // console.log(`SectionHunt: Egg-${eggInfo.eggId} already collected, skipping`);
@@ -986,6 +1020,13 @@ class SectionHunt extends Phaser.Scene {
   }
 
   showIdleHint() {
+    // Goal 1: Check if the user has touched/moved within the last 60 seconds
+    const now = this.time.now;
+    if (this.lastInteractionTime && (now - this.lastInteractionTime > 60000)) {
+        // User is fully AFK, don't show the hint.
+        return;
+    }
+
     const foundEggs = this.registry.get('foundEggs');
     const sections = this.registry.get('sections');
     // For mobile, section lookup depends on if 'sections' structure is same.
@@ -1190,9 +1231,17 @@ class SectionHunt extends Phaser.Scene {
     // Bolt Optimization: Render Stamp for single-pass drawing
     this.renderStamp = this.make.image({ x: 0, y: 0, key: this.sectionName, add: false });
 
-    // Idle Hint Timer (2 minutes)
+    // Idle Hint Timer (90 seconds, with 60 second AFK check)
+    this.lastInteractionTime = this.time.now;
+    this.input.on('pointermove', () => {
+        this.lastInteractionTime = this.time.now;
+    });
+    this.input.on('pointerdown', () => {
+        this.lastInteractionTime = this.time.now;
+    });
+
     this.hintTimer = this.time.addEvent({
-        delay: 120000,
+        delay: 90000,
         callback: this.showIdleHint,
         callbackScope: this,
         loop: true
