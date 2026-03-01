@@ -1,0 +1,11 @@
+--- main.js
++++ main.js
+@@ -1963,7 +1963,7 @@
+         scene.scoreText.setStyle({ fontSize: `${42 * scale}px`, strokeThickness: 6 * scale });
+       }
+       if (scene.correctText) {
+-        scene.correctText.setPosition(15 * scale, 148 * scale);
++        scene.correctText.setPosition(100 * scale, 150 * scale);
+         scene.correctText.setStyle({ fontSize: `${32 * scale}px`, strokeThickness: 6 * scale });
+       }
+       if (scene.leftBottleZone) {
