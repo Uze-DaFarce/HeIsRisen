@@ -397,7 +397,6 @@ class MainMenu extends Phaser.Scene {
       const scaleX = this.game.config.width / 1280;
       const scaleY = this.game.config.height / 720;
       const scale = Math.min(scaleX, scaleY);
-  const uiScale = Math.min(width / 1280, height / 720);
       this.gameScale = scale;
 
       // NEW: Initialize all game variables
@@ -813,11 +812,10 @@ class MapScene extends Phaser.Scene {
     this.mapSections = mapSections;
 
     // UI elements
-    const uiScale = Math.min(this.game.config.width / 1280, this.game.config.height / 720);
-    this.eggsAmminHaul = this.add.image(0, 200 * uiScale, 'eggs-ammin-haul')
+    this.eggsAmminHaul = this.add.image(0, 200 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
-      .setDisplaySize(137 * uiScale, 150 * uiScale)
-      .setInteractive();
+      .setDisplaySize(137 * scale, 150 * scale)
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 137, 150), Phaser.Geom.Rectangle.Contains);
 
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
 
@@ -830,16 +828,16 @@ class MapScene extends Phaser.Scene {
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
-      .setDisplaySize(200 * uiScale, 200 * uiScale);
+      .setDisplaySize(200 * scale, 200 * scale);
 
     const foundEggs = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * uiScale, 98 * uiScale, `${foundEggs}/${TOTAL_EGGS}`, {
-      fontSize: `${42 * uiScale}px`,
+    this.scoreText = this.add.text(50 * scale, 98 * scale, `${foundEggs}/${TOTAL_EGGS}`, {
+      fontSize: `${42 * scale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6 * uiScale
+      strokeThickness: 6 * scale
     });
 
     // Cursor for desktop only
@@ -1168,11 +1166,10 @@ class SectionHunt extends Phaser.Scene {
       this.eggs.add(egg);
     });
 
-    const uiScale = Math.min(this.game.config.width / 1280, this.game.config.height / 720);
-    this.eggZitButton = this.add.image(0, 200 * uiScale, 'egg-zit-button')
+    this.eggZitButton = this.add.image(0, 200 * scale, 'egg-zit-button')
       .setOrigin(0, 0)
-      .setDisplaySize(150 * uiScale, 150 * uiScale)
-      .setInteractive()
+      .setDisplaySize(150 * scale, 150 * scale)
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 150, 150), Phaser.Geom.Rectangle.Contains)
       .on('pointerdown', () => {
         // console.log('Click on eggZitButton');
         this.scene.start('MapScene');
@@ -1181,10 +1178,10 @@ class SectionHunt extends Phaser.Scene {
       .setScrollFactor(0);
     addButtonInteraction(this, this.eggZitButton, 'drive1');
 
-    this.eggsAmminHaul = this.add.image(0, 350 * uiScale, 'eggs-ammin-haul')
+    this.eggsAmminHaul = this.add.image(0, 350 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
-      .setDisplaySize(137 * uiScale, 150 * uiScale)
-      .setInteractive()
+      .setDisplaySize(137 * scale, 150 * scale)
+      .setInteractive(new Phaser.Geom.Rectangle(0, 0, 137, 150), Phaser.Geom.Rectangle.Contains)
       .setDepth(4);
 
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
@@ -1200,18 +1197,18 @@ class SectionHunt extends Phaser.Scene {
     this.sound.play('drive2', { volume: 0.5 });
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
-      .setDisplaySize(200 * uiScale, 200 * uiScale)
+      .setDisplaySize(200 * scale, 200 * scale)
       .setDepth(4)
       .setScrollFactor(0);
 
     const foundEggs = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * uiScale, 98 * uiScale, `${foundEggs}/${TOTAL_EGGS}`, {
-      fontSize: `${42 * uiScale}px`,
+    this.scoreText = this.add.text(50 * scale, 98 * scale, `${foundEggs}/${TOTAL_EGGS}`, {
+      fontSize: `${42 * scale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6 * uiScale
+      strokeThickness: 6 * scale
     }).setDepth(5);
     this.lastFoundCount = foundEggs; // Bolt Optimization
 
@@ -1526,10 +1523,9 @@ class EggZamRoom extends Phaser.Scene {
       .setDisplaySize(900 * this.gameScale, 600 * this.gameScale)
       .setAlpha(0);
 
-    const uiScale = Math.min(this.game.config.width / 1280, this.game.config.height / 720);
-    this.eggZitButton = this.add.image(0, 200 * uiScale, 'egg-zit-button')
+    this.eggZitButton = this.add.image(0, 200 * this.gameScale, 'egg-zit-button')
       .setOrigin(0, 0)
-      .setDisplaySize(150 * uiScale, 131 * uiScale)
+      .setDisplaySize(150 * this.gameScale, 131 * this.gameScale)
       .setInteractive()
       .on('pointerdown', () => this.scene.start('MapScene'))
       .setDepth(4)
@@ -1538,17 +1534,17 @@ class EggZamRoom extends Phaser.Scene {
 
     this.scoreImage = this.add.image(0, 0, 'score')
       .setOrigin(0, 0)
-      .setDisplaySize(200 * uiScale, 200 * uiScale)
+      .setDisplaySize(200 * this.gameScale, 200 * this.gameScale)
       .setDepth(4)
       .setScrollFactor(0);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * uiScale, 98 * uiScale, `${foundEggsCount}/${TOTAL_EGGS}`, {
-      fontSize: `${42 * uiScale}px`,
+    this.scoreText = this.add.text(50 * this.gameScale, 98 * this.gameScale, `${foundEggsCount}/${TOTAL_EGGS}`, {
+      fontSize: `${42 * this.gameScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
-      strokeThickness: 6 * uiScale
+      strokeThickness: 6 * this.gameScale
     }).setDepth(5);
     this.lastFoundCount = foundEggsCount; // Bolt Optimization
 
@@ -1767,8 +1763,6 @@ window.game = game; // Expose for debugging/verification
  * @param {string} [soundKey='success'] - The key of the sound to play on click.
  */
 function addButtonInteraction(scene, button, soundKey = 'success') {
-  let localBaseX, localBaseY;
-
   button.on('pointerdown', () => {
     // Try to play sound via MusicScene if available to ensure persistence
     const musicScene = scene.scene.get('MusicScene');
@@ -1778,40 +1772,29 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
         scene.sound.play(soundKey, { volume: 0.5 });
     }
 
-    // Determine the resting scale
-    // If the button has an explicit baseScale (from hover logic), use it.
-    // Otherwise, capture the current scale on first interaction or if not tweening.
-    if (button.baseScaleX !== undefined) {
-        localBaseX = button.baseScaleX;
-        localBaseY = button.baseScaleY;
-    } else if (localBaseX === undefined || !scene.tweens.isTweening(button)) {
-        localBaseX = button.scaleX;
-        localBaseY = button.scaleY;
+    if (button.baseScaleX === undefined || !scene.tweens.isTweening(button)) {
+        // Capture ONLY if not tweening to avoid capturing a shrunken/grown state
+        button.baseScaleX = button.scaleX;
+        button.baseScaleY = button.scaleY;
     }
 
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
-      scaleX: localBaseX * 0.9,
-      scaleY: localBaseY * 0.9,
+      scaleX: button.baseScaleX * 0.9,
+      scaleY: button.baseScaleY * 0.9,
       duration: 50,
       ease: 'Power1'
     });
   });
 
   const restore = () => {
-    if (localBaseX !== undefined) {
-      // If the button has dynamic baseScale (hover), update local to match
-      if (button.baseScaleX !== undefined) {
-          localBaseX = button.baseScaleX;
-          localBaseY = button.baseScaleY;
-      }
-
+    if (button.baseScaleX !== undefined && button.baseScaleY !== undefined) {
       scene.tweens.killTweensOf(button);
       scene.tweens.add({
         targets: button,
-        scaleX: localBaseX,
-        scaleY: localBaseY,
+        scaleX: button.baseScaleX,
+        scaleY: button.baseScaleY,
         duration: 100,
         ease: 'Power1'
       });
@@ -1880,17 +1863,17 @@ function resizeGame() {
         });
       }
       if (scene.eggsAmminHaul) {
-        scene.eggsAmminHaul.setPosition(0, 200 * uiScale);
-        scene.eggsAmminHaul.setDisplaySize(137 * uiScale, 150 * uiScale);
+        scene.eggsAmminHaul.setPosition(0, 200 * scale);
+        scene.eggsAmminHaul.setDisplaySize(137 * scale, 150 * scale);
       }
       if (scene.scoreImage) {
-        scene.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
+        scene.scoreImage.setDisplaySize(200 * scale, 200 * scale);
       }
       if (scene.scoreText) {
-        scene.scoreText.setPosition(50 * uiScale, 98 * uiScale);
+        scene.scoreText.setPosition(50 * scale, 98 * scale);
         scene.scoreText.setStyle({
-          fontSize: `${42 * uiScale}px`,
-          strokeThickness: 6 * uiScale
+          fontSize: `${42 * scale}px`,
+          strokeThickness: 6 * scale
         });
         const foundEggsCount = scene.registry.get('foundEggs').length;
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
@@ -1914,21 +1897,21 @@ function resizeGame() {
         });
       }
       if (scene.eggZitButton) {
-        scene.eggZitButton.setPosition(0, 200 * uiScale);
-        scene.eggZitButton.setDisplaySize(150 * uiScale, 150 * uiScale);
+        scene.eggZitButton.setPosition(0, 200 * scale);
+        scene.eggZitButton.setDisplaySize(150 * scale, 150 * scale);
       }
       if (scene.eggsAmminHaul) {
-        scene.eggsAmminHaul.setPosition(0, 350 * uiScale);
-        scene.eggsAmminHaul.setDisplaySize(137 * uiScale, 150 * uiScale);
+        scene.eggsAmminHaul.setPosition(0, 350 * scale);
+        scene.eggsAmminHaul.setDisplaySize(137 * scale, 150 * scale);
       }
       if (scene.scoreImage) {
-        scene.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
+        scene.scoreImage.setDisplaySize(200 * scale, 200 * scale);
       }
       if (scene.scoreText) {
-        scene.scoreText.setPosition(50 * uiScale, 98 * uiScale);
+        scene.scoreText.setPosition(50 * scale, 98 * scale);
         scene.scoreText.setStyle({
-          fontSize: `${42 * uiScale}px`,
-          strokeThickness: 6 * uiScale
+          fontSize: `${42 * scale}px`,
+          strokeThickness: 6 * scale
         });
         const foundEggsCount = scene.registry.get('foundEggs').length;
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
@@ -1967,17 +1950,17 @@ function resizeGame() {
         scene.symbolResultDiag.setDisplaySize(900 * scale, 600 * scale);
       }
       if (scene.eggZitButton) {
-        scene.eggZitButton.setPosition(0, 200 * uiScale);
-        scene.eggZitButton.setDisplaySize(150 * uiScale, 131 * uiScale);
+        scene.eggZitButton.setPosition(0, 200 * scale);
+        scene.eggZitButton.setDisplaySize(150 * scale, 131 * scale);
       }
       if (scene.scoreImage) {
-        scene.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
+        scene.scoreImage.setDisplaySize(200 * scale, 200 * scale);
       }
       if (scene.scoreText) {
         const foundEggsCount = scene.registry.get('foundEggs').length;
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
-        scene.scoreText.setPosition(50 * uiScale, 98 * uiScale);
-        scene.scoreText.setStyle({ fontSize: `${42 * uiScale}px`, strokeThickness: 6 * uiScale });
+        scene.scoreText.setPosition(50 * scale, 98 * scale);
+        scene.scoreText.setStyle({ fontSize: `${42 * scale}px`, strokeThickness: 6 * scale });
       }
       if (scene.correctText) {
         scene.correctText.setPosition(100 * scale, 150 * scale);

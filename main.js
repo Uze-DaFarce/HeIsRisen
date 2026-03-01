@@ -855,10 +855,12 @@ class MapScene extends Phaser.Scene {
       }
 
       // UI Elements - Scale with MIN to stay on screen and proportional
-      const uiScale = Math.min(width / 1280, height / 720);
+      const uiScale = Math.min(scaleX, scaleY);
 
       if (this.eggsAmminHaul) {
           this.eggsAmminHaul.setDisplaySize(137 * uiScale, 150 * uiScale);
+          this.eggsAmminHaul.baseScaleX = this.eggsAmminHaul.scaleX;
+          this.eggsAmminHaul.baseScaleY = this.eggsAmminHaul.scaleY;
           this.eggsAmminHaul.setPosition(0, 200 * uiScale);
       }
 
@@ -1185,7 +1187,7 @@ class SectionHunt extends Phaser.Scene {
     }
 
     // UI Elements (Scaled by MIN to fit)
-    const uiScale = Math.min(width / 1280, height / 720);
+    const uiScale = Math.min(scaleX, scaleY);
 
     this.eggZitButton = this.add.image(0, 200 * uiScale, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150 * uiScale, 150 * uiScale)
       .setInteractive()
@@ -1309,9 +1311,13 @@ class SectionHunt extends Phaser.Scene {
       }
 
       // UI Resize
-      const uiScale = Math.min(width / 1280, height / 720);
+      const uiScale = Math.min(scaleX, scaleY);
       this.eggZitButton.setPosition(0, 200 * uiScale).setDisplaySize(150 * uiScale, 150 * uiScale);
+      this.eggZitButton.baseScaleX = this.eggZitButton.scaleX;
+      this.eggZitButton.baseScaleY = this.eggZitButton.scaleY;
       this.eggsAmminHaul.setPosition(0, 350 * uiScale).setDisplaySize(137 * uiScale, 150 * uiScale);
+      this.eggsAmminHaul.baseScaleX = this.eggsAmminHaul.scaleX;
+      this.eggsAmminHaul.baseScaleY = this.eggsAmminHaul.scaleY;
       this.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
       this.scoreText.setPosition(50 * uiScale, 98 * uiScale).setFontSize(`${42 * uiScale}px`);
   }
@@ -1475,7 +1481,7 @@ class EggZamRoom extends Phaser.Scene {
     // We scale everything by 'scale' (min) to ensure UI fits on screen.
     // But we need to center the "game area" in the viewport.
 
-    const uiScale = Math.min(width / 1280, height / 720);
+    const uiScale = Math.min(scaleX, scaleY);
     const offsetX = (width - 1280 * uiScale) / 2;
     const offsetY = (height - 720 * uiScale) / 2;
 
@@ -1672,29 +1678,35 @@ class EggZamRoom extends Phaser.Scene {
  * Adds a "pop" animation to a game object on hover.
  */
 function addButtonInteraction(scene, button, soundKey = 'success') {
-  const originalScaleX = button.scaleX;
-  const originalScaleY = button.scaleY;
-
   button.on('pointerover', () => {
+    if (!button.isHovered) {
+        button.baseScaleX = button.scaleX;
+        button.baseScaleY = button.scaleY;
+    }
+    button.isHovered = true;
+
     scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
-      scaleX: originalScaleX * 1.1,
-      scaleY: originalScaleY * 1.1,
+      scaleX: button.baseScaleX * 1.1,
+      scaleY: button.baseScaleY * 1.1,
       duration: 100,
       ease: 'Power1'
     });
   });
 
   button.on('pointerout', () => {
+    button.isHovered = false;
     scene.tweens.killTweensOf(button);
-    scene.tweens.add({
-      targets: button,
-      scaleX: originalScaleX,
-      scaleY: originalScaleY,
-      duration: 100,
-      ease: 'Power1'
-    });
+    if (button.baseScaleX !== undefined && button.baseScaleY !== undefined) {
+      scene.tweens.add({
+        targets: button,
+        scaleX: button.baseScaleX,
+        scaleY: button.baseScaleY,
+        duration: 100,
+        ease: 'Power1'
+      });
+    }
   });
 
   button.on('pointerdown', () => {
@@ -1702,23 +1714,33 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
     if (musicScene && musicScene.scene.isActive()) {
         musicScene.playSFX(soundKey);
     }
+
+    if (button.baseScaleX === undefined) {
+        button.baseScaleX = button.scaleX;
+        button.baseScaleY = button.scaleY;
+    }
+
+    scene.tweens.killTweensOf(button);
     scene.tweens.add({
       targets: button,
-      scaleX: originalScaleX * 0.9,
-      scaleY: originalScaleY * 0.9,
+      scaleX: button.baseScaleX * 0.9,
+      scaleY: button.baseScaleY * 0.9,
       duration: 50,
       ease: 'Power1'
     });
   });
 
   button.on('pointerup', () => {
-    scene.tweens.add({
-      targets: button,
-      scaleX: originalScaleX * 1.1, // Return to hover state
-      scaleY: originalScaleY * 1.1,
-      duration: 100,
-      ease: 'Power1'
-    });
+    if (button.baseScaleX !== undefined && button.baseScaleY !== undefined) {
+      scene.tweens.killTweensOf(button);
+      scene.tweens.add({
+        targets: button,
+        scaleX: button.baseScaleX * 1.1,
+        scaleY: button.baseScaleY * 1.1,
+        duration: 100,
+        ease: 'Power1'
+      });
+    }
   });
 }
 
