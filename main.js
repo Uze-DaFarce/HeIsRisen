@@ -855,7 +855,7 @@ class MapScene extends Phaser.Scene {
       }
 
       // UI Elements - Scale with MIN to stay on screen and proportional
-      const uiScale = Math.min(scaleX, scaleY);
+      const uiScale = Math.min(width / 1280, height / 720);
 
       if (this.eggsAmminHaul) {
           this.eggsAmminHaul.setDisplaySize(137 * uiScale, 150 * uiScale);
@@ -1185,7 +1185,7 @@ class SectionHunt extends Phaser.Scene {
     }
 
     // UI Elements (Scaled by MIN to fit)
-    const uiScale = Math.min(scaleX, scaleY);
+    const uiScale = Math.min(width / 1280, height / 720);
 
     this.eggZitButton = this.add.image(0, 200 * uiScale, 'egg-zit-button').setOrigin(0, 0).setDisplaySize(150 * uiScale, 150 * uiScale)
       .setInteractive()
@@ -1309,7 +1309,7 @@ class SectionHunt extends Phaser.Scene {
       }
 
       // UI Resize
-      const uiScale = Math.min(scaleX, scaleY);
+      const uiScale = Math.min(width / 1280, height / 720);
       this.eggZitButton.setPosition(0, 200 * uiScale).setDisplaySize(150 * uiScale, 150 * uiScale);
       this.eggsAmminHaul.setPosition(0, 350 * uiScale).setDisplaySize(137 * uiScale, 150 * uiScale);
       this.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
@@ -1475,7 +1475,7 @@ class EggZamRoom extends Phaser.Scene {
     // We scale everything by 'scale' (min) to ensure UI fits on screen.
     // But we need to center the "game area" in the viewport.
 
-    const uiScale = Math.min(scaleX, scaleY);
+    const uiScale = Math.min(width / 1280, height / 720);
     const offsetX = (width - 1280 * uiScale) / 2;
     const offsetY = (height - 720 * uiScale) / 2;
 
