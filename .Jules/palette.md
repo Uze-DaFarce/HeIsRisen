@@ -9,3 +9,7 @@
 ## 2024-05-26 - Center Alignment for Labels
 **Learning:** Left-aligned labels in fixed-width containers often look unbalanced or get clipped if the container logic isn't perfect. Centering text (`setOrigin(0.5)`) ensures it expands evenly and looks more polished in score boxes.
 **Action:** Use centered origin for HUD labels like scores or counts to prevent visual imbalance.
+
+## 2024-05-27 - Mobile Keyboard Accessibility
+**Learning:** Mobile platforms (like tablets, iPads, or Chromebooks in tablet mode) often have physical keyboards attached. Modal accessibility shouldn't be neglected just because the primary input is expected to be touch.
+**Action:** Always include keyboard shortcuts (like ESC or ENTER) to close modals and settings panels, even in mobile-specific views.
