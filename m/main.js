@@ -831,14 +831,14 @@ class MapScene extends Phaser.Scene {
       .setDisplaySize(200 * scale, 200 * scale);
 
     const foundEggs = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * scale, 98 * scale, `${foundEggs}/${TOTAL_EGGS}`, {
+    this.scoreText = this.add.text(100 * scale, 125 * scale, `${foundEggs}/${TOTAL_EGGS}`, {
       fontSize: `${42 * scale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
       strokeThickness: 6 * scale
-    });
+    }).setOrigin(0.5);
 
     // Cursor for desktop only
     if (!this.sys.game.device.os.desktop) {
@@ -1202,14 +1202,14 @@ class SectionHunt extends Phaser.Scene {
       .setScrollFactor(0);
 
     const foundEggs = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * scale, 98 * scale, `${foundEggs}/${TOTAL_EGGS}`, {
+    this.scoreText = this.add.text(100 * scale, 125 * scale, `${foundEggs}/${TOTAL_EGGS}`, {
       fontSize: `${42 * scale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
       strokeThickness: 6 * scale
-    }).setDepth(5);
+    }).setOrigin(0.5).setDepth(5);
     this.lastFoundCount = foundEggs; // Bolt Optimization
 
     const diameter = 150 * scale;
@@ -1538,27 +1538,27 @@ class EggZamRoom extends Phaser.Scene {
       .setDepth(4)
       .setScrollFactor(0);
     const foundEggsCount = this.registry.get('foundEggs').length;
-    this.scoreText = this.add.text(50 * this.gameScale, 98 * this.gameScale, `${foundEggsCount}/${TOTAL_EGGS}`, {
+    this.scoreText = this.add.text(100 * this.gameScale, 125 * this.gameScale, `${foundEggsCount}/${TOTAL_EGGS}`, {
       fontSize: `${42 * this.gameScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
       strokeThickness: 6 * this.gameScale
-    }).setDepth(5);
+    }).setOrigin(0.5).setDepth(5);
     this.lastFoundCount = foundEggsCount; // Bolt Optimization
 
     if (!this.registry.has('correctCategorizations')) {
       this.registry.set('correctCategorizations', 0);
     }
-    this.correctText = this.add.text(15 * this.gameScale, 148 * this.gameScale, `Correct: ${this.registry.get('correctCategorizations')}`, {
+    this.correctText = this.add.text(100 * this.gameScale, 150 * this.gameScale, `Correct: ${this.registry.get('correctCategorizations')}`, {
       fontSize: `${32 * this.gameScale}px`,
       fill: '#000',
       fontStyle: 'bold',
       fontFamily: 'Comic Sans MS',
       stroke: '#fff',
       strokeThickness: 6 * this.gameScale
-    }).setDepth(5);
+    }).setOrigin(0.5).setDepth(5);
 
     const zoneWidth = 200 * this.gameScale;
     const zoneHeight = 400 * this.gameScale;
@@ -1870,7 +1870,7 @@ function resizeGame() {
         scene.scoreImage.setDisplaySize(200 * scale, 200 * scale);
       }
       if (scene.scoreText) {
-        scene.scoreText.setPosition(50 * scale, 98 * scale);
+        scene.scoreText.setPosition(100 * scale, 125 * scale);
         scene.scoreText.setStyle({
           fontSize: `${42 * scale}px`,
           strokeThickness: 6 * scale
@@ -1908,7 +1908,7 @@ function resizeGame() {
         scene.scoreImage.setDisplaySize(200 * scale, 200 * scale);
       }
       if (scene.scoreText) {
-        scene.scoreText.setPosition(50 * scale, 98 * scale);
+        scene.scoreText.setPosition(100 * scale, 125 * scale);
         scene.scoreText.setStyle({
           fontSize: `${42 * scale}px`,
           strokeThickness: 6 * scale
@@ -1959,7 +1959,7 @@ function resizeGame() {
       if (scene.scoreText) {
         const foundEggsCount = scene.registry.get('foundEggs').length;
         scene.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
-        scene.scoreText.setPosition(50 * scale, 98 * scale);
+        scene.scoreText.setPosition(100 * scale, 125 * scale);
         scene.scoreText.setStyle({ fontSize: `${42 * scale}px`, strokeThickness: 6 * scale });
       }
       if (scene.correctText) {
