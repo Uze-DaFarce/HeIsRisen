@@ -540,7 +540,7 @@ class MainMenu extends Phaser.Scene {
     let introState = 'waiting'; // waiting -> playing -> ready
 
     // 1. Waiting: Loop Muted. On Click -> Playing
-    this.input.once('pointerdown', () => {
+    const handleGlobalTap = () => {
         if (introState !== 'waiting') return;
         introState = 'playing';
 
@@ -589,10 +589,17 @@ class MainMenu extends Phaser.Scene {
                 }
             });
         });
-    });
+    };
+
+    this.input.once('pointerdown', handleGlobalTap);
 
     // 2. Play Button Logic
-    startBtnContainer.on('pointerdown', () => {
+    const startGame = () => {
+        if (introState !== 'ready') return;
+
+        // Prevent multiple calls
+        introState = 'starting';
+
         this.tweens.add({
             targets: introVideo,
             volume: 0,
@@ -613,6 +620,23 @@ class MainMenu extends Phaser.Scene {
                 this.scene.start('MapScene');
             }
         });
+    };
+
+    startBtnContainer.on('pointerdown', startGame);
+
+    // Explicitly add window listener for robust keyboard support on initial screen
+    const globalKeyHandler = (e) => {
+        if (e.code === 'Space' || e.code === 'Enter') {
+            if (introState === 'waiting') {
+                handleGlobalTap();
+            } else if (introState === 'ready') {
+                startGame();
+            }
+        }
+    };
+    window.addEventListener('keydown', globalKeyHandler);
+    this.events.once('shutdown', () => {
+        window.removeEventListener('keydown', globalKeyHandler);
     });
 
     // Update intro volume if changed in settings
