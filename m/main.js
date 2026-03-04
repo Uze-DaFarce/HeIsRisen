@@ -686,7 +686,12 @@ class MainMenu extends Phaser.Scene {
       this.input.once('pointerdown', handleGlobalTap);
 
       // Play Now Handler
-      startBtnContainer.on('pointerdown', () => {
+      const startGame = () => {
+          if (introState !== 'ready_to_play') return;
+
+          // Prevent multiple calls
+          introState = 'starting';
+
           // Fade out video audio
           this.tweens.add({
               targets: this.introVideo,
@@ -707,6 +712,23 @@ class MainMenu extends Phaser.Scene {
                   this.scene.start('MapScene');
               }
           });
+      };
+
+      startBtnContainer.on('pointerdown', startGame);
+
+      // Explicitly add window listener for robust keyboard support on initial screen
+      const globalKeyHandler = (e) => {
+          if (e.code === 'Space' || e.code === 'Enter') {
+              if (introState === 'waiting_for_interaction') {
+                  handleGlobalTap();
+              } else if (introState === 'ready_to_play') {
+                  startGame();
+              }
+          }
+      };
+      window.addEventListener('keydown', globalKeyHandler);
+      this.events.once('shutdown', () => {
+          window.removeEventListener('keydown', globalKeyHandler);
       });
       
       // ROBUST AUTOPLAY STRATEGY for Video (Bolt Fix: Volume scaling)
