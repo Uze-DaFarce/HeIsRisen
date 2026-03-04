@@ -9,3 +9,7 @@
 ## 2024-05-26 - Center Alignment for Labels
 **Learning:** Left-aligned labels in fixed-width containers often look unbalanced or get clipped if the container logic isn't perfect. Centering text (`setOrigin(0.5)`) ensures it expands evenly and looks more polished in score boxes.
 **Action:** Use centered origin for HUD labels like scores or counts to prevent visual imbalance.
+
+## 2024-05-27 - Responsive HUD Text Scaling
+**Learning:** HUD text that looks perfect on mobile often overlaps or feels overwhelmingly large when the same codebase is rendered on desktop (e.g., in responsive or emulated views). Checking `sys.game.device.os.desktop` allows for nuanced typography adjustments.
+**Action:** Always verify HUD element spacing on both mobile and desktop contexts, and use device detection to scale font sizes and adjust vertical spacing to prevent overlap.
