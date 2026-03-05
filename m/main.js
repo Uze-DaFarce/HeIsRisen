@@ -974,7 +974,14 @@ class SectionHunt extends Phaser.Scene {
         this.scoreText.setText(`${foundEggsCount}/${TOTAL_EGGS}`);
       }
 
-      // Goal 2: Level cleared state
+      this.checkLevelComplete();
+    } else {
+      // console.log(`SectionHunt: Egg-${eggInfo.eggId} already collected, skipping`);
+    }
+  }
+
+  checkLevelComplete() {
+      const foundEggs = this.registry.get('foundEggs');
       const sections = this.registry.get('sections');
       const currentSection = sections.find(s => s.name === this.sectionName);
       if (currentSection) {
@@ -1007,9 +1014,6 @@ class SectionHunt extends Phaser.Scene {
               }
           }
       }
-    } else {
-      // console.log(`SectionHunt: Egg-${eggInfo.eggId} already collected, skipping`);
-    }
   }
 
   showCollectionFeedback(x, y, eggTexture, symbolTexture) {
@@ -1294,6 +1298,9 @@ class SectionHunt extends Phaser.Scene {
         .setDepth(8)
         .setScrollFactor(0)
         .setVisible(false);
+
+    // Check level complete immediately if returning to a completed map
+    this.checkLevelComplete();
 
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
