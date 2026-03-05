@@ -402,12 +402,14 @@ class MainMenu extends Phaser.Scene {
       // console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
       if (Array.isArray(data)) {
         data.forEach(section => {
-             // Preload section SVGs using the same naming convention as SectionHunt
-             this.load.svg(section.name, `assets/map/sections/${section.name}.svg`);
+             // Preload potential fallback image formats
+             this.load.image(`${section.name}-jpg`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-png`, `assets/map/sections/${section.name}.png`);
+             this.load.svg(`${section.name}-svg`, `assets/map/sections/${section.name}.svg`);
 
              // Preload video backgrounds for all sections
              // We attempt to load the video. If it fails (404), the `loaderror` handler catches it,
-             // and SectionHunt will fallback to the SVG image because `cache.video.exists` will be false.
+             // and SectionHunt will fallback to the available images.
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
         });
         // console.log(`MainMenu: Queued ${data.length} section SVGs and Videos for loading.`);
@@ -1130,13 +1132,13 @@ class SectionHunt extends Phaser.Scene {
         this.sectionVideo.setMute(false); // Enable background video audio
         // Initialize volume from Ambient setting
         const ambientVol = this.registry.get('ambientVolume') || 0.5;
-        this.sectionVideo.setVolume(ambientVol);
+        this.sectionVideo.setVolume(ambientVol * 0.5);
         this.sectionVideo.disableInteractive(); // Should not block clicks
 
         // Listen for volume changes
         const updateAmbientVolume = (parent, key, data) => {
              if (key === 'ambientVolume' && this.sectionVideo && this.sectionVideo.active) {
-                 this.sectionVideo.setVolume(data);
+                 this.sectionVideo.setVolume(data * 0.5);
              }
         };
         this.registry.events.on('changedata', updateAmbientVolume);
@@ -1152,32 +1154,32 @@ class SectionHunt extends Phaser.Scene {
              console.warn(`SectionHunt: Video ${videoKey} playback error. Falling back.`);
              this.sectionVideo.destroy();
              this.isUsingVideo = false;
-
-             // Inline fallback creation
-             let textureKey = this.sectionName;
-             if (!this.textures.exists(textureKey)) {
-                 textureKey = 'placeholder-bg';
-             }
-
-             // Ensure scene is still active before adding
-             if (this.sys.settings.active) {
-                 this.sectionImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
-                    .setDisplaySize(1280 * this.bgScale, 720 * this.bgScale)
-                    .setDepth(0);
-             }
+             this.createFallbackImage();
         });
     }
 
     if (!useVideo) {
-        // Fallback to Image
-        let textureKey = this.sectionName;
-        if (!this.textures.exists(textureKey)) {
-            console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
-             const graphics = this.make.graphics({x: 0, y: 0, add: false});
-             graphics.fillStyle(0x444444);
-             graphics.fillRect(0, 0, 1280, 720);
-             graphics.lineStyle(4, 0xff0000);
-             graphics.strokeRect(0, 0, 1280, 720);
+        this.createFallbackImage();
+    }
+  }
+
+  createFallbackImage() {
+    let textureKey = 'placeholder-bg';
+    if (this.textures.exists(`${this.sectionName}-jpg`)) {
+        textureKey = `${this.sectionName}-jpg`;
+    } else if (this.textures.exists(`${this.sectionName}-png`)) {
+        textureKey = `${this.sectionName}-png`;
+    } else if (this.textures.exists(`${this.sectionName}-svg`)) {
+        textureKey = `${this.sectionName}-svg`;
+    }
+
+    if (textureKey === 'placeholder-bg' && !this.textures.exists('placeholder-bg')) {
+        console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
+        const graphics = this.make.graphics({x: 0, y: 0, add: false});
+        graphics.fillStyle(0x444444);
+        graphics.fillRect(0, 0, 1280, 720);
+        graphics.lineStyle(4, 0xff0000);
+        graphics.strokeRect(0, 0, 1280, 720);
 
              // Add text to the texture
              const text = this.make.text({
@@ -1195,14 +1197,16 @@ class SectionHunt extends Phaser.Scene {
              graphics.generateTexture('placeholder-bg', 1280, 720);
              text.destroy();
              graphics.destroy();
-             textureKey = 'placeholder-bg';
         }
 
-        this.sectionImage = this.add.image(width/2, height/2, textureKey)
-            .setDisplaySize(1280 * scale, 720 * scale)
-            .setDepth(0);
+        // Ensure scene is still active before adding
+        if (this.sys.settings.active) {
+            this.sectionImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+                .setDisplaySize(1280 * this.bgScale, 720 * this.bgScale)
+                .setDepth(0);
+        }
         this.isUsingVideo = false;
-    }
+  }
 
     const eggDataArray = this.registry.get('eggData') || [];
     const sectionEggsData = eggDataArray.filter(e => e.section === this.sectionName && !e.collected);
@@ -1211,6 +1215,7 @@ class SectionHunt extends Phaser.Scene {
 
     sectionEggsData.forEach(eggData => {
         // Calculate egg position relative to the SCALED background
+        const scale = this.bgScale;
         const x = this.bgOffsetX + (eggData.x * scale);
         const y = this.bgOffsetY + (eggData.y * scale);
 

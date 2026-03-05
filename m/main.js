@@ -350,6 +350,17 @@ class MainMenu extends Phaser.Scene {
     this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
+    this.load.on('filecomplete-json-map_sections', (key, type, data) => {
+      if (Array.isArray(data)) {
+        data.forEach(section => {
+             this.load.image(`${section.name}-jpg`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-png`, `assets/map/sections/${section.name}.png`);
+             this.load.svg(`${section.name}-svg`, `assets/map/sections/${section.name}.svg`);
+             this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
+        });
+      }
+    });
+
     // Audio assets
     this.load.audio('background-music', 'assets/audio/background-music.mp3');
     this.load.audio('collect', 'assets/audio/collect1.mp3');
@@ -530,7 +541,7 @@ class MainMenu extends Phaser.Scene {
       } else {
         this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
           .setOrigin(0, 0)
-          .setAngle(180)
+          .setAngle(0)
           .setDisplaySize(50 * scale, 75 * scale)
           .setDepth(1000); // Ensure cursor is on top of everything
       }
@@ -884,7 +895,7 @@ class MapScene extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0, 0)
-        .setAngle(180)
+        .setAngle(0)
         .setDisplaySize(50 * scale, 75 * scale);
     }
   }
@@ -906,21 +917,11 @@ class SectionHunt extends Phaser.Scene {
   }
 
   preload() {
-    if (this.sectionName === 'grand-prismatic') {
-        this.load.video('grand-prismatic-video', 'assets/video/grand-prismatic.mp4');
-        this.load.image('grand-prismatic-bg', 'assets/map/sections/grand-prismatic.png');
-    } else if (this.sectionName === 'mammoth-hot-springs') {
-        this.load.image(this.sectionName, 'assets/map/sections/mammoth-hot-springs.jpg');
-    } else {
-        this.load.svg(this.sectionName, `assets/map/sections/${this.sectionName}.svg`);
-    }
-
-    // Removed redundant loading of eggs, symbols, and UI elements.
-    // They are now loaded in MainMenu.
+    // Media and Fallbacks are preloaded in MainMenu via map_sections.json.
 
     this.load.on('loaderror', (file) => {
       if (file.type === 'image' || file.type === 'video') {
-        console.error(`PRELOAD ERROR: Failed to load asset: Key='${file.key}', URL='${file.url}'`);
+        console.warn(`SectionHunt PRELOAD: Missing asset (expected if fallback occurs): Key='${file.key}', URL='${file.url}'`);
       }
     });
   }
@@ -1118,43 +1119,95 @@ class SectionHunt extends Phaser.Scene {
     this.cameras.main.setViewport(0, 0, this.game.config.width, this.game.config.height);
     this.cameras.main.setPosition(0, 0);
 
-    if (this.sectionName === 'grand-prismatic') {
-        if (this.cache.video.exists('grand-prismatic-video')) {
-            this.sectionImage = this.add.video(0, 0, 'grand-prismatic-video')
-                .setOrigin(0, 0)
-                .setDisplaySize(this.game.config.width, this.game.config.height)
-                .setDepth(0)
-                .disableInteractive(); // Ensure background video is non-interactive
-            
-            // Bolt Fix: 50% relative volume
-            const musicVol = this.registry.get('musicVolume');
-            this.sectionImage.setVolume(musicVol * 0.5);
-          
-            this.sectionImage.play(true); // Loop
+    let useVideo = false;
+    const videoKey = `${this.sectionName}-video`;
 
-            // Error handling for playback issues
-            this.sectionImage.on('error', () => {
-                 console.warn('Video playback error, falling back to image');
-                 this.sectionImage.destroy();
-                 this.sectionImage = this.add.image(0, 0, 'grand-prismatic-bg')
-                    .setOrigin(0, 0)
-                    .setDisplaySize(this.game.config.width, this.game.config.height)
-                    .setDepth(0);
-            });
-        } else {
-             // Fallback if video failed to load
-             this.sectionImage = this.add.image(0, 0, 'grand-prismatic-bg')
-                .setOrigin(0, 0)
-                .setDisplaySize(this.game.config.width, this.game.config.height)
-                .setDepth(0);
-        }
-    } else {
-        this.sectionImage = this.add.image(0, 0, this.sectionName)
+    if (this.cache.video.exists(videoKey)) {
+        useVideo = true;
+    }
+
+    if (useVideo) {
+        this.sectionImage = this.add.video(0, 0, videoKey)
+            .setOrigin(0, 0)
+            .setDisplaySize(this.game.config.width, this.game.config.height)
+            .setDepth(0)
+            .disableInteractive();
+
+        const ambientVol = this.registry.get('ambientVolume') || 0.5;
+        this.sectionImage.setVolume(ambientVol * 0.5);
+        this.sectionImage.play(true);
+        this.isUsingVideo = true;
+
+        const updateAmbientVolume = (parent, key, data) => {
+             if (key === 'ambientVolume' && this.sectionImage && this.sectionImage.active && this.isUsingVideo) {
+                 this.sectionImage.setVolume(data * 0.5);
+             }
+        };
+        this.registry.events.on('changedata', updateAmbientVolume);
+        this.events.once('shutdown', () => {
+             this.registry.events.off('changedata', updateAmbientVolume);
+        });
+
+        this.sectionImage.on('error', () => {
+             console.warn(`SectionHunt: Video ${videoKey} playback error. Falling back.`);
+             this.sectionImage.destroy();
+             this.isUsingVideo = false;
+             this.createFallbackImage();
+        });
+    }
+
+    if (!useVideo) {
+        this.createFallbackImage();
+    }
+    this.setupEggsAndUI();
+  }
+
+  createFallbackImage() {
+    let textureKey = 'placeholder-bg';
+    if (this.textures.exists(`${this.sectionName}-jpg`)) {
+        textureKey = `${this.sectionName}-jpg`;
+    } else if (this.textures.exists(`${this.sectionName}-png`)) {
+        textureKey = `${this.sectionName}-png`;
+    } else if (this.textures.exists(`${this.sectionName}-svg`)) {
+        textureKey = `${this.sectionName}-svg`;
+    }
+
+    if (textureKey === 'placeholder-bg' && !this.textures.exists('placeholder-bg')) {
+        console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
+        const graphics = this.make.graphics({x: 0, y: 0, add: false});
+        graphics.fillStyle(0x444444);
+        graphics.fillRect(0, 0, 1280, 720);
+        graphics.lineStyle(4, 0xff0000);
+        graphics.strokeRect(0, 0, 1280, 720);
+
+        const text = this.make.text({
+            x: 640,
+            y: 360,
+            text: `Missing Asset:\n${this.sectionName}`,
+            origin: { x: 0.5, y: 0.5 },
+            style: {
+                font: 'bold 40px Arial',
+                fill: '#ffffff',
+                align: 'center'
+            }
+        });
+
+        graphics.generateTexture('placeholder-bg', 1280, 720);
+        text.destroy();
+        graphics.destroy();
+    }
+
+    if (this.sys.settings.active) {
+        this.sectionImage = this.add.image(0, 0, textureKey)
             .setOrigin(0, 0)
             .setDisplaySize(this.game.config.width, this.game.config.height)
             .setDepth(0);
     }
+    this.isUsingVideo = false;
+  }
 
+  setupEggsAndUI() {
+    const scale = this.gameScale;
     const eggData = this.registry.get('eggData') || [];
     const sectionEggs = eggData.filter(e => e.section === this.sectionName && !e.collected);
     this.eggs = this.add.group();
@@ -1294,7 +1347,7 @@ class SectionHunt extends Phaser.Scene {
 
     this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0, 0)
-        .setAngle(180)
+        .setAngle(0)
         .setDepth(8)
         .setScrollFactor(0)
         .setVisible(false);
@@ -1320,13 +1373,12 @@ class SectionHunt extends Phaser.Scene {
       // Check all eggs
       this.eggs.getChildren().forEach(egg => {
         if (egg.active && !egg.getData('collected')) { // collected check might be redundant if we destroy, but safe
-           // Check if clicking on egg (under finger) OR clicking on lens (visual)
-           // Bolt Optimization: Use squared distance
-           const distToClickSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
-           const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
+           // Bolt Optimization: Squared distance check using LENS position
+           // Tapping the screen harvests the egg under the visual lens window.
+           const distSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
 
            // Increased capture radius logic for easier finding
-           if (distToClickSq < captureRadiusSq || distToLensSq < captureRadiusSq) {
+           if (distSq < captureRadiusSq) {
                this.collectEgg(egg);
                egg.destroy();
                if (egg.symbolSprite) egg.symbolSprite.destroy();
@@ -1366,10 +1418,10 @@ class SectionHunt extends Phaser.Scene {
     const viewWidth = diameter / zoom;
     const viewHeight = diameter / zoom;
 
-    // Crucial Change: The zoomed view should show what is under the FINGER (pointer),
-    // even though the lens is visually offset (lensX, lensY).
-    const scrollX = pointer.x - viewWidth / 2;
-    const scrollY = pointer.y - viewHeight / 2;
+    // Crucial Change: The zoomed view should show what is visually under the LENS (lensX, lensY),
+    // not directly under the finger (pointer).
+    const scrollX = lensX - viewWidth / 2;
+    const scrollY = lensY - viewHeight / 2;
 
     this.zoomedView.clear();
 
@@ -1392,20 +1444,14 @@ class SectionHunt extends Phaser.Scene {
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
       if (egg && egg.active) {
-          // Update visibility based on FINGER position (pointer) or LENS visual position
-          // If the egg is under the finger, it should be visible in the zoomed view.
-          // If the egg is under the lens (visual), it should also be visible (legacy/safety).
-          // But crucially, if it's under the finger, it must render.
+          // Update visibility based on LENS visual position
+          // If the egg is under the lens (visual), it should be visible in the zoomed view.
 
           // Bolt Optimization: Use squared distance to avoid sqrt calculation in loop
-          const distToFingerSq = Phaser.Math.Distance.Squared(pointer.x, pointer.y, egg.x, egg.y);
           const distToLensSq = Phaser.Math.Distance.Squared(lensX, lensY, egg.x, egg.y);
           const magnifierRadiusSq = magnifierRadius * magnifierRadius;
 
-          // Use the closer distance to determine visibility (comparison in squared space)
-          const distanceSq = Math.min(distToFingerSq, distToLensSq);
-
-          const alpha = distanceSq < magnifierRadiusSq ? 1 : 0;
+          const alpha = distToLensSq < magnifierRadiusSq ? 1 : 0;
           egg.setAlpha(alpha);
           if (egg.symbolSprite) {
             egg.symbolSprite.setAlpha(alpha);
@@ -1700,7 +1746,7 @@ class EggZamRoom extends Phaser.Scene {
     } else {
       this.fingerCursor = this.add.image(0, 0, 'finger-cursor')
         .setOrigin(0, 0)
-        .setAngle(180)
+        .setAngle(0)
         .setDisplaySize(50 * this.gameScale, 75 * this.gameScale)
         .setDepth(7);
     }
