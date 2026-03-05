@@ -688,7 +688,6 @@ class MainMenu extends Phaser.Scene {
       // Play Now Handler
       const startGame = () => {
           if (introState !== 'ready_to_play') return;
-
           // Prevent multiple calls
           introState = 'starting';
 
@@ -713,7 +712,6 @@ class MainMenu extends Phaser.Scene {
               }
           });
       };
-
       startBtnContainer.on('pointerdown', startGame);
 
       // Explicitly add window listener for robust keyboard support on initial screen

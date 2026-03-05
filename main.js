@@ -596,7 +596,6 @@ class MainMenu extends Phaser.Scene {
     // 2. Play Button Logic
     const startGame = () => {
         if (introState !== 'ready') return;
-
         // Prevent multiple calls
         introState = 'starting';
 
