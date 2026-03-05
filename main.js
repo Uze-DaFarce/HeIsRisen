@@ -672,6 +672,57 @@ class MainMenu extends Phaser.Scene {
         this.registry.set('symbols', symbolsData);
       }
     }
+
+    const mapSections = this.cache.json.get('map_sections');
+    if (mapSections && !this.registry.has('eggData')) {
+        const eggCounts = [];
+        let remainingEggs = TOTAL_EGGS;
+        const numSections = mapSections.length;
+
+        for (let i = 0; i < numSections - 1; i++) {
+            const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
+            const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
+            const max = Math.min(8, maxPossible);
+            const min = Math.max(3, minPossible);
+            const count = Phaser.Math.Between(min, max);
+            eggCounts.push(count);
+            remainingEggs -= count;
+        }
+        eggCounts.push(remainingEggs);
+
+        const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: TOTAL_EGGS }, (_, i) => i + 1));
+        const sections = mapSections.map(section => ({ name: section.name, eggs: [] }));
+
+        let eggIndex = 0;
+        const shuffledSymbols = Phaser.Utils.Array.Shuffle([...(symbolsData ? symbolsData.symbols : [])]);
+        const eggData = [];
+
+        sections.forEach((section, index) => {
+          section.eggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
+          eggIndex += eggCounts[index];
+
+          section.eggs.forEach(eggId => {
+              const originalX = Phaser.Math.Between(200, 1270);
+              const originalY = Phaser.Math.Between(100, 710);
+
+              eggData.push({
+                  eggId: eggId,
+                  section: section.name,
+                  x: originalX,
+                  y: originalY,
+                  symbol: shuffledSymbols[eggId - 1] || null,
+                  collected: false
+              });
+          });
+        });
+
+        this.registry.set('sections', sections);
+        this.registry.set('eggData', eggData);
+    }
+
+    if (!this.registry.has('foundEggs')) {
+      this.registry.set('foundEggs', []);
+    }
   }
 
   resize(gameSize) {
@@ -754,36 +805,6 @@ class MapScene extends Phaser.Scene {
     // For the map, "cover" makes sense to fill the screen.
 
     const mapSections = this.cache.json.get('map_sections');
-
-    // Distribute eggs randomly (3-8 per section) while summing to TOTAL_EGGS
-    const eggCounts = [];
-    let remainingEggs = TOTAL_EGGS;
-    const numSections = mapSections.length;
-
-    for (let i = 0; i < numSections - 1; i++) {
-        const maxPossible = remainingEggs - ((numSections - 1 - i) * 3);
-        const minPossible = remainingEggs - ((numSections - 1 - i) * 8);
-        const max = Math.min(8, maxPossible);
-        const min = Math.max(3, minPossible);
-        const count = Phaser.Math.Between(min, max);
-        eggCounts.push(count);
-        remainingEggs -= count;
-    }
-    eggCounts.push(remainingEggs);
-
-    const eggs = Phaser.Utils.Array.Shuffle(Array.from({ length: TOTAL_EGGS }, (_, i) => i + 1));
-    const sections = mapSections.map(section => ({ name: section.name, eggs: [] }));
-
-    let eggIndex = 0;
-    sections.forEach((section, index) => {
-      section.eggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
-      eggIndex += eggCounts[index];
-    });
-
-    this.registry.set('sections', sections);
-    if (!this.registry.has('foundEggs')) {
-      this.registry.set('foundEggs', []);
-    }
 
     if (!this.scene.get('MusicScene').scene.isActive()) {
       this.scene.launch('MusicScene');
@@ -914,11 +935,14 @@ class SectionHunt extends Phaser.Scene {
 
   collectEgg(egg) {
     const foundEggs = this.registry.get('foundEggs');
+    const eggDataArray = this.registry.get('eggData');
     const eggData = {
       eggId: egg.getData('eggId'),
       symbolData: egg.getData('symbolDetails'),
       categorized: false
     };
+    const globalEggData = eggDataArray.find(e => e.eggId === eggData.eggId);
+
     if (!foundEggs.some(e => e.eggId === eggData.eggId)) {
       this.sound.play('collect');
 
@@ -931,13 +955,23 @@ class SectionHunt extends Phaser.Scene {
       foundEggs.push(eggData);
       this.registry.set('foundEggs', foundEggs);
 
+      if (globalEggData) {
+          globalEggData.collected = true;
+          this.registry.set('eggData', eggDataArray);
+      }
+
       this.updateScore();
 
       if (this.hintTimer) {
           this.hintTimer.reset({ delay: 90000, callback: this.showIdleHint, callbackScope: this, loop: true });
       }
 
-      // Goal 2: Level cleared state
+      this.checkLevelComplete();
+    }
+  }
+
+  checkLevelComplete(immediate = false) {
+      const foundEggs = this.registry.get('foundEggs');
       const sections = this.registry.get('sections');
       const currentSection = sections.find(s => s.name === this.sectionName);
       if (currentSection) {
@@ -969,7 +1003,6 @@ class SectionHunt extends Phaser.Scene {
               }
           }
       }
-    }
   }
 
   showCollectionFeedback(x, y, eggTexture, symbolTexture) {
@@ -1171,44 +1204,35 @@ class SectionHunt extends Phaser.Scene {
         this.isUsingVideo = false;
     }
 
-    const symbolsData = this.registry.get('symbols');
-    const symbols = (symbolsData && symbolsData.symbols) ? symbolsData.symbols : [];
-
-    const shuffledSymbols = Phaser.Utils.Array.Shuffle([...symbols]);
-    const sections = this.registry.get('sections');
-    const section = sections.find(s => s.name === this.sectionName);
+    const eggDataArray = this.registry.get('eggData') || [];
+    const sectionEggsData = eggDataArray.filter(e => e.section === this.sectionName && !e.collected);
 
     this.eggs = this.add.group();
 
-    if (section) {
-        section.eggs.forEach((eggId, index) => {
-          // Calculate egg position relative to the SCALED background
-          const originalX = Phaser.Math.Between(200, 1270);
-          const originalY = Phaser.Math.Between(100, 710);
+    sectionEggsData.forEach(eggData => {
+        // Calculate egg position relative to the SCALED background
+        const x = this.bgOffsetX + (eggData.x * scale);
+        const y = this.bgOffsetY + (eggData.y * scale);
 
-          const x = this.bgOffsetX + (originalX * scale);
-          const y = this.bgOffsetY + (originalY * scale);
+        const egg = this.add.image(x, y, `egg-${eggData.eggId}`)
+          .setDepth(5)
+          .setDisplaySize(50, 75)
+          .setAlpha(0); // Invisible until magnified
 
-          const egg = this.add.image(x, y, `egg-${eggId}`)
-            .setDepth(5)
-            .setDisplaySize(50, 75)
-            .setAlpha(0); // Invisible until magnified
+        egg.setData('eggId', eggData.eggId);
+        const symbol = eggData.symbol;
+        egg.setData('symbolDetails', symbol);
 
-          egg.setData('eggId', eggId);
-          const symbol = (index < shuffledSymbols.length) ? shuffledSymbols[index] : null;
-          egg.setData('symbolDetails', symbol);
-
-          if (symbol && symbol.filename && this.textures.exists(symbol.filename)) {
-              const symbolSprite = this.add.image(x, y, symbol.filename)
-                .setDepth(6)
-                .setDisplaySize(50, 75)
-                .setAlpha(0);
-              egg.symbolSprite = symbolSprite;
-          }
-          // Note: We removed the individual click handler on egg to use global lens click logic
-          this.eggs.add(egg);
-        });
-    }
+        if (symbol && symbol.filename && this.textures.exists(symbol.filename)) {
+            const symbolSprite = this.add.image(x, y, symbol.filename)
+              .setDepth(6)
+              .setDisplaySize(50, 75)
+              .setAlpha(0);
+            egg.symbolSprite = symbolSprite;
+        }
+        // Note: We removed the individual click handler on egg to use global lens click logic
+        this.eggs.add(egg);
+    });
 
     // UI Elements (Scaled by MIN to fit)
     const uiScale = Math.min(scaleX, scaleY);
@@ -1302,6 +1326,9 @@ class SectionHunt extends Phaser.Scene {
     });
 
     this.scale.on('resize', this.resize, this);
+
+    // Check level complete immediately if returning to a completed map
+    this.checkLevelComplete(true);
   }
 
   updateScore() {
