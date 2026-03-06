@@ -402,15 +402,13 @@ class MainMenu extends Phaser.Scene {
       // console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
       if (Array.isArray(data)) {
         data.forEach(section => {
-             // Preload potential fallback image formats
-             this.load.image(`${section.name}-jpg`, `assets/map/sections/${section.name}.jpg`);
-             this.load.image(`${section.name}-png`, `assets/map/sections/${section.name}.png`);
-             this.load.svg(`${section.name}-svg`, `assets/map/sections/${section.name}.svg`);
 
-             // Preload video backgrounds for all sections
-             // We attempt to load the video. If it fails (404), the `loaderror` handler catches it,
-             // and SectionHunt will fallback to the available images.
+             // Enqueue the first fallback attempt (.jpg)
+             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
+
+             // Preload video backgrounds
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
+
         });
         // console.log(`MainMenu: Queued ${data.length} section SVGs and Videos for loading.`);
       }
@@ -442,7 +440,18 @@ class MainMenu extends Phaser.Scene {
     });
 
     this.load.on('loaderror', (file) => {
-      console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
+      // console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
+      if (file.key && file.key.endsWith('-fallback')) {
+          const sectionName = file.key.replace('-fallback', '');
+          // If the failing URL was a .jpg, queue a .png
+          if (file.url.endsWith('.jpg')) {
+              this.load.image(file.key, `assets/map/sections/${sectionName}.png`);
+          }
+          // If the failing URL was a .png, queue an .svg
+          else if (file.url.endsWith('.png')) {
+              this.load.svg(file.key, `assets/map/sections/${sectionName}.svg`);
+          }
+      }
     });
   }
 
@@ -1161,52 +1170,6 @@ class SectionHunt extends Phaser.Scene {
     if (!useVideo) {
         this.createFallbackImage();
     }
-  }
-
-  createFallbackImage() {
-    let textureKey = 'placeholder-bg';
-    if (this.textures.exists(`${this.sectionName}-jpg`)) {
-        textureKey = `${this.sectionName}-jpg`;
-    } else if (this.textures.exists(`${this.sectionName}-png`)) {
-        textureKey = `${this.sectionName}-png`;
-    } else if (this.textures.exists(`${this.sectionName}-svg`)) {
-        textureKey = `${this.sectionName}-svg`;
-    }
-
-    if (textureKey === 'placeholder-bg' && !this.textures.exists('placeholder-bg')) {
-        console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
-        const graphics = this.make.graphics({x: 0, y: 0, add: false});
-        graphics.fillStyle(0x444444);
-        graphics.fillRect(0, 0, 1280, 720);
-        graphics.lineStyle(4, 0xff0000);
-        graphics.strokeRect(0, 0, 1280, 720);
-
-             // Add text to the texture
-             const text = this.make.text({
-                 x: 640,
-                 y: 360,
-                 text: `Missing Asset:\n${this.sectionName}`,
-                 origin: { x: 0.5, y: 0.5 },
-                 style: {
-                     font: 'bold 40px Arial',
-                     fill: '#ffffff',
-                     align: 'center'
-                 }
-             });
-
-             graphics.generateTexture('placeholder-bg', 1280, 720);
-             text.destroy();
-             graphics.destroy();
-        }
-
-        // Ensure scene is still active before adding
-        if (this.sys.settings.active) {
-            this.sectionImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
-                .setDisplaySize(1280 * this.bgScale, 720 * this.bgScale)
-                .setDepth(0);
-        }
-        this.isUsingVideo = false;
-  }
 
     const eggDataArray = this.registry.get('eggData') || [];
     const sectionEggsData = eggDataArray.filter(e => e.section === this.sectionName && !e.collected);
@@ -1376,6 +1339,47 @@ class SectionHunt extends Phaser.Scene {
       this.eggsAmminHaul.baseScaleY = this.eggsAmminHaul.scaleY;
       this.scoreImage.setDisplaySize(200 * uiScale, 200 * uiScale);
       this.scoreText.setPosition(50 * uiScale, 98 * uiScale).setFontSize(`${42 * uiScale}px`);
+  }
+
+  createFallbackImage() {
+    let textureKey = `${this.sectionName}-fallback`;
+
+    if (!this.textures.exists(textureKey)) {
+        textureKey = 'placeholder-bg';
+        if (!this.textures.exists('placeholder-bg')) {
+             console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
+             const graphics = this.make.graphics({x: 0, y: 0, add: false});
+             graphics.fillStyle(0x444444);
+             graphics.fillRect(0, 0, 1280, 720);
+             graphics.lineStyle(4, 0xff0000);
+             graphics.strokeRect(0, 0, 1280, 720);
+
+             // Add text to the texture
+             const text = this.make.text({
+                 x: 640,
+                 y: 360,
+                 text: `Missing Asset:\n${this.sectionName}`,
+                 origin: { x: 0.5, y: 0.5 },
+                 style: {
+                     font: 'bold 40px Arial',
+                     fill: '#ffffff',
+                     align: 'center'
+                 }
+             });
+
+             graphics.generateTexture('placeholder-bg', 1280, 720);
+             text.destroy();
+             graphics.destroy();
+        }
+    }
+
+    // Ensure scene is still active before adding
+    if (this.sys.settings.active) {
+        this.sectionImage = this.add.image(this.cameras.main.centerX, this.cameras.main.centerY, textureKey)
+            .setDisplaySize(1280 * this.bgScale, 720 * this.bgScale)
+            .setDepth(0);
+    }
+    this.isUsingVideo = false;
   }
 
   update() {
