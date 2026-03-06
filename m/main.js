@@ -350,17 +350,6 @@ class MainMenu extends Phaser.Scene {
     this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
-    this.load.on('filecomplete-json-map_sections', (key, type, data) => {
-      if (Array.isArray(data)) {
-        data.forEach(section => {
-             this.load.image(`${section.name}-jpg`, `assets/map/sections/${section.name}.jpg`);
-             this.load.image(`${section.name}-png`, `assets/map/sections/${section.name}.png`);
-             this.load.svg(`${section.name}-svg`, `assets/map/sections/${section.name}.svg`);
-             this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
-        });
-      }
-    });
-
     // Audio assets
     this.load.audio('background-music', 'assets/audio/background-music.mp3');
     this.load.audio('collect', 'assets/audio/collect1.mp3');
@@ -406,7 +395,25 @@ class MainMenu extends Phaser.Scene {
 
     this.load.on('filecomplete-json-map_sections', (key, type, data) => {
       // console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
-      // console.log('MainMenu: Raw loaded map_sections data:', data);
+      if (Array.isArray(data)) {
+        data.forEach(section => {
+             // Enqueue the first fallback attempt (.jpg)
+             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
+
+             // Listen for load errors to trigger the next extension in the chain
+             this.load.once(`loaderror-image-${section.name}-fallback`, () => {
+                 // If JPG fails, try PNG
+                 this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.png`);
+                 this.load.once(`loaderror-image-${section.name}-fallback`, () => {
+                     // If PNG fails, try SVG
+                     this.load.svg(`${section.name}-fallback`, `assets/map/sections/${section.name}.svg`);
+                 });
+             });
+
+             // Preload video backgrounds
+             this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
+        });
+      }
     });
     this.load.on('loaderror', (file) => {
       console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
@@ -1163,16 +1170,11 @@ class SectionHunt extends Phaser.Scene {
   }
 
   createFallbackImage() {
-    let textureKey = 'placeholder-bg';
-    if (this.textures.exists(`${this.sectionName}-jpg`)) {
-        textureKey = `${this.sectionName}-jpg`;
-    } else if (this.textures.exists(`${this.sectionName}-png`)) {
-        textureKey = `${this.sectionName}-png`;
-    } else if (this.textures.exists(`${this.sectionName}-svg`)) {
-        textureKey = `${this.sectionName}-svg`;
-    }
+    let textureKey = `${this.sectionName}-fallback`;
 
-    if (textureKey === 'placeholder-bg' && !this.textures.exists('placeholder-bg')) {
+    if (!this.textures.exists(textureKey)) {
+        textureKey = 'placeholder-bg';
+        if (!this.textures.exists('placeholder-bg')) {
         console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
         const graphics = this.make.graphics({x: 0, y: 0, add: false});
         graphics.fillStyle(0x444444);
@@ -1402,7 +1404,7 @@ class SectionHunt extends Phaser.Scene {
     const lensY = pointer.y + lensOffsetY;
 
     // Ensure video size is correct once texture loads
-    if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active && this.sectionImage.width > 0) {
+    if (this.sectionImage && this.sectionImage.active && this.sectionImage.width > 0) {
         if (Math.abs(this.sectionImage.displayWidth - this.game.config.width) > 10) {
              this.sectionImage.setDisplaySize(this.game.config.width, this.game.config.height);
         }
@@ -1426,20 +1428,24 @@ class SectionHunt extends Phaser.Scene {
     this.zoomedView.clear();
 
     // Draw background using renderStamp to avoid dirtying scene object
-    if (this.sectionName === 'grand-prismatic' && this.sectionImage && this.sectionImage.active) {
+    if (this.sectionImage && this.sectionImage.active) {
          this.renderStamp.texture = this.sectionImage.texture;
          this.renderStamp.frame = this.sectionImage.frame;
     } else {
          this.renderStamp.setTexture(this.sectionName);
     }
-    this.renderStamp.setOrigin(0, 0);
+
+    // Set explicit size before scaling
     this.renderStamp.setDisplaySize(this.game.config.width, this.game.config.height);
+
+    // Scale by 2 for zoom
     this.renderStamp.setScale(this.renderStamp.scaleX * zoom, this.renderStamp.scaleY * zoom);
-    this.renderStamp.setAngle(0);
-    this.renderStamp.setRotation(0);
-    this.renderStamp.setFlipX(false);
-    this.renderStamp.setFlipY(false);
-    this.zoomedView.draw(this.renderStamp, (0 - scrollX) * zoom, (0 - scrollY) * zoom);
+
+    // We already scaled the stamp by zoom. So we only offset by scrollX*zoom.
+    this.renderStamp.setPosition(-scrollX * zoom, -scrollY * zoom);
+    this.renderStamp.setOrigin(0, 0);
+
+    this.zoomedView.draw(this.renderStamp, this.renderStamp.x, this.renderStamp.y);
 
     // Single pass for visibility update and drawing
     this.eggs.getChildren().forEach(egg => {
