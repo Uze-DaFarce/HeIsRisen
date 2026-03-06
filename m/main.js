@@ -400,23 +400,24 @@ class MainMenu extends Phaser.Scene {
              // Enqueue the first fallback attempt (.jpg)
              this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
 
-             // Listen for load errors to trigger the next extension in the chain
-             this.load.once(`loaderror-image-${section.name}-fallback`, () => {
-                 // If JPG fails, try PNG
-                 this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.png`);
-                 this.load.once(`loaderror-image-${section.name}-fallback`, () => {
-                     // If PNG fails, try SVG
-                     this.load.svg(`${section.name}-fallback`, `assets/map/sections/${section.name}.svg`);
-                 });
-             });
-
              // Preload video backgrounds
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
         });
       }
     });
     this.load.on('loaderror', (file) => {
-      console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
+      // console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
+      if (file.key && file.key.endsWith('-fallback')) {
+          const sectionName = file.key.replace('-fallback', '');
+          // If the failing URL was a .jpg, queue a .png
+          if (file.url.endsWith('.jpg')) {
+              this.load.image(file.key, `assets/map/sections/${sectionName}.png`);
+          }
+          // If the failing URL was a .png, queue an .svg
+          else if (file.url.endsWith('.png')) {
+              this.load.svg(file.key, `assets/map/sections/${sectionName}.svg`);
+          }
+      }
     });
   }
 
@@ -1175,28 +1176,29 @@ class SectionHunt extends Phaser.Scene {
     if (!this.textures.exists(textureKey)) {
         textureKey = 'placeholder-bg';
         if (!this.textures.exists('placeholder-bg')) {
-        console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
-        const graphics = this.make.graphics({x: 0, y: 0, add: false});
-        graphics.fillStyle(0x444444);
-        graphics.fillRect(0, 0, 1280, 720);
-        graphics.lineStyle(4, 0xff0000);
-        graphics.strokeRect(0, 0, 1280, 720);
+            console.warn(`SectionHunt: Texture '${textureKey}' missing! Trying fallback...`);
+            const graphics = this.make.graphics({x: 0, y: 0, add: false});
+            graphics.fillStyle(0x444444);
+            graphics.fillRect(0, 0, 1280, 720);
+            graphics.lineStyle(4, 0xff0000);
+            graphics.strokeRect(0, 0, 1280, 720);
 
-        const text = this.make.text({
-            x: 640,
-            y: 360,
-            text: `Missing Asset:\n${this.sectionName}`,
-            origin: { x: 0.5, y: 0.5 },
-            style: {
-                font: 'bold 40px Arial',
-                fill: '#ffffff',
-                align: 'center'
-            }
-        });
+            const text = this.make.text({
+                x: 640,
+                y: 360,
+                text: `Missing Asset:\n${this.sectionName}`,
+                origin: { x: 0.5, y: 0.5 },
+                style: {
+                    font: 'bold 40px Arial',
+                    fill: '#ffffff',
+                    align: 'center'
+                }
+            });
 
-        graphics.generateTexture('placeholder-bg', 1280, 720);
-        text.destroy();
-        graphics.destroy();
+            graphics.generateTexture('placeholder-bg', 1280, 720);
+            text.destroy();
+            graphics.destroy();
+        }
     }
 
     if (this.sys.settings.active) {
