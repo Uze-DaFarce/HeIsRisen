@@ -498,8 +498,16 @@ class MainMenu extends Phaser.Scene {
         const sectionEggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
         eggIndex += eggCounts[index];
         sectionEggs.forEach((eggId, idx) => {
-          const x = Phaser.Math.Between(200 * scale, (this.game.config.width / scale) - 10 * scale);
-          const y = Phaser.Math.Between(50 * scale, (this.game.config.height / scale) - 10 * scale);
+          // Fix: Mobile viewport coordinates are absolute, don't divide by scale for the max bounds.
+          // Keep eggs within visible screen bounds with a safe margin (e.g., 50px).
+          const minX = 100 * scale;
+          const maxX = this.game.config.width - (50 * scale);
+          const minY = 50 * scale;
+          const maxY = this.game.config.height - (50 * scale);
+
+          const x = Phaser.Math.Between(minX, maxX);
+          const y = Phaser.Math.Between(minY, maxY);
+
           eggData.push({
             eggId: eggId,
             section: section.name,
