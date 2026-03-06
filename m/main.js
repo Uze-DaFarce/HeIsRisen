@@ -1247,8 +1247,10 @@ class SectionHunt extends Phaser.Scene {
         const pointer = this.input.activePointer;
         if (egg.getBounds().contains(pointer.worldX, pointer.worldY)) {
           // console.log(`SectionHunt: Bounds check PASSED for egg-${eggData.eggId}`);
-          const distance = Phaser.Math.Distance.Between(pointer.worldX, pointer.worldY, egg.x, egg.y);
-          if (distance < 150 * scale) {
+          // ⚡ Bolt Optimization: Use squared distance to avoid expensive Math.sqrt calls during pointerdown events
+          const distSq = Phaser.Math.Distance.Squared(pointer.worldX, pointer.worldY, egg.x, egg.y);
+          const threshold = 150 * scale;
+          if (distSq < threshold * threshold) {
             // console.log(`SectionHunt: Distance check PASSED for egg-${eggData.eggId}, collecting!`);
             this.collectEgg(egg);
             egg.destroy();
