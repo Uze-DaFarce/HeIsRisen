@@ -106,26 +106,44 @@ def test_collect_eggs_in_level(is_mobile=False):
                 # Fetch scale from scene
                 scale = page.evaluate("() => window.game.scene.getScene('SectionHunt').gameScale")
 
+                # Desktop cursor tracks the mouse directly (with small 35px offset via CSS/logic usually, but let's assume direct for Desktop pointer).
+                # But we are testing the MOBILE application here (m/main.js), so the lens logic applies everywhere.
                 lens_offset_x = -97.5 * scale
                 lens_offset_y = -135 * scale
 
                 pointer_x = egg_x - lens_offset_x
                 pointer_y = egg_y - lens_offset_y
 
-                # In m/main.js, the game config width/height is what the pointer x/y maps to.
-                # By directly passing the exact mathematical inverse of the lens offset to Phaser's internal input emitter,
-                # we bypass any viewport scaling issues caused by the DOM vs Canvas letterboxing in Playwright's mobile emulator.
-                page.evaluate(f"""
+                # In Phaser's RESIZE mode, the game config dimensions scale to the viewport window.
+                # However, on some phones (like Playwright iPhone 12 emulation), CSS scaling makes the Canvas size
+                # match the device screen, but Phaser's config width/height is mapped to the internal resolution.
+                # Let's get the actual canvas boundaries and map the game coordinate to the DOM coordinate.
+                dom_coords = page.evaluate(f"""
                     () => {{
-                        const scene = window.game.scene.getScene('SectionHunt');
-                        const x = {pointer_x};
-                        const y = {pointer_y};
-                        // Emit a pointerdown event on the input plugin
-                        // Creating a synthetic pointer object that satisfies Phaser's global pointerdown requirements
-                        const pointer = {{ x: x, y: y }};
-                        scene.input.emit('pointerdown', pointer);
+                        const canvas = document.querySelector('canvas');
+                        const rect = canvas.getBoundingClientRect();
+                        const scaleX = rect.width / window.game.config.width;
+                        const scaleY = rect.height / window.game.config.height;
+                        return {{
+                            x: rect.left + ({pointer_x} * scaleX),
+                            y: rect.top + ({pointer_y} * scaleY)
+                        }};
                     }}
                 """)
+
+                dom_x = dom_coords['x']
+                dom_y = dom_coords['y']
+
+                viewport = page.viewport_size
+                if dom_x < 0 or dom_x > viewport['width'] or dom_y < 0 or dom_y > viewport['height']:
+                    print(f"FAIL: Physical DOM pointer interaction at ({dom_x}, {dom_y}) is OFF-SCREEN (Viewport: {viewport}). Egg at GameCoords: ({egg_x}, {egg_y})")
+                    sys.exit(1)
+
+                # Playwright click/tap needs the actual client coordinates (DOM coordinates)
+                if is_mobile:
+                    page.touchscreen.tap(dom_x, dom_y)
+                else:
+                    page.mouse.click(dom_x, dom_y)
 
                 time.sleep(0.5) # Wait for collection tween/logic
 
