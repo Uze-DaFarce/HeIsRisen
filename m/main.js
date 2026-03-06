@@ -498,8 +498,35 @@ class MainMenu extends Phaser.Scene {
         const sectionEggs = eggs.slice(eggIndex, eggIndex + eggCounts[index]);
         eggIndex += eggCounts[index];
         sectionEggs.forEach((eggId, idx) => {
-          const x = Phaser.Math.Between(200 * scale, (this.game.config.width / scale) - 10 * scale);
-          const y = Phaser.Math.Between(50 * scale, (this.game.config.height / scale) - 10 * scale);
+          // Fix: Mobile viewport coordinates are absolute, don't divide by scale for the max bounds.
+          // The visual lens has an offset of (-97.5, -135) relative to the physical touch pointer.
+          // This means to reach an egg at (x, y), the user must touch at (x + 97.5, y + 135).
+          // We must ensure that this required touch point never falls outside the screen bounds.
+          // Therefore, the max bounds for an egg must be at least that far from the right/bottom edges.
+          // We also must ensure that min bounds are respected relative to negative offsets.
+          // The lens offset in Mobile is X: -97.5, Y: -135 (lens is UP and LEFT of pointer).
+          // Meaning if an egg is at X=0, the user must touch at X=+97.5.
+          // Conversely, if an egg is at X=width, the user must touch at X=width+97.5 (which is OFF SCREEN).
+          // To ensure the required TOUCH is within [0, width], the EGG must be within [0 - 97.5, width - 97.5].
+          // However, we also want the egg to be visible on screen.
+          // So the EGG must be within [50, width - 150].
+
+          // Phaser.Math.Between requires max >= min. If screen is very small, we might get negative ranges.
+          // We clamp maxX and maxY to be at least minX and minY to avoid Phaser errors.
+          // Wait, the lens offset is scaling based on the *current* scale (which can be very different based on device orientation).
+          // And we must ensure the REQUIRED touch (egg.x - (-97.5 * scale)) is <= screen width.
+          // required_touch_x = egg.x + 97.5 * scale <= width => egg.x <= width - 97.5 * scale
+          // Let's add an extra safety margin. width - 150 * scale is good.
+          // BUT what if width is VERY small?
+          // Let's use strict bounds:
+          const minX = 50 * scale;
+          const maxX = Math.max(minX, this.game.config.width - (160 * scale));
+          const minY = 50 * scale;
+          const maxY = Math.max(minY, this.game.config.height - (200 * scale));
+
+          const x = Phaser.Math.Between(minX, maxX);
+          const y = Phaser.Math.Between(minY, maxY);
+
           eggData.push({
             eggId: eggId,
             section: section.name,
