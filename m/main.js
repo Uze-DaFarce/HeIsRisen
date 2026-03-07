@@ -127,10 +127,21 @@ class UIScene extends Phaser.Scene {
     // Let Phaser map the interactive area to the image texture natively to prevent offset clicking bugs
     gear.setInteractive();
 
+    gear.baseScaleX = gear.scaleX;
+    gear.baseScaleY = gear.scaleY;
+
     gear.on('pointerdown', () => {
         this.tweens.add({
-            targets: gear, scaleX: 0.9, scaleY: 0.9, duration: 50, ease: 'Power1', yoyo: true,
-            onComplete: () => this.openSettings()
+            targets: gear,
+            scaleX: gear.baseScaleX * 0.9,
+            scaleY: gear.baseScaleY * 0.9,
+            duration: 50,
+            ease: 'Power1',
+            yoyo: true,
+            onComplete: () => {
+                gear.setScale(gear.baseScaleX, gear.baseScaleY);
+                this.openSettings();
+            }
         });
     });
 
