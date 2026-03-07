@@ -107,7 +107,7 @@ class UIScene extends Phaser.Scene {
   repositionUI(width, height) {
     // Reposition gear
     if (this.gearIcon) {
-        this.gearIcon.setPosition(width - 60, 60);
+        this.gearIcon.setPosition(width - 30, 30);
     }
 
     // Reposition settings panel
@@ -120,18 +120,19 @@ class UIScene extends Phaser.Scene {
   }
 
   createGearIcon() {
-    const x = this.cameras.main.width - 60;
-    const y = 60;
+    const x = this.cameras.main.width - 30;
+    const y = 30;
 
     // Create a container to hold the background and the cog
     const gearContainer = this.add.container(x, y).setDepth(10); // Keep below cursor
 
     // Draw white circle with yellow border
+    // Tightly wrap the 25x25 mobile cog (radius 15 -> 30px diam)
     const bg = this.add.graphics();
     bg.fillStyle(0xffffff, 1);
-    bg.fillCircle(0, 0, 25); // 50px diameter on mobile to be slightly larger than desktop
+    bg.fillCircle(0, 0, 15);
     bg.lineStyle(3, 0xffd700, 1); // Yellow border
-    bg.strokeCircle(0, 0, 25);
+    bg.strokeCircle(0, 0, 15);
 
     // Add the cog icon scaled down
     const gearImg = this.add.image(0, 0, 'cog').setDisplaySize(25, 25);
@@ -718,8 +719,8 @@ class MainMenu extends Phaser.Scene {
               safeRequestFullscreen(canvas);
           }
 
-          // Wait 3 seconds then show Play Button
-          this.time.delayedCall(3000, () => {
+          // Show Play Button almost immediately
+          this.time.delayedCall(100, () => {
               introState = 'ready_to_play';
               startBtnContainer.setVisible(true);
               startBtnContainer.setScale(0);
