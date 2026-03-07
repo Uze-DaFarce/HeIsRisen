@@ -1,6 +1,10 @@
 const fs = require('fs');
 
-const mapSections = JSON.parse(fs.readFileSync('assets/map/map_sections.json'));
+// This script scales the detected circle coordinates from the new 1376x768 map
+// down to the game's internal 1280x720 coordinate space, and overwrites map_sections.json.
+
+const mapSectionsPath = '../assets/map/map_sections.json';
+const mapSections = JSON.parse(fs.readFileSync(mapSectionsPath));
 
 const newCoordsMap = {
     "mammoth-hot-springs": { x: 370, y: 154, width: 60, height: 60 },
@@ -31,4 +35,5 @@ mapSections.forEach(section => {
     }
 });
 
-fs.writeFileSync('assets/map/map_sections.json', JSON.stringify(mapSections, null, 2));
+fs.writeFileSync(mapSectionsPath, JSON.stringify(mapSections, null, 2));
+console.log('Coordinates updated.');

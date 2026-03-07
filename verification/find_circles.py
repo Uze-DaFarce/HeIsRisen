@@ -1,9 +1,13 @@
 import cv2
 import numpy as np
-import sys
+
+# This script was used to programmatically find the exact pixel coordinates
+# of the circular placeholders on the new map background (assets/map/new-map.png).
+# It uses OpenCV's HoughCircles to detect them and logs the coordinates so they
+# can be used to update map_sections.json.
 
 # Load image
-img = cv2.imread('assets/map/new-map.png')
+img = cv2.imread('../assets/map/new-map.png')
 output = img.copy()
 gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
@@ -28,6 +32,6 @@ if circles is not None:
     print("Found {} circles.".format(len(coords)))
     for c in coords:
         print("x: {}, y: {}".format(c[0], c[1]))
-    cv2.imwrite('verification/circles_detected.png', output)
+    cv2.imwrite('circles_detected.png', output)
 else:
     print("No circles found.")
