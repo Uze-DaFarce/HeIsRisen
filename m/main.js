@@ -122,8 +122,8 @@ class UIScene extends Phaser.Scene {
     const y = 60;
     this.drawGear(gear, x, y);
 
-    // Much larger hit area (60px radius) for the gear
-    const hitArea = new Phaser.Geom.Circle(x, y, 60);
+    // Balanced hit area (40px radius) to prevent accidental clicks
+    const hitArea = new Phaser.Geom.Circle(x, y, 40);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
@@ -642,8 +642,8 @@ class MainMenu extends Phaser.Scene {
       startBtnContainer.add(btnText);
 
       startBtnContainer.setSize(buttonWidth, buttonHeight);
-      // Increased hit area height for easier tapping
-      startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight, buttonWidth, buttonHeight * 2), Phaser.Geom.Rectangle.Contains);
+      // Massive hit area for easier tapping
+      startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth, -buttonHeight * 2, buttonWidth * 2, buttonHeight * 4), Phaser.Geom.Rectangle.Contains);
       startBtnContainer.setScale(scale);
 
       // State Management
@@ -1016,15 +1016,39 @@ class SectionHunt extends Phaser.Scene {
     }
   }
 
-  checkLevelComplete() {
+  checkLevelComplete(immediate = false) {
       const foundEggs = this.registry.get('foundEggs');
       const sections = this.registry.get('sections');
       const currentSection = sections.find(s => s.name === this.sectionName);
+      const scale = this.gameScale;
+
+      if (foundEggs.length === TOTAL_EGGS) {
+          const clearText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, "All 60 Eggs Found! Transporting to the EggZam Room...", {
+              fontSize: `${48 * scale}px`,
+              fontFamily: 'Comic Sans MS',
+              fill: '#ffff00',
+              backgroundColor: '#000000cc',
+              padding: { x: 20 * scale, y: 20 * scale },
+              stroke: '#000000',
+              strokeThickness: 8 * scale,
+              align: 'center',
+              wordWrap: { width: 800 * scale, useAdvancedWrap: true }
+          }).setOrigin(0.5).setDepth(35).setScrollFactor(0);
+
+          if (this.hintTimer) this.hintTimer.remove();
+
+          if (!immediate) {
+              this.time.delayedCall(3000, () => this.scene.start('EggZamRoom'));
+          } else {
+              this.scene.start('EggZamRoom');
+          }
+          return;
+      }
+
       if (currentSection) {
           const foundIds = foundEggs.map(e => e.eggId);
           const remainingCount = currentSection.eggs.filter(id => !foundIds.includes(id)).length;
           if (remainingCount === 0) {
-              const scale = this.gameScale;
               const clearText = this.add.text(this.game.config.width / 2, this.game.config.height / 2, "Great Job Detective!! You found all the hidden eggs on this map, the others are hidden in other maps.", {
                   fontSize: `${40 * scale}px`,
                   fontFamily: 'Comic Sans MS',
@@ -1384,7 +1408,7 @@ class SectionHunt extends Phaser.Scene {
         .setVisible(false);
 
     // Check level complete immediately if returning to a completed map
-    this.checkLevelComplete();
+    this.checkLevelComplete(true);
 
     // Global capture handler
     this.input.on('pointerdown', (pointer) => {
@@ -1706,10 +1730,8 @@ class EggZamRoom extends Phaser.Scene {
       .setOrigin(0, 0)
       .setInteractive();
 
-    this.leftBottleZone.on('pointerdown', () => {
-      if (this.currentEgg && !this.currentEgg.categorized) {
-        const isChristian = this.currentEgg.symbolData.category === 'Christian';
-        if (isChristian) {
+    const showExplanation = (isCorrect) => {
+      if (isCorrect) {
           this.sound.play('success');
           const correctCount = this.registry.get('correctCategorizations') + 1;
           this.registry.set('correctCategorizations', correctCount);
@@ -1722,55 +1744,52 @@ class EggZamRoom extends Phaser.Scene {
             this.registry.set('highScore', currentScore);
             localStorage.setItem('highScore', currentScore);
           }
-          // console.log(`EggZamRoom: Correct Christian classification, Score: ${currentScore}`);
           this.currentEgg.categorized = true;
-          this.displayRandomEggInfo();
-        } else {
+
+          if (this.explanationText) this.explanationText.destroy();
+          const data = this.currentEgg.symbolData;
+          const text = `${data.explanation}\n\n${data.scripture}\n\n[Tap to continue]`;
+
+          this.explanationText = this.add.text(width / 2, 100 * this.gameScale, text, {
+              fontSize: `${24 * this.gameScale}px`,
+              fill: '#fff',
+              backgroundColor: '#000000dd',
+              padding: { x: 20, y: 20 },
+              fontStyle: 'bold',
+              fontFamily: 'Comic Sans MS',
+              wordWrap: { width: 600 * this.gameScale, useAdvancedWrap: true },
+              align: 'center'
+          }).setOrigin(0.5, 0).setDepth(20).setInteractive();
+
+          this.explanationText.on('pointerdown', () => {
+              this.explanationText.destroy();
+              this.displayRandomEggInfo();
+          });
+      } else {
           this.sound.play('error');
-          const wrongText = this.add.text(700 * this.gameScale, 220 * this.gameScale, "Try again!", {
-            fontSize: `${28 * this.gameScale}px`,
+          const wrongText = this.add.text(width / 2, 220 * this.gameScale, "Try again!", {
+            fontSize: `${36 * this.gameScale}px`,
             fill: '#f00',
+            backgroundColor: '#000000dd',
+            padding: { x: 10, y: 10 },
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS',
             stroke: '#fff',
             strokeThickness: 3 * this.gameScale
-          }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
+          }).setOrigin(0.5, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-        }
+      }
+    };
+
+    this.leftBottleZone.on('pointerdown', () => {
+      if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
+        showExplanation(this.currentEgg.symbolData.category === 'Christian');
       }
     });
 
     this.rightBottleZone.on('pointerdown', () => {
-      if (this.currentEgg && !this.currentEgg.categorized) {
-        const isPagan = this.currentEgg.symbolData.category === 'Pagan';
-        if (isPagan) {
-          this.sound.play('success');
-          const correctCount = this.registry.get('correctCategorizations') + 1;
-          this.registry.set('correctCategorizations', correctCount);
-          this.correctText.setText(`Correct: ${correctCount}`);
-          let currentScore = this.registry.get('currentScore');
-          currentScore += 5;
-          this.registry.set('currentScore', currentScore);
-          const highScore = this.registry.get('highScore');
-          if (currentScore > highScore) {
-            this.registry.set('highScore', currentScore);
-            localStorage.setItem('highScore', currentScore);
-          }
-          // console.log(`EggZamRoom: Correct Pagan classification, Score: ${currentScore}`);
-          this.currentEgg.categorized = true;
-          this.displayRandomEggInfo();
-        } else {
-          this.sound.play('error');
-          const wrongText = this.add.text(700 * this.gameScale, 220 * this.gameScale, "Try again!", {
-            fontSize: `${28 * this.gameScale}px`,
-            fill: '#f00',
-            fontStyle: 'bold',
-            fontFamily: 'Comic Sans MS',
-            stroke: '#fff',
-            strokeThickness: 3 * this.gameScale
-          }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
-          this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-        }
+      if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
+        showExplanation(this.currentEgg.symbolData.category === 'Pagan');
       }
     });
 

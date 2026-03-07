@@ -171,7 +171,7 @@ class UIScene extends Phaser.Scene {
     gear.fillStyle(0x000000, 1);
     gear.fillCircle(0, 0, 5);
 
-    const hitArea = new Phaser.Geom.Circle(0, 0, 20);
+    const hitArea = new Phaser.Geom.Circle(0, 0, 15);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
     gear.input.cursor = 'pointer';
 
@@ -308,8 +308,8 @@ class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.settingsContainer.add(text);
 
-    // Invisible hit area for easier clicking on track
-    const trackHitArea = this.add.rectangle(centerX, y + 10, 200, 20, 0x888888, 0).setInteractive({ cursor: 'pointer' });
+    // Invisible hit area for easier clicking on track (increased height to 60)
+    const trackHitArea = this.add.rectangle(centerX, y + 10, 200, 60, 0x888888, 0).setInteractive({ cursor: 'pointer' });
     this.settingsContainer.add(trackHitArea);
     this.settingsContainer.add(this.add.rectangle(centerX, y + 10, 200, 4, 0x888888));
 
@@ -317,20 +317,28 @@ class UIScene extends Phaser.Scene {
     let currentVol = 0.5;
     if (this.registry.has(`${type}Volume`)) currentVol = this.registry.get(`${type}Volume`);
 
-    const handle = this.add.circle(startX + (currentVol * 200), y + 10, 12, 0xffffff).setInteractive({ draggable: true });
-    this.settingsContainer.add(handle);
+    // Wrap handle in a container to enlarge hit area (30 radius) like mobile
+    const handleContainer = this.add.container(startX + (currentVol * 200), y + 10);
+    handleContainer.setSize(60, 60);
+    handleContainer.setInteractive(new Phaser.Geom.Circle(0, 0, 30), Phaser.Geom.Circle.Contains);
+    this.input.setDraggable(handleContainer);
+
+    const visualHandle = this.add.circle(0, 0, 12, 0xffffff);
+    handleContainer.add(visualHandle);
+
+    this.settingsContainer.add(handleContainer);
 
     const updateVolume = (x) => {
         const clampedX = Phaser.Math.Clamp(x, startX, endX);
-        handle.x = clampedX;
+        handleContainer.x = clampedX;
         this.registry.set(`${type}Volume`, (clampedX - startX) / 200);
     };
 
-    handle.on('drag', (p, x) => updateVolume(x));
+    handleContainer.on('drag', (p, x) => updateVolume(x));
     trackHitArea.on('pointerdown', (p) => updateVolume(p.worldX));
 
-    handle.on('pointerover', () => { handle.setScale(1.3); this.input.setDefaultCursor('pointer'); });
-    handle.on('pointerout', () => { handle.setScale(1); this.input.setDefaultCursor('default'); });
+    handleContainer.on('pointerover', () => { handleContainer.setScale(1.3); this.input.setDefaultCursor('pointer'); });
+    handleContainer.on('pointerout', () => { handleContainer.setScale(1); this.input.setDefaultCursor('default'); });
   }
 
   openSettings() {
@@ -523,7 +531,7 @@ class MainMenu extends Phaser.Scene {
     startBtnContainer.add(btnText);
 
     startBtnContainer.setSize(buttonWidth, buttonHeight);
-    startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth/2, -buttonHeight/2, buttonWidth, buttonHeight), Phaser.Geom.Rectangle.Contains);
+    startBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-buttonWidth, -buttonHeight, buttonWidth * 2, buttonHeight * 2), Phaser.Geom.Rectangle.Contains);
 
     // Cursor handled by CursorScene
 
@@ -985,6 +993,30 @@ class SectionHunt extends Phaser.Scene {
       const foundEggs = this.registry.get('foundEggs');
       const sections = this.registry.get('sections');
       const currentSection = sections.find(s => s.name === this.sectionName);
+
+      if (foundEggs.length === TOTAL_EGGS) {
+          const clearText = this.add.text(this.scale.width / 2, this.scale.height / 2, "All 60 Eggs Found! Transporting to the EggZam Room...", {
+              fontSize: '48px',
+              fontFamily: 'Comic Sans MS',
+              fill: '#ffff00',
+              backgroundColor: '#000000cc',
+              padding: { x: 20, y: 20 },
+              stroke: '#000000',
+              strokeThickness: 8,
+              align: 'center',
+              wordWrap: { width: 800, useAdvancedWrap: true }
+          }).setOrigin(0.5).setDepth(35).setScrollFactor(0);
+
+          if (this.hintTimer) this.hintTimer.remove();
+
+          if (!immediate) {
+              this.time.delayedCall(3000, () => this.scene.start('EggZamRoom'));
+          } else {
+              this.scene.start('EggZamRoom');
+          }
+          return;
+      }
+
       if (currentSection) {
           const foundIds = foundEggs.map(e => e.eggId);
           const remainingCount = currentSection.eggs.filter(id => !foundIds.includes(id)).length;
@@ -1621,49 +1653,56 @@ class EggZamRoom extends Phaser.Scene {
     addZoneHover(leftBottleZone);
     addZoneHover(rightBottleZone);
 
-    leftBottleZone.on('pointerdown', () => {
-      if (this.currentEgg && !this.currentEgg.categorized) {
-        const isChristian = this.currentEgg.symbolData.category === 'Christian';
-        if (isChristian) {
+    const showExplanation = (isCorrect) => {
+      if (isCorrect) {
           this.sound.play('success');
           const correctCount = this.registry.get('correctCategorizations') + 1;
           this.registry.set('correctCategorizations', correctCount);
           this.correctText.setText(`Correct: ${correctCount}`);
           this.currentEgg.categorized = true;
-          this.displayRandomEggInfo(offsetX, offsetY, uiScale);
-        } else {
+
+          if (this.explanationText) this.explanationText.destroy();
+          const data = this.currentEgg.symbolData;
+          const text = `${data.explanation}\n\n${data.scripture}\n\n[Click here to continue]`;
+
+          this.explanationText = this.add.text(offsetX + 640 * uiScale, offsetY + 150 * uiScale, text, {
+              fontSize: `${24 * uiScale}px`,
+              fill: '#fff',
+              backgroundColor: '#000000dd',
+              padding: { x: 20, y: 20 },
+              fontStyle: 'bold',
+              fontFamily: 'Comic Sans MS',
+              wordWrap: { width: 600 * uiScale, useAdvancedWrap: true },
+              align: 'center'
+          }).setOrigin(0.5, 0).setDepth(20).setInteractive();
+
+          this.explanationText.on('pointerdown', () => {
+              this.explanationText.destroy();
+              this.displayRandomEggInfo(offsetX, offsetY, uiScale);
+          });
+      } else {
           this.sound.play('error');
-          const wrongText = this.add.text(offsetX + 420 * uiScale, offsetY + 220 * uiScale, "Try again!", {
-            fontSize: `${28 * uiScale}px`,
+          const wrongText = this.add.text(offsetX + 640 * uiScale, offsetY + 220 * uiScale, "Try again!", {
+            fontSize: `${36 * uiScale}px`,
             fill: '#f00',
+            backgroundColor: '#000000dd',
+            padding: { x: 10, y: 10 },
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS'
-          }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
+          }).setOrigin(0.5, 0).setDepth(4).setScrollFactor(0);
           this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-        }
+      }
+    };
+
+    leftBottleZone.on('pointerdown', () => {
+      if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
+        showExplanation(this.currentEgg.symbolData.category === 'Christian');
       }
     });
 
     rightBottleZone.on('pointerdown', () => {
-      if (this.currentEgg && !this.currentEgg.categorized) {
-        const isPagan = this.currentEgg.symbolData.category === 'Pagan';
-        if (isPagan) {
-          this.sound.play('success');
-          const correctCount = this.registry.get('correctCategorizations') + 1;
-          this.registry.set('correctCategorizations', correctCount);
-          this.correctText.setText(`Correct: ${correctCount}`);
-          this.currentEgg.categorized = true;
-          this.displayRandomEggInfo(offsetX, offsetY, uiScale);
-        } else {
-          this.sound.play('error');
-          const wrongText = this.add.text(offsetX + 420 * uiScale, offsetY + 220 * uiScale, "Try again!", {
-            fontSize: `${28 * uiScale}px`,
-            fill: '#f00',
-            fontStyle: 'bold',
-            fontFamily: 'Comic Sans MS'
-          }).setOrigin(0, 0).setDepth(4).setScrollFactor(0);
-          this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-        }
+      if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
+        showExplanation(this.currentEgg.symbolData.category === 'Pagan');
       }
     });
 
