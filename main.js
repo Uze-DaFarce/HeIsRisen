@@ -131,8 +131,8 @@ class UIScene extends Phaser.Scene {
       const height = gameSize.height;
 
       if (this.gearIcon) {
-          this.gearIcon.x = width - 60;
-          this.gearIcon.y = 60;
+          this.gearIcon.x = width - 30;
+          this.gearIcon.y = 30;
       }
 
       if (this.settingsContainer) {
@@ -147,18 +147,19 @@ class UIScene extends Phaser.Scene {
   }
 
   createGearIcon() {
-    const x = this.cameras.main.width - 60;
-    const y = 60;
+    const x = this.cameras.main.width - 30;
+    const y = 30;
 
     // Create a container to hold the background and the cog
     const gearContainer = this.add.container(x, y).setDepth(10);
 
     // Draw white circle with yellow border
+    // Reduce circle to tightly wrap the 20x20 cog (radius 13 creates a 26px circle)
     const bg = this.add.graphics();
     bg.fillStyle(0xffffff, 1);
-    bg.fillCircle(0, 0, 20); // 40px diameter
+    bg.fillCircle(0, 0, 13);
     bg.lineStyle(3, 0xffd700, 1); // Yellow border
-    bg.strokeCircle(0, 0, 20);
+    bg.strokeCircle(0, 0, 13);
 
     // Add the cog icon scaled down to half size (20x20)
     const gearImg = this.add.image(0, 0, 'cog').setDisplaySize(20, 20);
@@ -592,8 +593,8 @@ class MainMenu extends Phaser.Scene {
             this.scale.startFullscreen();
         }
 
-        // Show Play Button after delay
-        this.time.delayedCall(3000, () => {
+        // Show Play Button almost immediately (short delay for visual transition)
+        this.time.delayedCall(100, () => {
             introState = 'ready';
             startBtnContainer.setVisible(true);
             startBtnContainer.setScale(0);
