@@ -540,9 +540,9 @@ class MainMenu extends Phaser.Scene {
     const savedAmbient = localStorage.getItem('ambientVolume');
     const savedSfx = localStorage.getItem('sfxVolume');
 
-    if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', savedMusic ? parseFloat(savedMusic) : 0.5);
-    if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', savedAmbient ? parseFloat(savedAmbient) : 0.5);
-    if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', savedSfx ? parseFloat(savedSfx) : 0.5);
+    if (!this.registry.has('musicVolume')) this.registry.set('musicVolume', savedMusic !== null ? parseFloat(savedMusic) : 0.5);
+    if (!this.registry.has('ambientVolume')) this.registry.set('ambientVolume', savedAmbient !== null ? parseFloat(savedAmbient) : 0.5);
+    if (!this.registry.has('sfxVolume')) this.registry.set('sfxVolume', savedSfx !== null ? parseFloat(savedSfx) : 0.5);
 
     // Launch UI Scene
     if (!this.scene.get('UIScene').scene.isActive()) {
@@ -1172,7 +1172,7 @@ class SectionHunt extends Phaser.Scene {
         this.sectionVideo.play(true); // Loop
         this.sectionVideo.setMute(false); // Enable background video audio
         // Initialize volume from Ambient setting
-        const ambientVol = this.registry.get('ambientVolume') || 0.5;
+        const ambientVol = this.registry.has('ambientVolume') ? this.registry.get('ambientVolume') : 0.5;
         this.sectionVideo.setVolume(ambientVol * 0.5);
         this.sectionVideo.disableInteractive(); // Should not block clicks
 
@@ -1653,111 +1653,104 @@ class EggZamRoom extends Phaser.Scene {
     addZoneHover(leftBottleZone);
     addZoneHover(rightBottleZone);
 
-    const showExplanation = (isCorrect) => {
-      if (isCorrect) {
-          this.sound.play('success');
-          const correctCount = this.registry.get('correctCategorizations') + 1;
-          this.registry.set('correctCategorizations', correctCount);
-          this.correctText.setText(`Correct: ${correctCount}`);
-          this.currentEgg.categorized = true;
+    const showExplanation = (isCorrect, guessText) => {
+        if (isCorrect) {
+            this.sound.play('success');
+            const correctCount = this.registry.get('correctCategorizations') + 1;
+            this.registry.set('correctCategorizations', correctCount);
+            this.correctText.setText(`Correct: ${correctCount}`);
+            this.currentEgg.categorized = true;
+        } else {
+            this.sound.play('error');
+        }
 
-          if (this.explanationText) this.explanationText.destroy();
-          const data = this.currentEgg.symbolData;
+        if (this.explanationText) this.explanationText.destroy();
+        const data = this.currentEgg.symbolData;
+        const eggId = this.currentEgg.eggId;
 
-          this.explanationText = this.add.container(offsetX + 640 * uiScale, offsetY + 360 * uiScale).setDepth(20);
+        this.explanationText = this.add.container(offsetX + 640 * uiScale, offsetY + 360 * uiScale).setDepth(100);
 
-          const bgWidth = 800 * uiScale;
-          const bgHeight = 600 * uiScale;
+        const bgWidth = 800 * uiScale;
+        const bgHeight = 600 * uiScale;
 
-          const bg = this.add.graphics();
-          bg.fillStyle(0xfff8dc, 0.95); // Light cornflower/cream color
-          bg.fillRoundedRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight, 20 * uiScale);
-          bg.lineStyle(8 * uiScale, 0x8b4513, 1); // Brown border
-          bg.strokeRoundedRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight, 20 * uiScale);
-          bg.setInteractive(new Phaser.Geom.Rectangle(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight), Phaser.Geom.Rectangle.Contains);
+        const bg = this.add.graphics();
+        bg.fillStyle(0xfff8dc, 0.95);
+        bg.fillRoundedRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight, 20 * uiScale);
+        bg.lineStyle(8 * uiScale, 0x8b4513, 1);
+        bg.strokeRoundedRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight, 20 * uiScale);
+        bg.setInteractive(new Phaser.Geom.Rectangle(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight), Phaser.Geom.Rectangle.Contains);
 
-          const title = this.add.text(0, -bgHeight/2 + 40 * uiScale, data.name || "Symbol", {
-              fontSize: `${40 * uiScale}px`,
-              fill: '#8b4513',
-              fontStyle: 'bold',
-              fontFamily: 'Comic Sans MS',
-          }).setOrigin(0.5);
+        // Header Elements
+        const title = this.add.text(0, -bgHeight/2 + 50 * uiScale, data.name || "Symbol", {
+            fontSize: `${40 * uiScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
+        }).setOrigin(0.5);
 
-          const symbolImg = this.add.image(0, -bgHeight/2 + 150 * uiScale, data.filename).setDisplaySize(100 * uiScale, 125 * uiScale);
+        const eggImg = this.add.image(-bgWidth/2 + 80 * uiScale, -bgHeight/2 + 80 * uiScale, `egg-${eggId}`).setDisplaySize(80 * uiScale, 100 * uiScale);
+        const symbolImgSmall = this.add.image(-bgWidth/2 + 80 * uiScale, -bgHeight/2 + 80 * uiScale, data.filename).setDisplaySize(80 * uiScale, 100 * uiScale);
 
-          const expText = this.add.text(0, 0, data.explanation, {
-              fontSize: `${28 * uiScale}px`,
-              fill: '#000',
-              fontFamily: 'Comic Sans MS',
-              wordWrap: { width: bgWidth - 80 * uiScale, useAdvancedWrap: true },
-              align: 'center'
-          }).setOrigin(0.5);
+        const guessDisplay = this.add.text(bgWidth/2 - 20 * uiScale, -bgHeight/2 + 50 * uiScale, `Your Guess:\n${guessText}`, {
+            fontSize: `${20 * uiScale}px`, fill: '#444', fontStyle: 'italic', fontFamily: 'Comic Sans MS', align: 'right'
+        }).setOrigin(1, 0.5);
 
-          const scriptText = this.add.text(0, bgHeight/2 - 120 * uiScale, data.scripture, {
-              fontSize: `${24 * uiScale}px`,
-              fill: '#444',
-              fontStyle: 'italic',
-              fontFamily: 'Comic Sans MS',
-              wordWrap: { width: bgWidth - 80 * uiScale, useAdvancedWrap: true },
-              align: 'center'
-          }).setOrigin(0.5);
-
-          const continueText = this.add.text(0, bgHeight/2 - 40 * uiScale, "[ Click anywhere to continue ]", {
-              fontSize: `${20 * uiScale}px`,
-              fill: '#0000ff',
-              fontStyle: 'bold',
-              fontFamily: 'Comic Sans MS'
-          }).setOrigin(0.5);
-
-          this.explanationText.add([bg, title, symbolImg, expText, scriptText, continueText]);
-
-          // Add a pop-in effect
-          this.explanationText.setScale(0);
-          this.tweens.add({
-              targets: this.explanationText,
-              scaleX: 1,
-              scaleY: 1,
-              duration: 300,
-              ease: 'Back.out'
-          });
-
-          bg.on('pointerdown', () => {
-              this.tweens.add({
-                  targets: this.explanationText,
-                  scaleX: 0,
-                  scaleY: 0,
-                  duration: 200,
-                  ease: 'Back.in',
-                  onComplete: () => {
-                      this.explanationText.destroy();
-                      this.explanationText = null;
-                      this.displayRandomEggInfo(offsetX, offsetY, uiScale);
-                  }
-              });
-          });
-      } else {
-          this.sound.play('error');
-          const wrongText = this.add.text(offsetX + 640 * uiScale, offsetY + 220 * uiScale, "Try again!", {
+        // Result Text (Correct/Incorrect)
+        const resultText = this.add.text(0, -bgHeight/2 + 110 * uiScale, isCorrect ? "Correct!" : "Incorrect!", {
             fontSize: `${36 * uiScale}px`,
-            fill: '#f00',
-            backgroundColor: '#000000dd',
-            padding: { x: 10, y: 10 },
+            fill: isCorrect ? '#008000' : '#d32f2f',
             fontStyle: 'bold',
-            fontFamily: 'Comic Sans MS'
-          }).setOrigin(0.5, 0).setDepth(4).setScrollFactor(0);
-          this.time.delayedCall(1000, () => wrongText.destroy(), [], this);
-      }
+            fontFamily: 'Comic Sans MS',
+            stroke: '#fff',
+            strokeThickness: 4 * uiScale
+        }).setOrigin(0.5);
+
+        const expText = this.add.text(0, 0, data.explanation, {
+            fontSize: `${28 * uiScale}px`, fill: '#000', fontFamily: 'Comic Sans MS',
+            wordWrap: { width: bgWidth - 80 * uiScale, useAdvancedWrap: true }, align: 'center'
+        }).setOrigin(0.5);
+
+        const scriptText = this.add.text(0, bgHeight/2 - 120 * uiScale, data.scripture, {
+            fontSize: `${24 * uiScale}px`, fill: '#0000ee', fontStyle: 'italic', fontFamily: 'Comic Sans MS',
+            wordWrap: { width: bgWidth - 80 * uiScale, useAdvancedWrap: true }, align: 'center'
+        }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+
+        scriptText.on('pointerdown', (p, x, y, event) => {
+            event.stopPropagation();
+            const link = parseScriptureLink(data.scripture);
+            if (link) window.open(link, '_blank');
+        });
+
+        const continueText = this.add.text(0, bgHeight/2 - 40 * uiScale, "[ Click anywhere to continue ]", {
+            fontSize: `${20 * uiScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
+        }).setOrigin(0.5);
+
+        this.explanationText.add([bg, title, eggImg, symbolImgSmall, guessDisplay, resultText, expText, scriptText, continueText]);
+
+        this.explanationText.setScale(0);
+        this.tweens.add({ targets: this.explanationText, scaleX: 1, scaleY: 1, duration: 300, ease: 'Back.out' });
+
+        bg.on('pointerdown', () => {
+            this.tweens.add({
+                targets: this.explanationText, scaleX: 0, scaleY: 0, duration: 200, ease: 'Back.in',
+                onComplete: () => {
+                    this.explanationText.destroy();
+                    this.explanationText = null;
+                    if (!isCorrect) {
+                        this.currentEgg = null; // Un-set so it can be re-drawn
+                    }
+                    this.displayRandomEggInfo(offsetX, offsetY, uiScale);
+                }
+            });
+        });
     };
 
     leftBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
-        showExplanation(this.currentEgg.symbolData.category === 'Christian');
+        showExplanation(this.currentEgg.symbolData.category === 'Christian', 'Christian');
       }
     });
 
     rightBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
-        showExplanation(this.currentEgg.symbolData.category === 'Pagan');
+        showExplanation(this.currentEgg.symbolData.category === 'Pagan', 'Worldly');
       }
     });
 
@@ -1896,6 +1889,46 @@ function addButtonInteraction(scene, button, soundKey = 'success') {
       });
     }
   });
+}
+
+/**
+ * Parses a scripture string (e.g., "John 3:16" or "1 Peter 2:4") into a URL.
+ */
+function parseScriptureLink(scriptureText) {
+    if (!scriptureText) return null;
+
+    // Basic mapping of common book names to 3-letter codes used in the target URL
+    const bookMap = {
+        "genesis": "GEN", "exodus": "EXO", "leviticus": "LEV", "numbers": "NUM", "deuteronomy": "DEU",
+        "joshua": "JOS", "judges": "JDG", "ruth": "RUT", "1 samuel": "1SA", "2 samuel": "2SA",
+        "1 kings": "1KI", "2 kings": "2KI", "1 chronicles": "1CH", "2 chronicles": "2CH",
+        "ezra": "EZR", "nehemiah": "NEH", "esther": "EST", "job": "JOB", "psalms": "PSA", "psalm": "PSA",
+        "proverbs": "PRO", "ecclesiastes": "ECC", "song of solomon": "SNG", "isaiah": "ISA",
+        "jeremiah": "JER", "lamentations": "LAM", "ezekiel": "EZK", "daniel": "DAN", "hosea": "HOS",
+        "joel": "JOL", "amos": "AMO", "obadiah": "OBA", "jonah": "JON", "micah": "MIC",
+        "nahum": "NAM", "habakkuk": "HAB", "zephaniah": "ZEP", "haggai": "HAG", "zechariah": "ZEC",
+        "malachi": "MAL", "matthew": "MAT", "mark": "MRK", "luke": "LUK", "john": "JHN",
+        "acts": "ACT", "romans": "ROM", "1 corinthians": "1CO", "2 corinthians": "2CO",
+        "galatians": "GAL", "ephesians": "EPH", "philippians": "PHP", "colossians": "COL",
+        "1 thessalonians": "1TH", "2 thessalonians": "2TH", "1 timothy": "1TI", "2 timothy": "2TI",
+        "titus": "TIT", "philemon": "PHM", "hebrews": "HEB", "james": "JAS", "1 peter": "1PE",
+        "2 peter": "2PE", "1 john": "1JN", "2 john": "2JN", "3 john": "3JN", "jude": "JUD",
+        "revelation": "REV"
+    };
+
+    // Regex to extract Book, Chapter, and Verse. Handles "1 Peter 2:4-5" or "John 3:16"
+    const match = scriptureText.match(/^(\d?\s*[A-Za-z\s]+)\s+(\d+):(\d+)/);
+    if (match) {
+        const rawBook = match[1].trim().toLowerCase();
+        const chapter = match[2];
+        const verse = match[3];
+        const bookCode = bookMap[rawBook];
+
+        if (bookCode) {
+            return `https://mt-sin.ai/365DBR/bible.html?book=${bookCode}&chapter=${chapter}&verse=${verse}`;
+        }
+    }
+    return null;
 }
 
 /**
