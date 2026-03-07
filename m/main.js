@@ -122,30 +122,50 @@ class UIScene extends Phaser.Scene {
   createGearIcon() {
     const x = this.cameras.main.width - 60;
     const y = 60;
-    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40).setDepth(10); // Keep below cursor
 
-    // Let Phaser map the interactive area to the image texture natively to prevent offset clicking bugs
-    gear.setInteractive();
+    // Create a container to hold the background and the cog
+    const gearContainer = this.add.container(x, y).setDepth(10); // Keep below cursor
 
-    gear.baseScaleX = gear.scaleX;
-    gear.baseScaleY = gear.scaleY;
+    // Draw white circle with yellow border
+    const bg = this.add.graphics();
+    bg.fillStyle(0xffffff, 1);
+    bg.fillCircle(0, 0, 25); // 50px diameter on mobile to be slightly larger than desktop
+    bg.lineStyle(3, 0xffd700, 1); // Yellow border
+    bg.strokeCircle(0, 0, 25);
 
-    gear.on('pointerdown', () => {
+    // Add the cog icon scaled down
+    const gearImg = this.add.image(0, 0, 'cog').setDisplaySize(25, 25);
+
+    gearContainer.add([bg, gearImg]);
+
+    // Add an invisible hit area graphic so setInteractive works perfectly
+    const hitAreaBg = this.add.graphics();
+    hitAreaBg.fillStyle(0xffffff, 0.01);
+    hitAreaBg.fillCircle(0, 0, 40); // Generous hit area for mobile
+    gearContainer.add(hitAreaBg);
+
+    gearContainer.setSize(50, 50);
+    gearContainer.setInteractive(new Phaser.Geom.Circle(0, 0, 40), Phaser.Geom.Circle.Contains);
+
+    gearContainer.baseScaleX = gearContainer.scaleX;
+    gearContainer.baseScaleY = gearContainer.scaleY;
+
+    gearContainer.on('pointerdown', () => {
         this.tweens.add({
-            targets: gear,
-            scaleX: gear.baseScaleX * 0.9,
-            scaleY: gear.baseScaleY * 0.9,
+            targets: gearContainer,
+            scaleX: gearContainer.baseScaleX * 0.9,
+            scaleY: gearContainer.baseScaleY * 0.9,
             duration: 50,
             ease: 'Power1',
             yoyo: true,
             onComplete: () => {
-                gear.setScale(gear.baseScaleX, gear.baseScaleY);
+                gearContainer.setScale(gearContainer.baseScaleX, gearContainer.baseScaleY);
                 this.openSettings();
             }
         });
     });
 
-    this.gearIcon = gear;
+    this.gearIcon = gearContainer;
   }
 
   createSettingsPanel() {
