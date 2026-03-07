@@ -107,11 +107,7 @@ class UIScene extends Phaser.Scene {
   repositionUI(width, height) {
     // Reposition gear
     if (this.gearIcon) {
-        this.gearIcon.clear();
-        this.drawGear(this.gearIcon, width - 60, 60);
-        // Update hit area
-        const hitArea = new Phaser.Geom.Circle(width - 60, 60, 40);
-        this.gearIcon.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+        this.gearIcon.setPosition(width - 60, 60);
     }
 
     // Reposition settings panel
@@ -124,13 +120,13 @@ class UIScene extends Phaser.Scene {
   }
 
   createGearIcon() {
-    const gear = this.add.graphics();
     const x = this.cameras.main.width - 60;
     const y = 60;
-    this.drawGear(gear, x, y);
+    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40);
 
-    // Balanced hit area (40px radius) to prevent accidental clicks
-    const hitArea = new Phaser.Geom.Circle(x, y, 40);
+    // Small hit area relative to the image size (origin 0.5)
+    // Local coords for image 0,0 is top-left, so 20,20 is center.
+    const hitArea = new Phaser.Geom.Circle(20, 20, 20);
     gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
 
     gear.on('pointerdown', () => {
@@ -141,22 +137,6 @@ class UIScene extends Phaser.Scene {
     });
 
     this.gearIcon = gear;
-  }
-
-  drawGear(graphics, x, y) {
-    graphics.fillStyle(0xffffff, 1);
-    const radius = 12.5;
-    graphics.fillCircle(x, y, radius);
-
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const tx = x + Math.cos(angle) * (radius + 4);
-        const ty = y + Math.sin(angle) * (radius + 4);
-        graphics.fillCircle(tx, ty, 3);
-    }
-    graphics.fillCircle(x, y, radius);
-    graphics.fillStyle(0x000000, 1);
-    graphics.fillCircle(x, y, 5);
   }
 
   createSettingsPanel() {
@@ -370,6 +350,8 @@ class MainMenu extends Phaser.Scene {
     this.load.audio('drive2', 'assets/audio/drive2.mp3');
 
     // Preload common UI and game assets here to avoid reloading in scenes
+    this.load.image('new-map', 'assets/map/new-map.png');
+    this.load.image('cog', 'assets/objects/cog.png');
     this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
     this.load.image('egg-zit-button', 'assets/objects/egg-zit-button.png');
     this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
@@ -406,6 +388,8 @@ class MainMenu extends Phaser.Scene {
       // console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
       if (Array.isArray(data)) {
         data.forEach(section => {
+             // Enqueue thumbnail explicitly
+             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.name}.jpg`);
              // Enqueue the first fallback attempt (.jpg)
              this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
 
@@ -823,7 +807,7 @@ class MapScene extends Phaser.Scene {
   }
 
   preload() {
-    this.load.image('yellowstone-main-map', 'assets/map/yellowstone-main-map.png');
+    this.load.image('new-map', 'assets/map/new-map.png');
     // Common assets like 'finger-cursor', 'eggs-ammin-haul', 'score' are preloaded in MainMenu
   }
 
@@ -858,25 +842,48 @@ class MapScene extends Phaser.Scene {
     this.sound.play('drive2', { volume: 0.5 });
 
     // Add map image, fill the viewport
-    this.mapImage = this.add.image(0, 0, 'yellowstone-main-map')
+    this.mapImage = this.add.image(0, 0, 'new-map')
       .setOrigin(0, 0)
       .setDisplaySize(this.game.config.width, this.game.config.height);
     // console.log(`Map display size: ${this.mapImage.displayWidth}x${this.mapImage.displayHeight}, Position: (${this.mapImage.x}, ${this.mapImage.y})`);
 
-    // Adjust interactive zones for map sections
+    // Create map thumbnails (videos/images)
+    this.mapZones = [];
+
+    // We will use the original zone dimensions to calculate the center
     mapSections.forEach(section => {
-      const zoneX = (section.coords.x / 1280) * this.game.config.width;
-      const zoneY = (section.coords.y / 720) * this.game.config.height;
-      const zoneWidth = (section.coords.width / 1280) * this.game.config.width;
-      const zoneHeight = (section.coords.height / 720) * this.game.config.height;
-      const zone = this.add.zone(zoneX, zoneY, zoneWidth, zoneHeight).setOrigin(0, 0);
-      zone.setInteractive();
-      zone.on('pointerdown', () => {
-        // console.log(`Clicked ${section.name} at (${zoneX}, ${zoneY})`);
-        this.sound.play('drive1', { volume: 0.5 });
-        this.scene.start('SectionHunt', { sectionName: section.name });
+      const centerX = section.coords.x + section.coords.width / 2;
+      const centerY = section.coords.y + section.coords.height / 2;
+
+      const thumbX = (centerX / 1280) * this.game.config.width;
+      const thumbY = (centerY / 720) * this.game.config.height;
+
+      // Add the static thumbnail image
+      const thumb = this.add.image(thumbX, thumbY, `${section.name}-thumb`)
+        .setOrigin(0.5, 0.5)
+        .setInteractive();
+
+      const targetW = 100 * scale;
+      const targetH = 75 * scale;
+      thumb.setDisplaySize(targetW, targetH);
+
+      thumb.name = section.name;
+      thumb.sectionData = section;
+
+      // Save original scale for hover/click effects
+      thumb.baseScaleX = thumb.scaleX;
+      thumb.baseScaleY = thumb.scaleY;
+
+      addButtonInteraction(this, thumb, 'drive1');
+
+      thumb.on('pointerdown', () => {
+        this.time.delayedCall(100, () => {
+            this.scene.start('SectionHunt', { sectionName: section.name });
+        });
       });
-      section.zone = zone;
+
+      this.mapZones.push(thumb);
+      section.zone = thumb; // keep reference for resize
     });
     this.mapSections = mapSections;
 
@@ -2097,12 +2104,20 @@ function resizeGame() {
       if (scene.mapSections) {
         scene.mapSections.forEach(section => {
           if (section.zone) {
-            const zoneX = (section.coords.x / 1280) * width;
-            const zoneY = (section.coords.y / 720) * height;
-            const zoneWidth = (section.coords.width / 1280) * width;
-            const zoneHeight = (section.coords.height / 720) * height;
-            section.zone.setPosition(zoneX, zoneY);
-            section.zone.setSize(zoneWidth, zoneHeight);
+            const centerX = section.coords.x + section.coords.width / 2;
+            const centerY = section.coords.y + section.coords.height / 2;
+
+            const thumbX = (centerX / 1280) * width;
+            const thumbY = (centerY / 720) * height;
+
+            section.zone.setPosition(thumbX, thumbY);
+
+            const targetW = 100 * scale;
+            const targetH = 75 * scale;
+            section.zone.setDisplaySize(targetW, targetH);
+
+            section.zone.baseScaleX = section.zone.scaleX;
+            section.zone.baseScaleY = section.zone.scaleY;
           }
         });
       }
