@@ -156,32 +156,41 @@ class UIScene extends Phaser.Scene {
     gear.setInteractive();
     gear.input.cursor = 'pointer';
 
+    gear.baseScaleX = gear.scaleX;
+    gear.baseScaleY = gear.scaleY;
+
     gear.on('pointerover', () => this.tweens.add({
-        targets: gear, scale: 1.2, duration: 100, ease: 'Sine.easeInOut'
+        targets: gear, scaleX: gear.baseScaleX * 1.2, scaleY: gear.baseScaleY * 1.2, duration: 100, ease: 'Sine.easeInOut'
     }));
 
     gear.on('pointerout', () => this.tweens.add({
-        targets: gear, scale: 1, duration: 100, ease: 'Sine.easeInOut'
+        targets: gear, scaleX: gear.baseScaleX, scaleY: gear.baseScaleY, duration: 100, ease: 'Sine.easeInOut'
     }));
 
-    addButtonInteraction(this, gear, 'menu-click');
-    addTooltip(this, gear, 'Settings');
-
+    // addButtonInteraction handles its own tweens which clash with these manual ones,
+    // so we'll just bind the sound instead of double-tweening.
     gear.on('pointerdown', () => {
+        const musicScene = this.scene.get('MusicScene');
+        if (musicScene && musicScene.scene.isActive()) {
+            musicScene.playSFX('menu-click');
+        }
+
         this.tweens.add({
             targets: gear,
-            scaleX: 0.9,
-            scaleY: 0.9,
+            scaleX: gear.baseScaleX * 0.9,
+            scaleY: gear.baseScaleY * 0.9,
             duration: 50,
             ease: 'Power1',
             onComplete: () => {
                 this.time.delayedCall(50, () => {
                     this.openSettings();
-                    gear.setScale(1.0); // Reset scale for next time
+                    gear.setScale(gear.baseScaleX, gear.baseScaleY); // Reset scale for next time
                 });
             }
         });
     });
+
+    addTooltip(this, gear, 'Settings (Esc)');
 
     this.gearIcon = gear;
   }
