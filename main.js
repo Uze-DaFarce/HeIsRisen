@@ -1272,7 +1272,7 @@ class SectionHunt extends Phaser.Scene {
 
     // Fixed size Render Texture for Magnifier (Lens)
     const lensDiameter = 100;
-    this.zoomedView = this.add.renderTexture(0, 0, lensDiameter, lensDiameter).setDepth(2).setScrollFactor(0);
+    this.zoomedView = this.add.renderTexture(0, 0, lensDiameter, lensDiameter).setDepth(6).setScrollFactor(0);
     this.zoomedView.setOrigin(0.5, 0.5); // Center origin
 
     this.maskGraphics = this.add.graphics().fillCircle(0, 0, lensDiameter / 2).setScrollFactor(0);
@@ -1663,22 +1663,77 @@ class EggZamRoom extends Phaser.Scene {
 
           if (this.explanationText) this.explanationText.destroy();
           const data = this.currentEgg.symbolData;
-          const text = `${data.explanation}\n\n${data.scripture}\n\n[Click here to continue]`;
 
-          this.explanationText = this.add.text(offsetX + 640 * uiScale, offsetY + 150 * uiScale, text, {
-              fontSize: `${24 * uiScale}px`,
-              fill: '#fff',
-              backgroundColor: '#000000dd',
-              padding: { x: 20, y: 20 },
+          this.explanationText = this.add.container(offsetX + 640 * uiScale, offsetY + 360 * uiScale).setDepth(20);
+
+          const bgWidth = 800 * uiScale;
+          const bgHeight = 600 * uiScale;
+
+          const bg = this.add.graphics();
+          bg.fillStyle(0xfff8dc, 0.95); // Light cornflower/cream color
+          bg.fillRoundedRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight, 20 * uiScale);
+          bg.lineStyle(8 * uiScale, 0x8b4513, 1); // Brown border
+          bg.strokeRoundedRect(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight, 20 * uiScale);
+          bg.setInteractive(new Phaser.Geom.Rectangle(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight), Phaser.Geom.Rectangle.Contains);
+
+          const title = this.add.text(0, -bgHeight/2 + 40 * uiScale, data.name || "Symbol", {
+              fontSize: `${40 * uiScale}px`,
+              fill: '#8b4513',
               fontStyle: 'bold',
               fontFamily: 'Comic Sans MS',
-              wordWrap: { width: 600 * uiScale, useAdvancedWrap: true },
-              align: 'center'
-          }).setOrigin(0.5, 0).setDepth(20).setInteractive();
+          }).setOrigin(0.5);
 
-          this.explanationText.on('pointerdown', () => {
-              this.explanationText.destroy();
-              this.displayRandomEggInfo(offsetX, offsetY, uiScale);
+          const symbolImg = this.add.image(0, -bgHeight/2 + 150 * uiScale, data.filename).setDisplaySize(100 * uiScale, 125 * uiScale);
+
+          const expText = this.add.text(0, 0, data.explanation, {
+              fontSize: `${28 * uiScale}px`,
+              fill: '#000',
+              fontFamily: 'Comic Sans MS',
+              wordWrap: { width: bgWidth - 80 * uiScale, useAdvancedWrap: true },
+              align: 'center'
+          }).setOrigin(0.5);
+
+          const scriptText = this.add.text(0, bgHeight/2 - 120 * uiScale, data.scripture, {
+              fontSize: `${24 * uiScale}px`,
+              fill: '#444',
+              fontStyle: 'italic',
+              fontFamily: 'Comic Sans MS',
+              wordWrap: { width: bgWidth - 80 * uiScale, useAdvancedWrap: true },
+              align: 'center'
+          }).setOrigin(0.5);
+
+          const continueText = this.add.text(0, bgHeight/2 - 40 * uiScale, "[ Click anywhere to continue ]", {
+              fontSize: `${20 * uiScale}px`,
+              fill: '#0000ff',
+              fontStyle: 'bold',
+              fontFamily: 'Comic Sans MS'
+          }).setOrigin(0.5);
+
+          this.explanationText.add([bg, title, symbolImg, expText, scriptText, continueText]);
+
+          // Add a pop-in effect
+          this.explanationText.setScale(0);
+          this.tweens.add({
+              targets: this.explanationText,
+              scaleX: 1,
+              scaleY: 1,
+              duration: 300,
+              ease: 'Back.out'
+          });
+
+          bg.on('pointerdown', () => {
+              this.tweens.add({
+                  targets: this.explanationText,
+                  scaleX: 0,
+                  scaleY: 0,
+                  duration: 200,
+                  ease: 'Back.in',
+                  onComplete: () => {
+                      this.explanationText.destroy();
+                      this.explanationText = null;
+                      this.displayRandomEggInfo(offsetX, offsetY, uiScale);
+                  }
+              });
           });
       } else {
           this.sound.play('error');
