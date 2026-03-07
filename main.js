@@ -149,30 +149,13 @@ class UIScene extends Phaser.Scene {
   createGearIcon() {
     const x = this.cameras.main.width - 60;
     const y = 60;
-    const gear = this.add.graphics({ x, y });
+    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40);
 
-    gear.fillStyle(0xffffff, 1);
-
-    // Draw gear shape - reduced size by half
-    const radius = 12.5;
-
-    gear.fillCircle(0, 0, radius);
-
-    // Teeth - adjusted for smaller size
-    for (let i = 0; i < 8; i++) {
-        const angle = (i / 8) * Math.PI * 2;
-        const tx = Math.cos(angle) * (radius + 4);
-        const ty = Math.sin(angle) * (radius + 4);
-        gear.fillCircle(tx, ty, 3);
-    }
-    gear.fillCircle(0, 0, radius); // Redraw center to smooth
-
-    // Inner hole
-    gear.fillStyle(0x000000, 1);
-    gear.fillCircle(0, 0, 5);
-
-    const hitArea = new Phaser.Geom.Circle(0, 0, 15);
-    gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    const hitArea = new Phaser.Geom.Circle(20, 20, 15); // Origin is 0.5, but interactive on image uses top-left 0,0 locally
+    // Actually, Phaser image setInteractive without params uses the texture bounds which is easier.
+    // However, the user asked to make the settings hitbox smaller.
+    // If display size is 40x40, center is 20,20 locally for the hit shape.
+    gear.setInteractive(new Phaser.Geom.Circle(20, 20, 15), Phaser.Geom.Circle.Contains);
     gear.input.cursor = 'pointer';
 
     gear.on('pointerover', () => this.tweens.add({
@@ -387,7 +370,8 @@ class MainMenu extends Phaser.Scene {
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Preload common UI and game assets here to avoid reloading in scenes
-    this.load.image('yellowstone-main-map', 'assets/map/yellowstone-main-map.png');
+    this.load.image('new-map', 'assets/map/new-map.png');
+    this.load.image('cog', 'assets/objects/cog.png');
     this.load.image('eggs-ammin-haul', 'assets/objects/eggs-ammin-haul.png');
     this.load.image('score', 'assets/objects/score.png');
     this.load.image('magnifying-glass', 'assets/cursor/magnifying-glass.png');
@@ -410,13 +394,13 @@ class MainMenu extends Phaser.Scene {
       // console.log(`MainMenu: filecomplete-json-map_sections: Key='${key}', Type='${type}'`);
       if (Array.isArray(data)) {
         data.forEach(section => {
-
-             // Enqueue the first fallback attempt (.jpg)
+             // Enqueue thumbnail (.jpg) explicitly as thumb to avoid fallback errors
+             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.name}.jpg`);
+             // Keep the fallback key mapping to the same jpg, but thumb is cleaner for map.
              this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
 
              // Preload video backgrounds
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
-
         });
         // console.log(`MainMenu: Queued ${data.length} section SVGs and Videos for loading.`);
       }
@@ -830,37 +814,56 @@ class MapScene extends Phaser.Scene {
     }
     this.sound.play('drive2', { volume: 0.5 });
 
-    this.mapImage = this.add.image(width/2, height/2, 'yellowstone-main-map');
+    this.mapImage = this.add.image(width/2, height/2, 'new-map');
     this.updateLayout(width, height);
 
-    // Create hover graphics for highlighting map sections
-    this.hoverGraphics = this.add.graphics().setDepth(10);
+    // Create map thumbnails (videos/images)
     this.mapZones = [];
 
+    // We will use the original zone dimensions to calculate the center
     mapSections.forEach(section => {
-      const zone = this.add.zone(0, 0, 1, 1).setOrigin(0, 0);
-      zone.name = section.name;
-      zone.sectionData = section; // Store original coords
-      zone.setInteractive();
+      const centerX = section.coords.x + section.coords.width / 2;
+      const centerY = section.coords.y + section.coords.height / 2;
 
-      zone.on('pointerover', () => {
-          this.hoverGraphics.clear();
-          this.hoverGraphics.lineStyle(4, 0xffff00, 1);
-          this.hoverGraphics.strokeRect(zone.x, zone.y, zone.width, zone.height);
-          this.hoverGraphics.fillStyle(0xffff00, 0.2);
-          this.hoverGraphics.fillRect(zone.x, zone.y, zone.width, zone.height);
+      // Add the static thumbnail image
+      const thumb = this.add.image(0, 0, `${section.name}-thumb`)
+        .setOrigin(0.5, 0.5)
+        .setInteractive();
+
+      thumb.name = section.name;
+      thumb.sectionData = section;
+
+      // Save original scale for hover effects
+      thumb.baseScale = 1;
+
+      thumb.on('pointerover', () => {
+          this.input.setDefaultCursor('pointer');
+          this.tweens.add({
+              targets: thumb,
+              scaleX: thumb.baseScale * 1.1,
+              scaleY: thumb.baseScale * 1.1,
+              duration: 100,
+              ease: 'Sine.easeInOut'
+          });
       });
 
-      zone.on('pointerout', () => {
-          this.hoverGraphics.clear();
+      thumb.on('pointerout', () => {
+          this.input.setDefaultCursor('default');
+          this.tweens.add({
+              targets: thumb,
+              scaleX: thumb.baseScale,
+              scaleY: thumb.baseScale,
+              duration: 100,
+              ease: 'Sine.easeInOut'
+          });
       });
 
-      zone.on('pointerdown', () => {
+      thumb.on('pointerdown', () => {
         this.sound.play('drive1', { volume: 0.5 });
         this.scene.start('SectionHunt', { sectionName: section.name });
       });
 
-      this.mapZones.push(zone);
+      this.mapZones.push(thumb);
     });
 
     this.eggsAmminHaul = this.add.image(0, 0, 'eggs-ammin-haul')
@@ -911,10 +914,22 @@ class MapScene extends Phaser.Scene {
 
       // Update Zones
       if (this.mapZones) {
-          this.mapZones.forEach(zone => {
-              const d = zone.sectionData.coords;
-              zone.setPosition(offsetX + d.x * scale, offsetY + d.y * scale);
-              zone.setSize(d.width * scale, d.height * scale);
+          this.mapZones.forEach(thumb => {
+              const d = thumb.sectionData.coords;
+              const centerX = d.x + d.width / 2;
+              const centerY = d.y + d.height / 2;
+
+              thumb.setPosition(offsetX + centerX * scale, offsetY + centerY * scale);
+
+              // Scale thumb to fit roughly inside the circle (approx 120px diameter on original 1280x720)
+              // Let's set a fixed target dimension for the thumbs, e.g., 100x60
+              const targetW = 100 * scale;
+              const targetH = 75 * scale;
+
+              thumb.setDisplaySize(targetW, targetH);
+
+              // Update base scale for hover animations
+              thumb.baseScale = thumb.scaleX; // scaleX and scaleY should be identical or close enough
           });
       }
 
