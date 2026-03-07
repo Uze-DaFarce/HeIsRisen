@@ -149,50 +149,68 @@ class UIScene extends Phaser.Scene {
   createGearIcon() {
     const x = this.cameras.main.width - 60;
     const y = 60;
-    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40).setDepth(10); // set lower depth so cursor stays on top
 
-    // Let Phaser naturally bind the hit box to the texture rather than forcing geometry,
-    // solving the "impossible to click" bug caused by local/global offset mismatch.
-    gear.setInteractive();
-    gear.input.cursor = 'pointer';
+    // Create a container to hold the background and the cog
+    const gearContainer = this.add.container(x, y).setDepth(10);
 
-    gear.baseScaleX = gear.scaleX;
-    gear.baseScaleY = gear.scaleY;
+    // Draw white circle with yellow border
+    const bg = this.add.graphics();
+    bg.fillStyle(0xffffff, 1);
+    bg.fillCircle(0, 0, 20); // 40px diameter
+    bg.lineStyle(3, 0xffd700, 1); // Yellow border
+    bg.strokeCircle(0, 0, 20);
 
-    gear.on('pointerover', () => this.tweens.add({
-        targets: gear, scaleX: gear.baseScaleX * 1.2, scaleY: gear.baseScaleY * 1.2, duration: 100, ease: 'Sine.easeInOut'
+    // Add the cog icon scaled down to half size (20x20)
+    const gearImg = this.add.image(0, 0, 'cog').setDisplaySize(20, 20);
+
+    gearContainer.add([bg, gearImg]);
+
+    // Add an invisible hit area graphic so setInteractive works perfectly
+    // without relying on manual geometry params that break on scaling
+    const hitAreaBg = this.add.graphics();
+    hitAreaBg.fillStyle(0xffffff, 0.01);
+    hitAreaBg.fillCircle(0, 0, 20);
+    gearContainer.add(hitAreaBg);
+
+    gearContainer.setSize(40, 40);
+    gearContainer.setInteractive(new Phaser.Geom.Circle(0, 0, 20), Phaser.Geom.Circle.Contains);
+    gearContainer.input.cursor = 'pointer';
+
+    gearContainer.baseScaleX = gearContainer.scaleX;
+    gearContainer.baseScaleY = gearContainer.scaleY;
+
+    gearContainer.on('pointerover', () => this.tweens.add({
+        targets: gearContainer, scaleX: gearContainer.baseScaleX * 1.2, scaleY: gearContainer.baseScaleY * 1.2, duration: 100, ease: 'Sine.easeInOut'
     }));
 
-    gear.on('pointerout', () => this.tweens.add({
-        targets: gear, scaleX: gear.baseScaleX, scaleY: gear.baseScaleY, duration: 100, ease: 'Sine.easeInOut'
+    gearContainer.on('pointerout', () => this.tweens.add({
+        targets: gearContainer, scaleX: gearContainer.baseScaleX, scaleY: gearContainer.baseScaleY, duration: 100, ease: 'Sine.easeInOut'
     }));
 
-    // addButtonInteraction handles its own tweens which clash with these manual ones,
-    // so we'll just bind the sound instead of double-tweening.
-    gear.on('pointerdown', () => {
+    gearContainer.on('pointerdown', () => {
         const musicScene = this.scene.get('MusicScene');
         if (musicScene && musicScene.scene.isActive()) {
             musicScene.playSFX('menu-click');
         }
 
         this.tweens.add({
-            targets: gear,
-            scaleX: gear.baseScaleX * 0.9,
-            scaleY: gear.baseScaleY * 0.9,
+            targets: gearContainer,
+            scaleX: gearContainer.baseScaleX * 0.9,
+            scaleY: gearContainer.baseScaleY * 0.9,
             duration: 50,
             ease: 'Power1',
             onComplete: () => {
                 this.time.delayedCall(50, () => {
                     this.openSettings();
-                    gear.setScale(gear.baseScaleX, gear.baseScaleY); // Reset scale for next time
+                    gearContainer.setScale(gearContainer.baseScaleX, gearContainer.baseScaleY); // Reset scale for next time
                 });
             }
         });
     });
 
-    addTooltip(this, gear, 'Settings (Esc)');
+    addTooltip(this, gearContainer, 'Settings (Esc)');
 
-    this.gearIcon = gear;
+    this.gearIcon = gearContainer;
   }
 
   createSettingsPanel() {
