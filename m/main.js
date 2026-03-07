@@ -122,12 +122,10 @@ class UIScene extends Phaser.Scene {
   createGearIcon() {
     const x = this.cameras.main.width - 60;
     const y = 60;
-    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40);
+    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40).setDepth(10); // Keep below cursor
 
-    // Small hit area relative to the image size (origin 0.5)
-    // Local coords for image 0,0 is top-left, so 20,20 is center.
-    const hitArea = new Phaser.Geom.Circle(20, 20, 20);
-    gear.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    // Let Phaser map the interactive area to the image texture natively to prevent offset clicking bugs
+    gear.setInteractive();
 
     gear.on('pointerdown', () => {
         this.tweens.add({
@@ -890,16 +888,19 @@ class MapScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5)
         .setInteractive();
 
-      const targetW = 100 * scale;
-      const targetH = 75 * scale;
-      thumb.setDisplaySize(targetW, targetH);
+      // Use uniform scaling to prevent distortion
+      const targetW = 140 * scale;
+      const baseTextureWidth = thumb.texture.getSourceImage().width || 752;
+      const desiredScale = targetW / baseTextureWidth;
+
+      thumb.setScale(desiredScale);
 
       thumb.name = section.name;
       thumb.sectionData = section;
 
-      // Save original scale for hover/click effects
-      thumb.baseScaleX = thumb.scaleX;
-      thumb.baseScaleY = thumb.scaleY;
+      // Save original scale for click interactions
+      thumb.baseScaleX = desiredScale;
+      thumb.baseScaleY = desiredScale;
 
       addButtonInteraction(this, thumb, 'drive1');
 
@@ -2139,12 +2140,14 @@ function resizeGame() {
 
             section.zone.setPosition(thumbX, thumbY);
 
-            const targetW = 100 * scale;
-            const targetH = 75 * scale;
-            section.zone.setDisplaySize(targetW, targetH);
+            const targetW = 140 * scale;
+            const baseTextureWidth = section.zone.texture.getSourceImage().width || 752;
+            const desiredScale = targetW / baseTextureWidth;
 
-            section.zone.baseScaleX = section.zone.scaleX;
-            section.zone.baseScaleY = section.zone.scaleY;
+            section.zone.setScale(desiredScale);
+
+            section.zone.baseScaleX = desiredScale;
+            section.zone.baseScaleY = desiredScale;
           }
         });
       }

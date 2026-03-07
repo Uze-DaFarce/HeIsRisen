@@ -149,13 +149,11 @@ class UIScene extends Phaser.Scene {
   createGearIcon() {
     const x = this.cameras.main.width - 60;
     const y = 60;
-    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40);
+    const gear = this.add.image(x, y, 'cog').setDisplaySize(40, 40).setDepth(10); // set lower depth so cursor stays on top
 
-    const hitArea = new Phaser.Geom.Circle(20, 20, 15); // Origin is 0.5, but interactive on image uses top-left 0,0 locally
-    // Actually, Phaser image setInteractive without params uses the texture bounds which is easier.
-    // However, the user asked to make the settings hitbox smaller.
-    // If display size is 40x40, center is 20,20 locally for the hit shape.
-    gear.setInteractive(new Phaser.Geom.Circle(20, 20, 15), Phaser.Geom.Circle.Contains);
+    // Let Phaser naturally bind the hit box to the texture rather than forcing geometry,
+    // solving the "impossible to click" bug caused by local/global offset mismatch.
+    gear.setInteractive();
     gear.input.cursor = 'pointer';
 
     gear.on('pointerover', () => this.tweens.add({
@@ -833,7 +831,8 @@ class MapScene extends Phaser.Scene {
       thumb.name = section.name;
       thumb.sectionData = section;
 
-      // Save original scale for hover effects
+      // The baseScale will be set in resizeGame()/updateLayout once dimensions are known,
+      // but let's initialize it safely here just in case.
       thumb.baseScale = 1;
 
       thumb.on('pointerover', () => {
@@ -921,15 +920,18 @@ class MapScene extends Phaser.Scene {
 
               thumb.setPosition(offsetX + centerX * scale, offsetY + centerY * scale);
 
-              // Scale thumb to fit roughly inside the circle (approx 120px diameter on original 1280x720)
-              // Let's set a fixed target dimension for the thumbs, e.g., 100x60
-              const targetW = 100 * scale;
-              const targetH = 75 * scale;
+              // The videos/thumbnails are 752x416. To fit in the larger ~140px circle on base scale,
+              // we need a display width of roughly 140 * scale to cover it comfortably.
+              const targetW = 140 * scale;
+              // We maintain the natural aspect ratio to avoid distortion.
+              // Wait, instead of calculating height manually, we can just use setScale directly.
+              const baseTextureWidth = thumb.texture.getSourceImage().width || 752; // Usually 752 or 688
+              const desiredScale = targetW / baseTextureWidth;
 
-              thumb.setDisplaySize(targetW, targetH);
+              thumb.setScale(desiredScale);
 
-              // Update base scale for hover animations
-              thumb.baseScale = thumb.scaleX; // scaleX and scaleY should be identical or close enough
+              // Update base scale for hover animations AFTER scaling
+              thumb.baseScale = thumb.scaleX;
           });
       }
 
