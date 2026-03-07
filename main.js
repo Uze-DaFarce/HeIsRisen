@@ -1171,15 +1171,15 @@ class SectionHunt extends Phaser.Scene {
 
         this.sectionVideo.play(true); // Loop
         this.sectionVideo.setMute(false); // Enable background video audio
-        // Initialize volume from Ambient setting
+        // Initialize volume from Ambient setting (reduced to 25% due to loud video mixing)
         const ambientVol = this.registry.has('ambientVolume') ? this.registry.get('ambientVolume') : 0.5;
-        this.sectionVideo.setVolume(ambientVol * 0.5);
+        this.sectionVideo.setVolume(ambientVol * 0.25);
         this.sectionVideo.disableInteractive(); // Should not block clicks
 
         // Listen for volume changes
         const updateAmbientVolume = (parent, key, data) => {
              if (key === 'ambientVolume' && this.sectionVideo && this.sectionVideo.active) {
-                 this.sectionVideo.setVolume(data * 0.5);
+                 this.sectionVideo.setVolume(data * 0.25);
              }
         };
         this.registry.events.on('changedata', updateAmbientVolume);
@@ -1681,26 +1681,26 @@ class EggZamRoom extends Phaser.Scene {
         bg.setInteractive(new Phaser.Geom.Rectangle(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight), Phaser.Geom.Rectangle.Contains);
 
         // Header Elements
-        const title = this.add.text(0, -bgHeight/2 + 50 * uiScale, data.name || "Symbol", {
-            fontSize: `${40 * uiScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
+        const title = this.add.text(0, -bgHeight/2 + 60 * uiScale, data.name || "Symbol", {
+            fontSize: `${48 * uiScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
         }).setOrigin(0.5);
 
-        const eggImg = this.add.image(-bgWidth/2 + 80 * uiScale, -bgHeight/2 + 80 * uiScale, `egg-${eggId}`).setDisplaySize(80 * uiScale, 100 * uiScale);
-        const symbolImgSmall = this.add.image(-bgWidth/2 + 80 * uiScale, -bgHeight/2 + 80 * uiScale, data.filename).setDisplaySize(80 * uiScale, 100 * uiScale);
+        const eggImg = this.add.image(-bgWidth/2 + 90 * uiScale, -bgHeight/2 + 90 * uiScale, `egg-${eggId}`).setDisplaySize(100 * uiScale, 125 * uiScale);
+        const symbolImgSmall = this.add.image(-bgWidth/2 + 90 * uiScale, -bgHeight/2 + 90 * uiScale, data.filename).setDisplaySize(100 * uiScale, 125 * uiScale);
 
-        const guessDisplay = this.add.text(bgWidth/2 - 20 * uiScale, -bgHeight/2 + 50 * uiScale, `Your Guess:\n${guessText}`, {
-            fontSize: `${20 * uiScale}px`, fill: '#444', fontStyle: 'italic', fontFamily: 'Comic Sans MS', align: 'right'
-        }).setOrigin(1, 0.5);
+        const guessDisplay = this.add.text(bgWidth/2 - 40 * uiScale, -bgHeight/2 + 60 * uiScale, `Your Guess:\n${guessText}`, {
+            fontSize: `${32 * uiScale}px`, fill: '#333', fontStyle: 'bold', fontFamily: 'Comic Sans MS', align: 'center'
+        }).setOrigin(0.5, 0.5);
 
-        // Result Text (Correct/Incorrect)
-        const resultText = this.add.text(0, -bgHeight/2 + 110 * uiScale, isCorrect ? "Correct!" : "Incorrect!", {
+        // Result Text (Correct/Incorrect) moved under the guess
+        const resultText = this.add.text(bgWidth/2 - 40 * uiScale, -bgHeight/2 + 130 * uiScale, isCorrect ? "Correct!" : "Incorrect!", {
             fontSize: `${36 * uiScale}px`,
             fill: isCorrect ? '#008000' : '#d32f2f',
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS',
             stroke: '#fff',
-            strokeThickness: 4 * uiScale
-        }).setOrigin(0.5);
+            strokeThickness: 6 * uiScale
+        }).setOrigin(0.5, 0.5);
 
         const expText = this.add.text(0, 0, data.explanation, {
             fontSize: `${28 * uiScale}px`, fill: '#000', fontFamily: 'Comic Sans MS',

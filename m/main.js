@@ -203,10 +203,11 @@ class UIScene extends Phaser.Scene {
 
     const closeBtn = this.add.container(closeX, closeY);
 
-    // Transparent hit area - massively larger for mobile to prevent frustrating missed taps
-    const hitArea = new Phaser.Geom.Circle(0, 0, 80);
-
     const closeBg = this.add.graphics();
+    // Transparent expanded hit area drawn explicitly so bounds compute automatically
+    closeBg.fillStyle(0xffffff, 0.01);
+    closeBg.fillCircle(0, 0, 80);
+
     closeBg.fillStyle(0xff4444, 1); // Reddish
     closeBg.fillCircle(0, 0, closeSize / 2);
     closeBg.lineStyle(2, 0xffffff, 1);
@@ -223,8 +224,9 @@ class UIScene extends Phaser.Scene {
     closeBg.strokePath();
 
     closeBtn.add(closeBg);
-    closeBtn.setSize(160, 160); // Ensure container size is large enough
-    closeBtn.setInteractive(hitArea, Phaser.Geom.Circle.Contains);
+    // When adding an interactive circle to a container, coordinate 0,0 represents the container origin.
+    // Since closeBg is drawn at 0,0, the hit area circle should be at 0,0 too.
+    closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, 80), Phaser.Geom.Circle.Contains);
 
     closeBtn.on('pointerdown', () => {
         this.tweens.add({
@@ -693,10 +695,12 @@ class MainMenu extends Phaser.Scene {
           const canvas = this.game.canvas;
           const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
           if (isMobile) {
-              safeRequestFullscreen(canvas);
+              safeRequestFullscreen(document.documentElement); // Use documentElement instead of canvas for better mobile support
               if (screen.orientation && screen.orientation.lock) {
                   screen.orientation.lock('landscape').catch(() => {});
               }
+              // Hack to force address bar to hide on mobile Safari
+              setTimeout(() => window.scrollTo(0, 1), 100);
           } else {
               safeRequestFullscreen(canvas);
           }
@@ -1205,13 +1209,13 @@ class SectionHunt extends Phaser.Scene {
 
         this.sectionImage.setMute(false);
         const ambientVol = this.registry.has('ambientVolume') ? this.registry.get('ambientVolume') : 0.5;
-        this.sectionImage.setVolume(ambientVol * 0.5);
+        this.sectionImage.setVolume(ambientVol * 0.25);
         this.sectionImage.play(true);
         this.isUsingVideo = true;
 
         const updateAmbientVolume = (parent, key, data) => {
              if (key === 'ambientVolume' && this.sectionImage && this.sectionImage.active && this.isUsingVideo) {
-                 this.sectionImage.setVolume(data * 0.5);
+                 this.sectionImage.setVolume(data * 0.25);
              }
         };
         this.registry.events.on('changedata', updateAmbientVolume);
@@ -1670,13 +1674,13 @@ class EggZamRoom extends Phaser.Scene {
       .setDisplaySize(width, height);
 
     const isDesktop = this.sys.game.device.os.desktop;
-    const assetScale = isDesktop ? this.gameScale : this.gameScale * 2;
+    const assetScale = isDesktop ? this.gameScale : this.gameScale * 1.75;
 
     const tanBoxCenterX = (640 / 1280) * width;
     const examinerWidth = 400 * assetScale;
     const examinerHeight = 500 * assetScale;
     const examinerX = tanBoxCenterX - (examinerWidth / 2);
-    const floorY = isDesktop ? ((740 / 720) * height) : height + (50 * assetScale); // adjust floor for doubled size
+    const floorY = isDesktop ? ((740 / 720) * height) : height + (100 * assetScale); // push further down on mobile
     const examinerY = floorY - examinerHeight;
 
     this.examiner = this.add.image(examinerX, examinerY, 'egg-zamminer')
@@ -1785,26 +1789,26 @@ class EggZamRoom extends Phaser.Scene {
         bg.setInteractive(new Phaser.Geom.Rectangle(-bgWidth/2, -bgHeight/2, bgWidth, bgHeight), Phaser.Geom.Rectangle.Contains);
 
         // Header Elements
-        const title = this.add.text(0, -bgHeight/2 + 50 * assetScale, data.name || "Symbol", {
-            fontSize: `${40 * assetScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
+        const title = this.add.text(0, -bgHeight/2 + 60 * assetScale, data.name || "Symbol", {
+            fontSize: `${48 * assetScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
         }).setOrigin(0.5);
 
-        const eggImg = this.add.image(-bgWidth/2 + 80 * assetScale, -bgHeight/2 + 80 * assetScale, `egg-${eggId}`).setDisplaySize(80 * assetScale, 100 * assetScale);
-        const symbolImgSmall = this.add.image(-bgWidth/2 + 80 * assetScale, -bgHeight/2 + 80 * assetScale, data.filename).setDisplaySize(80 * assetScale, 100 * assetScale);
+        const eggImg = this.add.image(-bgWidth/2 + 90 * assetScale, -bgHeight/2 + 90 * assetScale, `egg-${eggId}`).setDisplaySize(100 * assetScale, 125 * assetScale);
+        const symbolImgSmall = this.add.image(-bgWidth/2 + 90 * assetScale, -bgHeight/2 + 90 * assetScale, data.filename).setDisplaySize(100 * assetScale, 125 * assetScale);
 
-        const guessDisplay = this.add.text(bgWidth/2 - 20 * assetScale, -bgHeight/2 + 50 * assetScale, `Your Guess:\n${guessText}`, {
-            fontSize: `${20 * assetScale}px`, fill: '#444', fontStyle: 'italic', fontFamily: 'Comic Sans MS', align: 'right'
-        }).setOrigin(1, 0.5);
+        const guessDisplay = this.add.text(bgWidth/2 - 40 * assetScale, -bgHeight/2 + 60 * assetScale, `Your Guess:\n${guessText}`, {
+            fontSize: `${32 * assetScale}px`, fill: '#333', fontStyle: 'bold', fontFamily: 'Comic Sans MS', align: 'center'
+        }).setOrigin(0.5, 0.5);
 
         // Result Text
-        const resultText = this.add.text(0, -bgHeight/2 + 110 * assetScale, isCorrect ? "Correct!" : "Incorrect!", {
+        const resultText = this.add.text(bgWidth/2 - 40 * assetScale, -bgHeight/2 + 130 * assetScale, isCorrect ? "Correct!" : "Incorrect!", {
             fontSize: `${36 * assetScale}px`,
             fill: isCorrect ? '#008000' : '#d32f2f',
             fontStyle: 'bold',
             fontFamily: 'Comic Sans MS',
             stroke: '#fff',
-            strokeThickness: 4 * assetScale
-        }).setOrigin(0.5);
+            strokeThickness: 6 * assetScale
+        }).setOrigin(0.5, 0.5);
 
         const expText = this.add.text(0, 0, data.explanation, {
             fontSize: `${28 * assetScale}px`, fill: '#000', fontFamily: 'Comic Sans MS',
@@ -1867,7 +1871,7 @@ class EggZamRoom extends Phaser.Scene {
         .setOrigin(0, 0)
         .setAngle(0)
         .setDisplaySize(50 * this.gameScale, 75 * this.gameScale)
-        .setDepth(7);
+        .setDepth(1000); // Ensure it renders above the popup modal (depth 100)
     }
   }
 
@@ -1883,15 +1887,21 @@ class EggZamRoom extends Phaser.Scene {
       } else {
         this.currentEgg = null;
         if (this.noEggsText) this.noEggsText.destroy();
-        this.noEggsText = this.add.text((0.36 * width), (0.25 * height), "  All eggs have been categorized!", {
-          fontSize: `${28 * this.gameScale}px`,
+        const ctaText = foundEggs.length < TOTAL_EGGS
+            ? "All collected eggs categorized!\nReturn to the map to find more."
+            : "All eggs categorized!\nHappy Easter!";
+        // Position it higher so it isn't blocked by the larger mobile machine
+        const isDesktop = this.sys.game.device.os.desktop;
+        const textY = isDesktop ? 0.25 * height : 0.15 * height;
+        this.noEggsText = this.add.text((0.36 * width), textY, ctaText, {
+          fontSize: `${(isDesktop ? 28 : 40) * this.gameScale}px`,
           fill: '#000',
           fontStyle: 'bold',
           fontFamily: 'Comic Sans MS',
           stroke: '#fff',
           strokeThickness: 3 * this.gameScale,
           wordWrap: { width: 480 * this.gameScale, useAdvancedWrap: true }
-        }).setOrigin(0, 0);
+        }).setOrigin(0, 0).setDepth(10);
         return;
       }
     }
@@ -2200,7 +2210,7 @@ function resizeGame() {
     }
     if (scene.scene.key === 'EggZamRoom') {
       const isDesktop = scene.sys.game.device.os.desktop;
-      const assetScale = isDesktop ? scale : scale * 2;
+      const assetScale = isDesktop ? scale : scale * 1.75;
 
       if (scene.background) scene.background.setDisplaySize(width, height);
       if (scene.examiner) {
@@ -2208,7 +2218,7 @@ function resizeGame() {
         const examinerWidth = 400 * assetScale;
         const examinerHeight = 500 * assetScale;
         const examinerX = tanBoxCenterX - (examinerWidth / 2);
-        const floorY = isDesktop ? ((740 / 720) * height) : height + (50 * assetScale);
+        const floorY = isDesktop ? ((740 / 720) * height) : height + (100 * assetScale);
         const examinerY = floorY - examinerHeight;
         scene.examiner.setPosition(examinerX, examinerY);
         scene.examiner.setDisplaySize(examinerWidth, examinerHeight);
@@ -2265,8 +2275,10 @@ function resizeGame() {
         scene.displayedSymbolImage.setDisplaySize(100 * assetScale, 125 * assetScale);
       }
       if (scene.noEggsText) {
-        scene.noEggsText.setPosition(0.36 * width, 0.25 * height);
-        scene.noEggsText.setStyle({ fontSize: `${28 * scale}px`, strokeThickness: 3 * scale, wordWrap: { width: 480 * scale, useAdvancedWrap: true } });
+        const isDesktop = scene.sys.game.device.os.desktop;
+        const textY = isDesktop ? 0.25 * height : 0.15 * height;
+        scene.noEggsText.setPosition(0.36 * width, textY);
+        scene.noEggsText.setStyle({ fontSize: `${(isDesktop ? 28 : 40) * scale}px`, strokeThickness: 3 * scale, wordWrap: { width: 480 * scale, useAdvancedWrap: true } });
       }
       if (scene.fingerCursor) scene.fingerCursor.setDisplaySize(50 * scale, 75 * scale);
     }
