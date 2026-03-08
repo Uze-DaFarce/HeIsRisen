@@ -916,7 +916,9 @@ class MapScene extends Phaser.Scene {
 
               const updateStampSize = () => {
                   stampVideo.setPosition(thumb.x, thumb.y);
-                  stampVideo.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
+
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampVideo.setScale(thumb.scaleX);
               };
               updateStampSize();
 
@@ -935,10 +937,10 @@ class MapScene extends Phaser.Scene {
               stampVideo.on('complete', () => {
                   const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
                   stampImg.setDepth(2);
-                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
-                  stampImg.disableInteractive();
-                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampImg.setScale(thumb.scaleX);
+                  stampImg.disableInteractive();
                   // Replace in resize array so window resizing still works
                   const idx = this.stamps.findIndex(s => s.video === stampVideo);
                   if (idx !== -1) {
@@ -953,11 +955,11 @@ class MapScene extends Phaser.Scene {
               stampImg.setOrigin(0.5, 0.5);
               stampImg.setDepth(2);
               stampImg.disableInteractive();
-                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
-
-              const updateStampSize = () => {
+                  const updateStampSize = () => {
                   stampImg.setPosition(thumb.x, thumb.y);
-                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
+
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampImg.setScale(thumb.scaleX);
               };
               updateStampSize();
 
@@ -1039,7 +1041,7 @@ class MapScene extends Phaser.Scene {
           this.stamps.forEach(item => {
               if (item.video && item.video.active && item.thumb && item.thumb.active) {
                   item.video.setPosition(item.thumb.x, item.thumb.y);
-                  item.video.setDisplaySize(item.thumb.displayWidth, item.thumb.displayHeight);
+                  item.video.setScale(item.thumb.scaleX);
               }
           });
       }
