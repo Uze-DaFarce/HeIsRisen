@@ -964,12 +964,19 @@ class MapScene extends Phaser.Scene {
               stampVideo.setDepth(2);
               stampVideo.disableInteractive();
               stampVideo.setBlendMode(Phaser.BlendModes.MULTIPLY);
-
               const updateStampSize = () => {
                   stampVideo.setPosition(thumb.x, thumb.y);
 
-                  // Apply the identical scale multiplier that the thumbnail is using
-                  stampVideo.setScale(thumb.scaleX);
+                  // Scale the stamp so its height covers the thumbnail's height + 25%, maintaining its intrinsic aspect ratio
+                  // We must wait for the video metadata to load to get its intrinsic height,
+                  // but we can set a fallback or set scale immediately based on a standard 1080p/720p assumption if needed.
+                  // Wait, Phaser Video objects have a default size of 256x256 before load.
+                  // To be safe, we can apply the scale based on the thumbnail's physical displayHeight.
+                  // Since video height might be 0 initially, we use a fallback of 720 (standard height).
+                  const intrinsicHeight = stampVideo.height || 720;
+                  const targetHeight = thumb.displayHeight * 1.25;
+                  const calculatedScale = targetHeight / intrinsicHeight;
+                  stampVideo.setScale(calculatedScale);
               };
               updateStampSize();
 
@@ -990,7 +997,10 @@ class MapScene extends Phaser.Scene {
                   stampImg.setDepth(2);
 
                   // Apply the identical scale multiplier that the thumbnail is using
-                  stampImg.setScale(thumb.scaleX);
+                  // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
+                  const intrinsicHeight = stampImg.height || 720;
+                  const targetHeight = thumb.displayHeight * 1.25;
+                  stampImg.setScale(targetHeight / intrinsicHeight);
                   stampImg.disableInteractive();
                   // Replace in resize array so window resizing still works
                   const idx = this.stamps.findIndex(s => s.video === stampVideo);
@@ -1009,8 +1019,11 @@ class MapScene extends Phaser.Scene {
                   const updateStampSize = () => {
                   stampImg.setPosition(thumb.x, thumb.y);
 
-                  // Apply the identical scale multiplier that the thumbnail is using
-                  stampImg.setScale(thumb.scaleX);
+                  // Scale the stamp so its height covers the thumbnail's height + 25%, maintaining its intrinsic aspect ratio
+                  const intrinsicHeight = stampImg.height || 720;
+                  const targetHeight = thumb.displayHeight * 1.25;
+                  const calculatedScale = targetHeight / intrinsicHeight;
+                  stampImg.setScale(calculatedScale);
               };
               updateStampSize();
 
@@ -2262,7 +2275,10 @@ function resizeGame() {
             scene.stamps.forEach(item => {
                 if (item.video && item.video.active && item.thumb && item.thumb.active) {
                     item.video.setPosition(item.thumb.x, item.thumb.y);
-                    item.video.setScale(item.thumb.scaleX);
+                    // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
+                  const intrinsicHeight = item.video.height || 720;
+                  const targetHeight = item.thumb.displayHeight * 1.25;
+                  item.video.setScale(targetHeight / intrinsicHeight);
                 }
             });
         }
