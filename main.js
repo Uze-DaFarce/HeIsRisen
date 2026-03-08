@@ -900,7 +900,7 @@ class MapScene extends Phaser.Scene {
       const eggData = this.registry.get('eggData') || [];
       const sectionEggs = eggData.filter(e => e.section === section.name);
       const foundEggs = this.registry.get('foundEggs') || [];
-      const isCompleted = sectionEggs.length > 0 && sectionEggs.every(e => foundEggs.includes(e.id));
+      const isCompleted = sectionEggs.length > 0 && sectionEggs.every(e => foundEggs.some(found => found.eggId === e.eggId));
 
       let stampedSections = this.registry.get('stampedSections') || [];
 

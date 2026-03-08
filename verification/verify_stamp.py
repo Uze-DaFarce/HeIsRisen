@@ -33,13 +33,16 @@ def verify_stamp():
         time.sleep(2)
 
         # Inject completed state directly into the MapScene registry
+        # We must use the correct data structures
         page.evaluate("""
             const mapScene = window.game.scene.scenes.find(s => s.scene.key === 'MapScene');
             if (mapScene) {
-                const eggData = mapScene.registry.get('eggData');
-                if (eggData) {
-                    const gpEggs = eggData.filter(e => e.section === 'grand-prismatic').map(e => e.id);
-                    window.game.scene.scenes[0].registry.set('foundEggs', gpEggs);
+                const eggDataArray = mapScene.registry.get('eggData');
+                if (eggDataArray) {
+                    const gpEggs = eggDataArray.filter(e => e.section === 'grand-prismatic');
+                    // map them to the format foundEggs expects: { eggId: ... }
+                    const formattedGpEggs = gpEggs.map(e => ({ eggId: e.eggId }));
+                    window.game.scene.scenes[0].registry.set('foundEggs', formattedGpEggs);
                     mapScene.scene.restart();
                 }
             }
@@ -86,10 +89,11 @@ def verify_stamp():
         mobile_page.evaluate("""
             const mapSceneM = window.game.scene.scenes.find(s => s.scene.key === 'MapScene');
             if (mapSceneM) {
-                const eggData = mapSceneM.registry.get('eggData');
-                if (eggData) {
-                    const gpEggs = eggData.filter(e => e.section === 'grand-prismatic').map(e => e.id);
-                    window.game.scene.scenes[0].registry.set('foundEggs', gpEggs);
+                const eggDataArray = mapSceneM.registry.get('eggData');
+                if (eggDataArray) {
+                    const gpEggs = eggDataArray.filter(e => e.section === 'grand-prismatic');
+                    const formattedGpEggs = gpEggs.map(e => ({ eggId: e.eggId }));
+                    window.game.scene.scenes[0].registry.set('foundEggs', formattedGpEggs);
                     mapSceneM.scene.restart();
                 }
             }
