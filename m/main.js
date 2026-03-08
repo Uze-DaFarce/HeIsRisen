@@ -421,9 +421,9 @@ class MainMenu extends Phaser.Scene {
       if (Array.isArray(data)) {
         data.forEach(section => {
              // Enqueue thumbnail explicitly
-             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.background}`);
              // Enqueue the first fallback attempt (.jpg)
-             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.background}`);
 
              // Preload video backgrounds
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
@@ -925,19 +925,18 @@ class MapScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5)
         .setInteractive();
 
-      // Use uniform scaling to prevent distortion
-      const targetW = 140 * scale;
-      const baseTextureWidth = thumb.texture.getSourceImage().width || 752;
-      const desiredScale = targetW / baseTextureWidth;
+      // Use uniform scaling specified in map_sections to prevent distortion
+      const targetW = section.coords.width * scale;
+      const targetH = section.coords.height * scale;
 
-      thumb.setScale(desiredScale);
+      thumb.setDisplaySize(targetW, targetH);
 
       thumb.name = section.name;
       thumb.sectionData = section;
 
       // Save original scale for click interactions
-      thumb.baseScaleX = desiredScale;
-      thumb.baseScaleY = desiredScale;
+      thumb.baseScaleX = thumb.scaleX;
+      thumb.baseScaleY = thumb.scaleY;
 
       addButtonInteraction(this, thumb, 'drive1');
 
@@ -2244,14 +2243,13 @@ function resizeGame() {
 
             section.zone.setPosition(thumbX, thumbY);
 
-            const targetW = 140 * scale;
-            const baseTextureWidth = section.zone.texture.getSourceImage().width || 752;
-            const desiredScale = targetW / baseTextureWidth;
+            const targetW = section.coords.width * scale;
+            const targetH = section.coords.height * scale;
 
-            section.zone.setScale(desiredScale);
+            section.zone.setDisplaySize(targetW, targetH);
 
-            section.zone.baseScaleX = desiredScale;
-            section.zone.baseScaleY = desiredScale;
+            section.zone.baseScaleX = section.zone.scaleX;
+            section.zone.baseScaleY = section.zone.scaleY;
           }
         });
 

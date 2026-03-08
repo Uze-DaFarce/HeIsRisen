@@ -1,57 +1,112 @@
 [
-    {
-      "name": "mammoth-hot-springs",
-      "coords": { "x": 427, "y": 29, "width": 90, "height": 94 },
-      "background": "mammoth-hot-springs.svg"
+  {
+    "name": "mammoth-hot-springs",
+    "coords": {
+      "x": 373,
+      "y": 21,
+      "width": 199,
+      "height": 110
     },
-    {
-      "name": "yellowstone-geology",
-      "coords": { "x": 584, "y": 130, "width": 68, "height": 68 },
-      "background": "yellowstone-geology.svg"
+    "background": "mammoth-hot-springs.jpg"
+  },
+  {
+    "name": "yellowstone-geology",
+    "coords": {
+      "x": 537,
+      "y": 109,
+      "width": 163,
+      "height": 110
     },
-    {
-      "name": "norris-geyser-basin",
-      "coords": { "x": 451, "y": 224, "width": 81, "height": 82 },
-      "background": "norris-geyser-basin.svg"
+    "background": "yellowstone-geology.jpg"
+  },
+  {
+    "name": "norris-geyser-basin",
+    "coords": {
+      "x": 392,
+      "y": 210,
+      "width": 199,
+      "height": 110
     },
-    {
-      "name": "grand-canyon-yellowstone",
-      "coords": { "x": 661, "y": 239, "width": 81, "height": 85 },
-      "background": "grand-canyon-yellowstone.svg"
+    "background": "norris-geyser-basin.jpg"
+  },
+  {
+    "name": "grand-canyon-yellowstone",
+    "coords": {
+      "x": 620,
+      "y": 227,
+      "width": 163,
+      "height": 110
     },
-    {
-      "name": "yellowstone-wildlife",
-      "coords": { "x": 777, "y": 224, "width": 68, "height": 68 },
-      "background": "yellowstone-wildlife.svg"
+    "background": "grand-canyon-yellowstone.jpg"
+  },
+  {
+    "name": "yellowstone-wildlife",
+    "coords": {
+      "x": 730,
+      "y": 203,
+      "width": 163,
+      "height": 110
     },
-    {
-      "name": "grand-prismatic",
-      "coords": { "x": 369, "y": 359, "width": 84, "height": 87 },
-      "background": "grand-prismatic.svg"
+    "background": "yellowstone-wildlife.jpg"
+  },
+  {
+    "name": "grand-prismatic",
+    "coords": {
+      "x": 312,
+      "y": 348,
+      "width": 199,
+      "height": 110
     },
-    {
-      "name": "yellowstone-hydrothermal",
-      "coords": { "x": 469, "y": 399, "width": 78, "height": 78 },
-      "background": "yellowstone-hydrothermal.svg"
+    "background": "grand-prismatic.jpg"
+  },
+  {
+    "name": "yellowstone-hydrothermal",
+    "coords": {
+      "x": 409,
+      "y": 383,
+      "width": 199,
+      "height": 110
     },
-    {
-      "name": "yellowstone-history",
-      "coords": { "x": 748, "y": 438, "width": 70, "height": 70 },
-      "background": "yellowstone-history.svg"
+    "background": "yellowstone-hydrothermal.jpg"
+  },
+  {
+    "name": "yellowstone-history",
+    "coords": {
+      "x": 684,
+      "y": 418,
+      "width": 199,
+      "height": 110
     },
-    {
-      "name": "old-faithful",
-      "coords": { "x": 394, "y": 467, "width": 88, "height": 88 },
-      "background": "oldfaithful.svg"
+    "background": "yellowstone-history.jpg"
+  },
+  {
+    "name": "old-faithful",
+    "coords": {
+      "x": 357,
+      "y": 456,
+      "width": 163,
+      "height": 110
     },
-    {
-      "name": "west-thumb-geyser-basin",
-      "coords": { "x": 586, "y": 491, "width": 86, "height": 89 },
-      "background": "west-thumb-geyser-basin.svg"
+    "background": "old-faithful.jpg"
+  },
+  {
+    "name": "west-thumb-geyser-basin",
+    "coords": {
+      "x": 530,
+      "y": 481,
+      "width": 199,
+      "height": 110
     },
-    {
-      "name": "yellowstone-preservation",
-      "coords": { "x": 369, "y": 608, "width": 70, "height": 70 },
-      "background": "yellowstone-preservation.svg"
-    }
-  ]
+    "background": "west-thumb-geyser-basin.jpg"
+  },
+  {
+    "name": "yellowstone-preservation",
+    "coords": {
+      "x": 305,
+      "y": 588,
+      "width": 199,
+      "height": 110
+    },
+    "background": "yellowstone-preservation.jpg"
+  }
+]
