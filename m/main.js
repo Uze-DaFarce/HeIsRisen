@@ -81,17 +81,19 @@ class UIScene extends Phaser.Scene {
     this.createGearIcon();
     this.createSettingsPanel();
 
-    // Add ESC and ENTER key support to close settings
-    const closeSettings = () => {
+    // Add ESC and ENTER key support to toggle settings
+    const toggleSettings = () => {
         if (this.settingsContainer && this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
             if (this.gearIcon) this.gearIcon.setVisible(true);
             this.input.setDefaultCursor('none');
+        } else {
+            this.openSettings();
         }
     };
     if (this.input.keyboard) {
-        this.input.keyboard.on('keydown-ESC', closeSettings);
-        this.input.keyboard.on('keydown-ENTER', closeSettings);
+        this.input.keyboard.on('keydown-ESC', toggleSettings);
+        this.input.keyboard.on('keydown-ENTER', () => { if (this.settingsContainer && this.settingsContainer.visible) toggleSettings(); });
     }
 
     // Listen for resize events to update UI positions
