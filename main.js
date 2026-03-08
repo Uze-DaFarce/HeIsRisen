@@ -423,14 +423,14 @@ class MainMenu extends Phaser.Scene {
       if (Array.isArray(data)) {
         data.forEach(section => {
              // Enqueue thumbnail (.jpg) explicitly as thumb to avoid fallback errors
-             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.background}`);
              // Keep the fallback key mapping to the same jpg, but thumb is cleaner for map.
-             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.background}`);
 
              // Preload video backgrounds
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
         });
-        // console.log(`MainMenu: Queued ${data.length} section SVGs and Videos for loading.`);
+        // console.log(`MainMenu: Queued ${data.length} section backgrounds and Videos for loading.`);
       }
     });
 
@@ -916,7 +916,9 @@ class MapScene extends Phaser.Scene {
 
               const updateStampSize = () => {
                   stampVideo.setPosition(thumb.x, thumb.y);
-                  stampVideo.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
+
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampVideo.setScale(thumb.scaleX);
               };
               updateStampSize();
 
@@ -935,10 +937,10 @@ class MapScene extends Phaser.Scene {
               stampVideo.on('complete', () => {
                   const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
                   stampImg.setDepth(2);
-                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
-                  stampImg.disableInteractive();
-                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampImg.setScale(thumb.scaleX);
+                  stampImg.disableInteractive();
                   // Replace in resize array so window resizing still works
                   const idx = this.stamps.findIndex(s => s.video === stampVideo);
                   if (idx !== -1) {
@@ -953,11 +955,11 @@ class MapScene extends Phaser.Scene {
               stampImg.setOrigin(0.5, 0.5);
               stampImg.setDepth(2);
               stampImg.disableInteractive();
-                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
-
-              const updateStampSize = () => {
+                  const updateStampSize = () => {
                   stampImg.setPosition(thumb.x, thumb.y);
-                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
+
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampImg.setScale(thumb.scaleX);
               };
               updateStampSize();
 
@@ -1023,15 +1025,12 @@ class MapScene extends Phaser.Scene {
 
               thumb.setPosition(offsetX + centerX * scale, offsetY + centerY * scale);
 
-              // The videos/thumbnails are 752x416. To fit in the larger ~140px circle on base scale,
-              // we need a display width of roughly 140 * scale to cover it comfortably.
-              const targetW = 140 * scale;
-              // We maintain the natural aspect ratio to avoid distortion.
-              // Wait, instead of calculating height manually, we can just use setScale directly.
-              const baseTextureWidth = thumb.texture.getSourceImage().width || 752; // Usually 752 or 688
-              const desiredScale = targetW / baseTextureWidth;
+              // We use the custom width and height properties specified in map_sections.json
+              // to accurately set the size of each thumbnail while maintaining proper ratio.
+              const targetW = d.width * scale;
+              const targetH = d.height * scale;
 
-              thumb.setScale(desiredScale);
+              thumb.setDisplaySize(targetW, targetH);
 
               // Update base scale for hover animations AFTER scaling
               thumb.baseScale = thumb.scaleX;
@@ -1042,7 +1041,7 @@ class MapScene extends Phaser.Scene {
           this.stamps.forEach(item => {
               if (item.video && item.video.active && item.thumb && item.thumb.active) {
                   item.video.setPosition(item.thumb.x, item.thumb.y);
-                  item.video.setDisplaySize(item.thumb.displayWidth, item.thumb.displayHeight);
+                  item.video.setScale(item.thumb.scaleX);
               }
           });
       }

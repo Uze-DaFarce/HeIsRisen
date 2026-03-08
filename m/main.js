@@ -421,9 +421,9 @@ class MainMenu extends Phaser.Scene {
       if (Array.isArray(data)) {
         data.forEach(section => {
              // Enqueue thumbnail explicitly
-             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-thumb`, `assets/map/sections/${section.background}`);
              // Enqueue the first fallback attempt (.jpg)
-             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.name}.jpg`);
+             this.load.image(`${section.name}-fallback`, `assets/map/sections/${section.background}`);
 
              // Preload video backgrounds
              this.load.video(`${section.name}-video`, `assets/video/${section.name}.mp4`);
@@ -925,19 +925,18 @@ class MapScene extends Phaser.Scene {
         .setOrigin(0.5, 0.5)
         .setInteractive();
 
-      // Use uniform scaling to prevent distortion
-      const targetW = 140 * scale;
-      const baseTextureWidth = thumb.texture.getSourceImage().width || 752;
-      const desiredScale = targetW / baseTextureWidth;
+      // Use uniform scaling specified in map_sections to prevent distortion
+      const targetW = section.coords.width * scale;
+      const targetH = section.coords.height * scale;
 
-      thumb.setScale(desiredScale);
+      thumb.setDisplaySize(targetW, targetH);
 
       thumb.name = section.name;
       thumb.sectionData = section;
 
       // Save original scale for click interactions
-      thumb.baseScaleX = desiredScale;
-      thumb.baseScaleY = desiredScale;
+      thumb.baseScaleX = thumb.scaleX;
+      thumb.baseScaleY = thumb.scaleY;
 
       addButtonInteraction(this, thumb, 'drive1');
 
@@ -968,7 +967,9 @@ class MapScene extends Phaser.Scene {
 
               const updateStampSize = () => {
                   stampVideo.setPosition(thumb.x, thumb.y);
-                  stampVideo.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
+
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampVideo.setScale(thumb.scaleX);
               };
               updateStampSize();
 
@@ -987,10 +988,10 @@ class MapScene extends Phaser.Scene {
               stampVideo.on('complete', () => {
                   const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
                   stampImg.setDepth(2);
-                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
-                  stampImg.disableInteractive();
-                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampImg.setScale(thumb.scaleX);
+                  stampImg.disableInteractive();
                   // Replace in resize array so window resizing still works
                   const idx = this.stamps.findIndex(s => s.video === stampVideo);
                   if (idx !== -1) {
@@ -1005,11 +1006,11 @@ class MapScene extends Phaser.Scene {
               stampImg.setOrigin(0.5, 0.5);
               stampImg.setDepth(2);
               stampImg.disableInteractive();
-                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
-
-              const updateStampSize = () => {
+                  const updateStampSize = () => {
                   stampImg.setPosition(thumb.x, thumb.y);
-                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
+
+                  // Apply the identical scale multiplier that the thumbnail is using
+                  stampImg.setScale(thumb.scaleX);
               };
               updateStampSize();
 
@@ -2247,14 +2248,13 @@ function resizeGame() {
 
             section.zone.setPosition(thumbX, thumbY);
 
-            const targetW = 140 * scale;
-            const baseTextureWidth = section.zone.texture.getSourceImage().width || 752;
-            const desiredScale = targetW / baseTextureWidth;
+            const targetW = section.coords.width * scale;
+            const targetH = section.coords.height * scale;
 
-            section.zone.setScale(desiredScale);
+            section.zone.setDisplaySize(targetW, targetH);
 
-            section.zone.baseScaleX = desiredScale;
-            section.zone.baseScaleY = desiredScale;
+            section.zone.baseScaleX = section.zone.scaleX;
+            section.zone.baseScaleY = section.zone.scaleY;
           }
         });
 
@@ -2262,7 +2262,7 @@ function resizeGame() {
             scene.stamps.forEach(item => {
                 if (item.video && item.video.active && item.thumb && item.thumb.active) {
                     item.video.setPosition(item.thumb.x, item.thumb.y);
-                    item.video.setDisplaySize(item.thumb.displayWidth, item.thumb.displayHeight);
+                    item.video.setScale(item.thumb.scaleX);
                 }
             });
         }
