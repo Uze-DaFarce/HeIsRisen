@@ -7,9 +7,9 @@ const TOTAL_EGGS = 60;
 class MusicScene extends Phaser.Scene {
   constructor() {
     super({ key: 'MusicScene' });
-    this.musicVolume = 0.5;
-    this.ambientVolume = 0.5;
-    this.sfxVolume = 0.5;
+    this.musicVolume = localStorage.getItem('musicVolume') !== null ? parseFloat(localStorage.getItem('musicVolume')) : 0.5;
+    this.ambientVolume = localStorage.getItem('ambientVolume') !== null ? parseFloat(localStorage.getItem('ambientVolume')) : 0.5;
+    this.sfxVolume = localStorage.getItem('sfxVolume') !== null ? parseFloat(localStorage.getItem('sfxVolume')) : 0.5;
   }
 
   create() {
@@ -367,6 +367,8 @@ class MainMenu extends Phaser.Scene {
     this.load.json('symbols', 'assets/symbols.json');
     this.load.json('map_sections', 'assets/map/map_sections.json'); // NEW: Preload map_sections.json
     this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
+    this.load.video('level-complete', 'assets/video/level-complete.mp4');
+    this.load.image('level-complete-stamp', 'assets/images/level-complete-stamp.png');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Audio assets
@@ -457,6 +459,8 @@ class MainMenu extends Phaser.Scene {
       // NEW: Initialize all game variables
       // console.log('MainMenu: Initializing game state');
       this.registry.set('foundEggs', []);
+      const savedStampedSections = localStorage.getItem('stampedSections');
+      this.registry.set('stampedSections', savedStampedSections ? JSON.parse(savedStampedSections) : []);
       this.registry.set('correctCategorizations', 0);
       this.registry.set('currentScore', 0);
 
@@ -943,6 +947,71 @@ class MapScene extends Phaser.Scene {
       });
 
       this.mapZones.push(thumb);
+
+      // Level Complete Stamp Logic
+      const eggData = this.registry.get('eggData') || [];
+      const sectionEggs = eggData.filter(e => e.section === section.name);
+      const foundEggs = this.registry.get('foundEggs') || [];
+      const isCompleted = sectionEggs.length > 0 && sectionEggs.every(e => foundEggs.includes(e.id));
+
+      let stampedSections = this.registry.get('stampedSections') || [];
+
+      if (isCompleted) {
+          if (!stampedSections.includes(section.name)) {
+              // FIRST TIME COMPLETE: Play the video
+              const stampVideo = this.add.video(thumb.x, thumb.y, 'level-complete');
+              stampVideo.setDepth(2);
+              stampVideo.disableInteractive();
+
+              const updateStampSize = () => {
+                  stampVideo.setPosition(thumb.x, thumb.y);
+                  stampVideo.setScale(thumb.scale);
+              };
+              updateStampSize();
+
+              if (!this.stamps) this.stamps = [];
+              this.stamps.push({ video: stampVideo, thumb: thumb });
+
+              const sfxVol = this.registry.get('sfxVolume') !== undefined ? this.registry.get('sfxVolume') : 0.5;
+              stampVideo.setVolume(sfxVol);
+              stampVideo.play();
+
+              stampedSections.push(section.name);
+              this.registry.set('stampedSections', stampedSections);
+              localStorage.setItem('stampedSections', JSON.stringify(stampedSections));
+
+              // Swap to image when video finishes to free memory
+              stampVideo.on('complete', () => {
+                  const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
+                  stampImg.setDepth(2);
+                  stampImg.setScale(thumb.scale);
+                  stampImg.disableInteractive();
+
+                  // Replace in resize array so window resizing still works
+                  const idx = this.stamps.findIndex(s => s.video === stampVideo);
+                  if (idx !== -1) {
+                      this.stamps[idx] = { video: stampImg, thumb: thumb };
+                  }
+                  stampVideo.destroy();
+              });
+
+          } else {
+              // ALREADY COMPLETED: Show static image directly
+              const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
+              stampImg.setDepth(2);
+              stampImg.disableInteractive();
+
+              const updateStampSize = () => {
+                  stampImg.setPosition(thumb.x, thumb.y);
+                  stampImg.setScale(thumb.scale);
+              };
+              updateStampSize();
+
+              if (!this.stamps) this.stamps = [];
+              // We use "video: stampImg" so the generic resize loop works identically
+              this.stamps.push({ video: stampImg, thumb: thumb });
+          }
+      }
       section.zone = thumb; // keep reference for resize
     });
     this.mapSections = mapSections;
