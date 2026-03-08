@@ -81,17 +81,19 @@ class UIScene extends Phaser.Scene {
     this.createGearIcon();
     this.createSettingsPanel();
 
-    // Add ESC and ENTER key support to close settings
-    const closeSettings = () => {
+    // Add ESC and ENTER key support to toggle settings
+    const toggleSettings = () => {
         if (this.settingsContainer && this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
             if (this.gearIcon) this.gearIcon.setVisible(true);
             this.input.setDefaultCursor('none');
+        } else {
+            this.openSettings();
         }
     };
     if (this.input.keyboard) {
-        this.input.keyboard.on('keydown-ESC', closeSettings);
-        this.input.keyboard.on('keydown-ENTER', closeSettings);
+        this.input.keyboard.on('keydown-ESC', toggleSettings);
+        this.input.keyboard.on('keydown-ENTER', () => { if (this.settingsContainer && this.settingsContainer.visible) toggleSettings(); });
     }
 
     // Listen for resize events to update UI positions
@@ -954,6 +956,7 @@ class MapScene extends Phaser.Scene {
       .setInteractive();
 
     addButtonInteraction(this, this.eggsAmminHaul, 'menu-click');
+    addTooltip(this, this.eggsAmminHaul, 'View Collection');
 
     // Delayed transition
     this.eggsAmminHaul.on('pointerdown', () => {
@@ -1383,6 +1386,7 @@ class SectionHunt extends Phaser.Scene {
       .setDepth(4)
       .setScrollFactor(0);
     addButtonInteraction(this, this.eggZitButton, 'drive1');
+    addTooltip(this, this.eggZitButton, 'Back to Map');
 
     this.eggsAmminHaul = this.add.image(0, 350 * scale, 'eggs-ammin-haul')
       .setOrigin(0, 0)
@@ -1785,10 +1789,12 @@ class EggZamRoom extends Phaser.Scene {
     this.leftBottleZone = this.add.zone(examinerX, zoneY, zoneWidth, zoneHeight)
       .setOrigin(0, 0)
       .setInteractive();
+    this.leftBottleZone.input.cursor = 'pointer';
 
     this.rightBottleZone = this.add.zone(examinerX + zoneWidth, zoneY, zoneWidth, zoneHeight)
       .setOrigin(0, 0)
       .setInteractive();
+    this.rightBottleZone.input.cursor = 'pointer';
 
     const showExplanation = (isCorrect, guessText) => {
         if (isCorrect) {
@@ -1889,6 +1895,9 @@ class EggZamRoom extends Phaser.Scene {
             });
         });
     };
+
+    addTooltip(this, this.leftBottleZone, 'Christian');
+    addTooltip(this, this.rightBottleZone, 'Worldly / Pagan');
 
     this.leftBottleZone.on('pointerdown', () => {
       if (this.currentEgg && !this.currentEgg.categorized && !this.explanationText?.active) {
@@ -2030,6 +2039,74 @@ window.game = game; // Expose for debugging/verification
 /**
  * Parses a scripture string (e.g., "John 3:16" or "1 Peter 2:4") into a URL.
  */
+function addTooltip(scene, object, text) {
+  let tooltipContainer = null;
+
+  object.on('pointerover', (pointer) => {
+    if (tooltipContainer) return;
+
+    const padding = 8;
+    const style = {
+      fontSize: '16px',
+      fontFamily: 'Comic Sans MS',
+      fill: '#ffffff'
+    };
+
+    const textObj = scene.add.text(0, 0, text, style);
+    const width = textObj.width + padding * 2;
+    const height = textObj.height + padding * 2;
+
+    const bg = scene.add.graphics();
+    bg.fillStyle(0x000000, 0.8);
+    bg.fillRoundedRect(-width/2, -height/2, width, height, 5);
+
+    textObj.setOrigin(0.5, 0.5);
+
+    // Position slightly above the pointer
+    // Use pointer.x/y for screen coordinates since tooltip is fixed to screen
+    tooltipContainer = scene.add.container(pointer.x, pointer.y - 30, [bg, textObj]);
+    tooltipContainer.setDepth(1000);
+    tooltipContainer.setScrollFactor(0);
+
+    // Basic bounds check
+    const cam = scene.cameras.main;
+    if (tooltipContainer.x + width/2 > cam.width) {
+        tooltipContainer.x = cam.width - width/2 - 5;
+    }
+    if (tooltipContainer.x - width/2 < 0) {
+        tooltipContainer.x = width/2 + 5;
+    }
+    if (tooltipContainer.y - height/2 < 0) {
+        tooltipContainer.y = pointer.y + 40; // Flip below
+    }
+  });
+
+  object.on('pointermove', (pointer) => {
+    if (tooltipContainer) {
+        tooltipContainer.setPosition(pointer.x, pointer.y - 30);
+
+        const height = tooltipContainer.getBounds().height;
+        if (pointer.y - 30 - height/2 < 0) {
+             tooltipContainer.y = pointer.y + 40;
+        }
+    }
+  });
+
+  object.on('pointerout', () => {
+    if (tooltipContainer) {
+      tooltipContainer.destroy();
+      tooltipContainer = null;
+    }
+  });
+
+  object.once('destroy', () => {
+      if (tooltipContainer) {
+          tooltipContainer.destroy();
+          tooltipContainer = null;
+      }
+  });
+}
+
 function parseScriptureLink(scriptureText) {
     if (!scriptureText) return null;
 
@@ -2074,6 +2151,7 @@ function parseScriptureLink(scriptureText) {
  * @param {string} [soundKey='success'] - The key of the sound to play on click.
  */
 function addButtonInteraction(scene, button, soundKey = 'success') {
+  if (button.input) button.input.cursor = 'pointer';
   button.on('pointerdown', () => {
     // Try to play sound via MusicScene if available to ensure persistence
     const musicScene = scene.scene.get('MusicScene');

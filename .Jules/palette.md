@@ -17,3 +17,7 @@
 ## 2026-03-02 - Keyboard Accessibility Parity on Mobile
 **Learning:** Dismissing overlays or modals via keyboard commands (like `ESC`) is frequently missed on "mobile" environments where touch is presumed to be the only input. However, on tablets or mobile web views attached to external keyboards, the absence of basic keyboard navigation feels broken. Parity with the desktop codebase on core keyboard interactions is essential.
 **Action:** Ensure standard keyboard dismiss handlers (`ESC`, `ENTER` for modals) are consistently applied across both desktop and mobile scenes.
+
+## 2026-03-07 - Modal Settings Layout and Toggles
+**Learning:** Hardcoding a settings UI modal size and attempting to scale it arbitrarily across viewports causes cutoffs and bleeding edges, especially when the background shadow overlays fail to match the resized container bounds. Using a toggle explicitly tied to keyboard interactions (ESC/ENTER) significantly speeds up user flow vs a strict close-only behavior.
+**Action:** Always rebuild settings and overlay UI containers using `Math.min(maxSize, currentSize)` constraints dynamically whenever `resize` events fire, rather than scaling pre-built components. Bind both open and close behaviors (toggles) to common access keys (ESC).
