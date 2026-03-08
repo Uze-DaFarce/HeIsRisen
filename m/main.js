@@ -963,6 +963,7 @@ class MapScene extends Phaser.Scene {
               stampVideo.setOrigin(0.5, 0.5);
               stampVideo.setDepth(2);
               stampVideo.disableInteractive();
+              stampVideo.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
               const updateStampSize = () => {
                   stampVideo.setPosition(thumb.x, thumb.y);
@@ -987,6 +988,7 @@ class MapScene extends Phaser.Scene {
                   stampImg.setDepth(2);
                   stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
                   stampImg.disableInteractive();
+                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
                   // Replace in resize array so window resizing still works
                   const idx = this.stamps.findIndex(s => s.video === stampVideo);
@@ -1002,6 +1004,7 @@ class MapScene extends Phaser.Scene {
               stampImg.setOrigin(0.5, 0.5);
               stampImg.setDepth(2);
               stampImg.disableInteractive();
+                  stampImg.setBlendMode(Phaser.BlendModes.MULTIPLY);
 
               const updateStampSize = () => {
                   stampImg.setPosition(thumb.x, thumb.y);
