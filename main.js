@@ -111,19 +111,17 @@ class UIScene extends Phaser.Scene {
     this.createGearIcon();
     this.createSettingsPanel();
 
-    // Add ESC key support to toggle settings
-    const toggleSettings = () => {
+    // Add ESC key support
+    const closeSettings = () => {
         if (this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
             this.gearIcon.setVisible(true);
             this.gearIcon.setScale(1);
             this.input.setDefaultCursor('none');
-        } else {
-            this.openSettings();
         }
     };
-    this.input.keyboard.on('keydown-ESC', toggleSettings);
-    this.input.keyboard.on('keydown-ENTER', () => { if (this.settingsContainer.visible) toggleSettings(); });
+    this.input.keyboard.on('keydown-ESC', closeSettings);
+    this.input.keyboard.on('keydown-ENTER', closeSettings);
 
     this.scale.on('resize', this.resize, this);
   }
@@ -138,10 +136,13 @@ class UIScene extends Phaser.Scene {
       }
 
       if (this.settingsContainer) {
-          const isVisible = this.settingsContainer.visible;
-          this.settingsContainer.removeAll(true);
-          this.createSettingsPanelContent(width, height);
-          this.settingsContainer.setVisible(isVisible);
+          // Re-center settings panel
+          this.settingsContainer.getAll().forEach(child => {
+              // Update overlay
+              if (child.width === this.cameras.main.width && child.height === this.cameras.main.height) {
+                  child.setSize(width, height);
+              }
+          });
       }
   }
 
@@ -186,36 +187,27 @@ class UIScene extends Phaser.Scene {
   }
 
   createSettingsPanel() {
+    const width = 500;
+    const height = 500;
+    const x = (this.cameras.main.width - width) / 2;
+    const y = (this.cameras.main.height - height) / 2;
+
     this.settingsContainer = this.add.container(0, 0).setVisible(false).setDepth(100);
-    this.createSettingsPanelContent(this.cameras.main.width, this.cameras.main.height);
-  }
 
-  createSettingsPanelContent(screenWidth, screenHeight) {
-    const maxWidth = 500;
-    const maxHeight = 500;
-    const margin = 20;
-
-    // Scale constraints
-    const width = Math.min(maxWidth, screenWidth - margin * 2);
-    const height = Math.min(maxHeight, screenHeight - margin * 2);
-
-    const x = (screenWidth - width) / 2;
-    const y = (screenHeight - height) / 2;
-
-    // Overlay to block clicks and dim background
-    const overlay = this.add.rectangle(0, 0, screenWidth, screenHeight, 0x000000, 0.7)
+    // Overlay
+    const overlay = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0.7)
         .setOrigin(0)
-        .setInteractive();
+        .setInteractive(); // Block clicks
 
     this.settingsContainer.add(overlay);
 
-    // Panel background
-    const panel = this.add.rectangle(screenWidth / 2, screenHeight / 2, width, height, 0x333333)
+    // Panel
+    const panel = this.add.rectangle(this.cameras.main.width / 2, this.cameras.main.height / 2, width, height, 0x333333)
         .setStrokeStyle(4, 0xffffff);
     this.settingsContainer.add(panel);
 
     // Title
-    const title = this.add.text(screenWidth / 2, y + 40, 'Audio Settings', {
+    const title = this.add.text(this.cameras.main.width / 2, y + 50, 'Audio Settings', {
         fontSize: '32px',
         fontFamily: 'Comic Sans MS',
         fill: '#ffffff'
@@ -229,11 +221,12 @@ class UIScene extends Phaser.Scene {
 
     const closeBtn = this.add.container(closeX, closeY);
     const closeBg = this.add.graphics();
-    closeBg.fillStyle(0xff4444, 1);
+    closeBg.fillStyle(0xff4444, 1); // Reddish
     closeBg.fillCircle(0, 0, closeSize / 2);
     closeBg.lineStyle(2, 0xffffff, 1);
     closeBg.strokeCircle(0, 0, closeSize / 2);
 
+    // Draw X
     const xSize = closeSize / 4;
     closeBg.lineStyle(3, 0xffffff, 1);
     closeBg.beginPath();
@@ -247,14 +240,27 @@ class UIScene extends Phaser.Scene {
     closeBtn.setSize(closeSize, closeSize);
     closeBtn.setInteractive(new Phaser.Geom.Circle(0, 0, closeSize / 2), Phaser.Geom.Circle.Contains);
 
+    // Hover effects
     closeBtn.on('pointerover', () => {
         this.input.setDefaultCursor('pointer');
-        this.tweens.add({ targets: closeBtn, scaleX: 1.1, scaleY: 1.1, duration: 100, ease: 'Sine.easeInOut' });
+        this.tweens.add({
+            targets: closeBtn,
+            scaleX: 1.1,
+            scaleY: 1.1,
+            duration: 100,
+            ease: 'Sine.easeInOut'
+        });
     });
 
     closeBtn.on('pointerout', () => {
         this.input.setDefaultCursor('default');
-        this.tweens.add({ targets: closeBtn, scaleX: 1.0, scaleY: 1.0, duration: 100, ease: 'Sine.easeInOut' });
+        this.tweens.add({
+            targets: closeBtn,
+            scaleX: 1.0,
+            scaleY: 1.0,
+            duration: 100,
+            ease: 'Sine.easeInOut'
+        });
     });
 
     closeBtn.on('pointerdown', () => {
@@ -265,19 +271,16 @@ class UIScene extends Phaser.Scene {
     });
     this.settingsContainer.add(closeBtn);
 
-    // Dynamic Spacing for Sliders
-    const contentTop = y + 80;
-    const contentHeight = height - 100;
-    const spacing = contentHeight / 3;
-    const trackWidth = Math.min(200, width - 60);
-
-    this.createSlider('Music', contentTop + spacing * 0.5, screenWidth / 2, 'music', trackWidth);
-    this.createSlider('Ambient', contentTop + spacing * 1.5, screenWidth / 2, 'ambient', trackWidth);
-    this.createSlider('SFX', contentTop + spacing * 2.5, screenWidth / 2, 'sfx', trackWidth);
+    // Sliders
+    this.createSlider('Music', y + 150, 'music');
+    this.createSlider('Ambient', y + 250, 'ambient');
+    this.createSlider('SFX', y + 350, 'sfx');
   }
-  createSlider(label, y, centerX, type, trackWidth = 200) {
-    const startX = centerX - (trackWidth / 2);
-    const endX = centerX + (trackWidth / 2);
+
+  createSlider(label, y, type) {
+    const centerX = this.cameras.main.width / 2;
+    const startX = centerX - 100;
+    const endX = centerX + 100;
 
     const text = this.add.text(centerX, y - 30, label, {
         fontSize: '24px',
@@ -286,14 +289,17 @@ class UIScene extends Phaser.Scene {
     }).setOrigin(0.5);
     this.settingsContainer.add(text);
 
-    const trackHitArea = this.add.rectangle(centerX, y + 10, trackWidth, 60, 0x888888, 0).setInteractive({ cursor: 'pointer' });
+    // Invisible hit area for easier clicking on track (increased height to 60)
+    const trackHitArea = this.add.rectangle(centerX, y + 10, 200, 60, 0x888888, 0).setInteractive({ cursor: 'pointer' });
     this.settingsContainer.add(trackHitArea);
-    this.settingsContainer.add(this.add.rectangle(centerX, y + 10, trackWidth, 4, 0x888888));
+    this.settingsContainer.add(this.add.rectangle(centerX, y + 10, 200, 4, 0x888888));
 
+    // Handle
     let currentVol = 0.5;
     if (this.registry.has(`${type}Volume`)) currentVol = this.registry.get(`${type}Volume`);
 
-    const handleContainer = this.add.container(startX + (currentVol * trackWidth), y + 10);
+    // Wrap handle in a container to enlarge hit area (30 radius) like mobile
+    const handleContainer = this.add.container(startX + (currentVol * 200), y + 10);
     handleContainer.setSize(60, 60);
     handleContainer.setInteractive(new Phaser.Geom.Circle(0, 0, 30), Phaser.Geom.Circle.Contains);
     this.input.setDraggable(handleContainer);
@@ -306,7 +312,7 @@ class UIScene extends Phaser.Scene {
     const updateVolume = (x) => {
         const clampedX = Phaser.Math.Clamp(x, startX, endX);
         handleContainer.x = clampedX;
-        this.registry.set(`${type}Volume`, (clampedX - startX) / trackWidth);
+        this.registry.set(`${type}Volume`, (clampedX - startX) / 200);
     };
 
     handleContainer.on('drag', (p, x) => updateVolume(x));
@@ -1805,19 +1811,34 @@ class EggZamRoom extends Phaser.Scene {
 
     if (this.currentEgg) {
       const { eggId, symbolData } = this.currentEgg;
-      const eggPosX = offsetX + 630 * scale;
-      const eggPosY = offsetY + 350 * scale;
-      const symbolPosX = eggPosX;
-      const symbolPosY = eggPosY;
+      const isDesktop = this.sys.game.device.os.desktop;
+      const width = this.scale.width;
+      const height = this.scale.height;
+      const scaleX = width / 1280;
+      const scaleY = height / 720;
+      const scale = Math.min(scaleX, scaleY);
+      const assetScale = isDesktop ? scale : scale * 2;
+
+      const windowCenterX = 196 * assetScale;
+      const windowBottomY = 190 * assetScale;
+      const eggHeight = 125 * assetScale;
+      const symbolHeight = 125 * assetScale;
+
+      const eggPosX = this.examiner.x + windowCenterX;
+      const eggPosY = this.examiner.y + windowBottomY - (eggHeight / 2);
+      const symbolPosX = this.examiner.x + windowCenterX;
+      const symbolPosY = this.examiner.y + windowBottomY - (symbolHeight / 2);
 
       if (this.textures.exists(`egg-${eggId}`)) {
         this.displayedEggImage = this.add.image(eggPosX, eggPosY, `egg-${eggId}`)
-          .setDisplaySize(100 * scale, 125 * scale)
+          .setOrigin(0.5, 0.5)
+          .setDisplaySize(100 * assetScale, 125 * assetScale)
           .setDepth(3);
       }
       if (symbolData && symbolData.filename && this.textures.exists(symbolData.filename)) {
         this.displayedSymbolImage = this.add.image(symbolPosX, symbolPosY, symbolData.filename)
-          .setDisplaySize(100 * scale, 125 * scale)
+          .setOrigin(0.5, 0.5)
+          .setDisplaySize(100 * assetScale, 125 * assetScale)
           .setDepth(3);
       }
     }
