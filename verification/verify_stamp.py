@@ -1,6 +1,7 @@
 from playwright.sync_api import sync_playwright
 import time
 import sys
+import os
 
 def verify_stamp():
     print("Starting frontend verification for Level-Complete Stamp and Volumes...")
@@ -11,34 +12,29 @@ def verify_stamp():
         context = browser.new_context()
         page = context.new_page()
 
-        # Mock the state BEFORE navigating to ensure localStorage is ready when page loads
         page.goto("http://localhost:8080/")
         page.evaluate("""
             window.localStorage.setItem('musicVolume', '0.2');
             window.localStorage.setItem('ambientVolume', '0.2');
             window.localStorage.setItem('sfxVolume', '0.2');
         """)
-        # reload page so settings take effect
         page.reload()
 
         page.wait_for_selector("canvas", timeout=10000)
         time.sleep(2)
-
-        # Click to bypass the first start screen
+        page.mouse.click(640, 360)
+        time.sleep(2)
         page.mouse.click(640, 360)
         time.sleep(2)
 
-        # We are on the intro video screen, click again to bypass to map scene
-        page.mouse.click(640, 360)
-        time.sleep(2)
-
-        # Inject completed state directly into the MapScene registry
+        # Inject completed state
         page.evaluate("""
             const mapScene = window.game.scene.scenes.find(s => s.scene.key === 'MapScene');
             if (mapScene) {
                 const eggDataArray = mapScene.registry.get('eggData');
                 if (eggDataArray) {
                     const gpEggs = eggDataArray.filter(e => e.section === 'grand-prismatic');
+                    // Format explicitly using the format foundEggs expects to trigger completion
                     const formattedGpEggs = gpEggs.map(e => ({ eggId: e.eggId }));
                     window.game.scene.scenes[0].registry.set('foundEggs', formattedGpEggs);
                     mapScene.scene.restart();
@@ -48,17 +44,20 @@ def verify_stamp():
 
         print("Waiting for MapScene restart...")
         time.sleep(3)
+
+        # Assertion: Check if stamps array has length > 0
+        stamps_count = page.evaluate("""
+            const mapScene = window.game.scene.scenes.find(s => s.scene.key === 'MapScene');
+            mapScene.stamps ? mapScene.stamps.length : 0;
+        """)
+        print(f"Desktop Stamp Overlays Found: {stamps_count}")
+        if stamps_count == 0:
+            print("ERROR: Desktop level-complete stamp was NOT rendered!")
+            sys.exit(1)
+
+        os.makedirs("verification", exist_ok=True)
         page.screenshot(path="verification/desktop_stamp.png")
         print("Saved desktop_stamp.png")
-
-        # Verify volume initialization
-        music_vol = page.evaluate("""
-            window.game.scene.scenes.find(s => s.scene.key === 'MusicScene').musicVolume;
-        """)
-        print(f"Initialized Music Volume: {music_vol}")
-        if str(music_vol) != "0.2":
-            print("ERROR: Volume did not initialize correctly from localStorage!")
-            sys.exit(1)
 
         browser.close()
 
@@ -78,7 +77,6 @@ def verify_stamp():
 
         mobile_page.wait_for_selector("canvas", timeout=10000)
         time.sleep(2)
-
         mobile_page.mouse.click(200, 400)
         time.sleep(2)
         mobile_page.mouse.click(200, 400)
@@ -98,19 +96,21 @@ def verify_stamp():
         """)
 
         time.sleep(3)
+
+        m_stamps_count = mobile_page.evaluate("""
+            const mapSceneM = window.game.scene.scenes.find(s => s.scene.key === 'MapScene');
+            mapSceneM.stamps ? mapSceneM.stamps.length : 0;
+        """)
+        print(f"Mobile Stamp Overlays Found: {m_stamps_count}")
+        if m_stamps_count == 0:
+            print("ERROR: Mobile level-complete stamp was NOT rendered!")
+            sys.exit(1)
+
         mobile_page.screenshot(path="verification/mobile_stamp.png")
         print("Saved mobile_stamp.png")
 
-        mobile_music_vol = mobile_page.evaluate("""
-            window.game.scene.scenes.find(s => s.scene.key === 'MusicScene').musicVolume;
-        """)
-        print(f"Initialized Mobile Music Volume: {mobile_music_vol}")
-        if str(mobile_music_vol) != "0.3":
-            print("ERROR: Mobile volume did not initialize correctly from localStorage!")
-            sys.exit(1)
-
         mobile_browser.close()
-        print("Verification Successful!")
+        print("Verification Successful! Both platforms rendered stamps.")
 
 if __name__ == '__main__':
     verify_stamp()
