@@ -912,8 +912,21 @@ class MapScene extends Phaser.Scene {
               stampVideo.disableInteractive();
 
               const updateStampSize = () => {
-                  stampVideo.setPosition(thumb.x, thumb.y);
-                  stampVideo.setScale(thumb.scale);
+                  // Make it a small badge (e.g., 30% of the thumb's size)
+                  const badgeScale = thumb.scale * 0.35;
+                  stampVideo.setScale(badgeScale);
+
+                  // Position in the top-left corner of the thumbnail
+                  // thumbnail is centered (origin 0.5), so top-left is thumb.x - width/2
+                  const badgeWidth = stampVideo.width * badgeScale;
+                  const badgeHeight = stampVideo.height * badgeScale;
+
+                  // Add a small 5px padding (scaled)
+                  const pad = 5 * thumb.scale;
+                  const stampX = (thumb.x - (thumb.displayWidth / 2)) + (badgeWidth / 2) + pad;
+                  const stampY = (thumb.y - (thumb.displayHeight / 2)) + (badgeHeight / 2) + pad;
+
+                  stampVideo.setPosition(stampX, stampY);
               };
               updateStampSize();
 
@@ -950,8 +963,21 @@ class MapScene extends Phaser.Scene {
               stampImg.disableInteractive();
 
               const updateStampSize = () => {
-                  stampImg.setPosition(thumb.x, thumb.y);
-                  stampImg.setScale(thumb.scale);
+                  // Make it a small badge (e.g., 30% of the thumb's size)
+                  const badgeScale = thumb.scale * 0.35;
+                  stampImg.setScale(badgeScale);
+
+                  // Position in the top-left corner of the thumbnail
+                  // thumbnail is centered (origin 0.5), so top-left is thumb.x - width/2
+                  const badgeWidth = stampImg.width * badgeScale;
+                  const badgeHeight = stampImg.height * badgeScale;
+
+                  // Add a small 5px padding (scaled)
+                  const pad = 5 * thumb.scale;
+                  const stampX = (thumb.x - (thumb.displayWidth / 2)) + (badgeWidth / 2) + pad;
+                  const stampY = (thumb.y - (thumb.displayHeight / 2)) + (badgeHeight / 2) + pad;
+
+                  stampImg.setPosition(stampX, stampY);
               };
               updateStampSize();
 
