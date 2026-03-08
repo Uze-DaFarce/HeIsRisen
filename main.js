@@ -394,7 +394,7 @@ class MainMenu extends Phaser.Scene {
     this.load.json('map_sections', 'assets/map/map_sections.json');
     this.load.video('intro-video', 'assets/video/HeIsRisen-Intro.mp4');
     this.load.video('level-complete', 'assets/video/level-complete.mp4');
-    this.load.image('level-complete-stamp', 'assets/images/level-complete-stamp.png');
+    this.load.image('level-complete-stamp', 'assets/objects/level-complete-stamp.png');
     this.load.image('finger-cursor', 'assets/cursor/pointer-finger-pointer.png');
 
     // Preload common UI and game assets here to avoid reloading in scenes
