@@ -910,6 +910,7 @@ class MapScene extends Phaser.Scene {
 
     // Create map thumbnails (videos/images)
     this.mapZones = [];
+    this.stamps = [];
 
     // We will use the original zone dimensions to calculate the center
     mapSections.forEach(section => {
@@ -952,7 +953,7 @@ class MapScene extends Phaser.Scene {
       const eggData = this.registry.get('eggData') || [];
       const sectionEggs = eggData.filter(e => e.section === section.name);
       const foundEggs = this.registry.get('foundEggs') || [];
-      const isCompleted = sectionEggs.length > 0 && sectionEggs.every(e => foundEggs.some(found => found.eggId === e.eggId));
+      const isCompleted = sectionEggs.length > 0 && sectionEggs.every(e => foundEggs.some(found => (found === e.eggId) || (found && found.eggId === e.eggId)));
 
       let stampedSections = this.registry.get('stampedSections') || [];
 
@@ -960,12 +961,13 @@ class MapScene extends Phaser.Scene {
           if (!stampedSections.includes(section.name)) {
               // FIRST TIME COMPLETE: Play the video
               const stampVideo = this.add.video(thumb.x, thumb.y, 'level-complete');
+              stampVideo.setOrigin(0.5, 0.5);
               stampVideo.setDepth(2);
               stampVideo.disableInteractive();
 
               const updateStampSize = () => {
                   stampVideo.setPosition(thumb.x, thumb.y);
-                  stampVideo.setScale(thumb.scale);
+                  stampVideo.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
               };
               updateStampSize();
 
@@ -984,7 +986,7 @@ class MapScene extends Phaser.Scene {
               stampVideo.on('complete', () => {
                   const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
                   stampImg.setDepth(2);
-                  stampImg.setScale(thumb.scale);
+                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
                   stampImg.disableInteractive();
 
                   // Replace in resize array so window resizing still works
@@ -998,12 +1000,13 @@ class MapScene extends Phaser.Scene {
           } else {
               // ALREADY COMPLETED: Show static image directly
               const stampImg = this.add.image(thumb.x, thumb.y, 'level-complete-stamp');
+              stampImg.setOrigin(0.5, 0.5);
               stampImg.setDepth(2);
               stampImg.disableInteractive();
 
               const updateStampSize = () => {
                   stampImg.setPosition(thumb.x, thumb.y);
-                  stampImg.setScale(thumb.scale);
+                  stampImg.setDisplaySize(thumb.displayWidth, thumb.displayHeight);
               };
               updateStampSize();
 
@@ -2251,6 +2254,15 @@ function resizeGame() {
             section.zone.baseScaleY = desiredScale;
           }
         });
+
+        if (scene.stamps) {
+            scene.stamps.forEach(item => {
+                if (item.video && item.video.active && item.thumb && item.thumb.active) {
+                    item.video.setPosition(item.thumb.x, item.thumb.y);
+                    item.video.setDisplaySize(item.thumb.displayWidth, item.thumb.displayHeight);
+                }
+            });
+        }
       }
       if (scene.eggsAmminHaul) {
         scene.eggsAmminHaul.setPosition(0, 200 * scale);
