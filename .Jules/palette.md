@@ -17,3 +17,7 @@
 ## 2026-03-02 - Keyboard Accessibility Parity on Mobile
 **Learning:** Dismissing overlays or modals via keyboard commands (like `ESC`) is frequently missed on "mobile" environments where touch is presumed to be the only input. However, on tablets or mobile web views attached to external keyboards, the absence of basic keyboard navigation feels broken. Parity with the desktop codebase on core keyboard interactions is essential.
 **Action:** Ensure standard keyboard dismiss handlers (`ESC`, `ENTER` for modals) are consistently applied across both desktop and mobile scenes.
+
+## 2026-03-08 - Auto-focus Game Canvas for Screen Readers
+**Learning:** HTML5 canvas games (like Phaser) wrapped in an `aria-label` container rely on that container gaining focus to be announced by screen readers. Since games don't inherently pull focus without interaction, users relying on keyboards/screen readers might have difficulty discovering the game if it is not explicitly focused on load. The existing `tabindex="0"` on the wrapper requires the user to manually `Tab` to it first.
+**Action:** Always add a `window.addEventListener('load', () => { container.focus() })` to auto-focus the game container on load, and ensure a `:focus-visible` CSS rule provides a visual outline for sighted keyboard users.

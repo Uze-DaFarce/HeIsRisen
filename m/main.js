@@ -2440,3 +2440,9 @@ game.events.on('ready', () => {
   window.addEventListener('resize', resizeGame);
   window.addEventListener('orientationchange', resizeGame);
 });
+
+// Auto-focus the game container for screen readers and keyboard accessibility
+window.addEventListener('load', () => {
+  const gameContainer = document.getElementById('game-container');
+  if (gameContainer) gameContainer.focus();
+});

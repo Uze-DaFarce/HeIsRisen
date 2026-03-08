@@ -2163,3 +2163,9 @@ const config = {
 // Initialize the game
 const game = new Phaser.Game(config);
 window.game = game;
+
+// Auto-focus the game container for screen readers and keyboard accessibility
+window.addEventListener('load', () => {
+    const gameContainer = document.getElementById('game');
+    if (gameContainer) gameContainer.focus();
+});

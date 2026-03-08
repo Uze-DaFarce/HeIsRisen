@@ -18,3 +18,8 @@ body {
 canvas {
   display: block; /* Remove extra vertical space */
 }
+
+#game:focus-visible {
+  outline: 4px solid #ffff00;
+  outline-offset: -4px;
+}
