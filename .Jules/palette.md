@@ -19,5 +19,5 @@
 **Action:** Ensure standard keyboard dismiss handlers (`ESC`, `ENTER` for modals) are consistently applied across both desktop and mobile scenes.
 
 ## 2026-03-09 - HTML5 Canvas Screen Reader Announcement
-**Learning:** HTML5 canvas games wrapped in an ARIA container are not automatically announced by screen readers unless the container receives focus. Using `tabindex="-1"` and `.focus({ preventScroll: true, focusVisible: false })` programmatically focuses the container for screen readers without capturing the natural tab sequence or flashing an outline.
-**Action:** Always make the ARIA container programmatically focusable (`tabindex="-1"`) and call `.focus()` during the window load event. Provide a clear `:focus-visible` CSS outline to ensure keyboard users have visual feedback when they intentionally tab to the game.
+**Learning:** HTML5 canvas games wrapped in an ARIA container are not automatically announced by screen readers unless the container receives focus. Similarly, keyboard users need to see what is focused.
+**Action:** Always call `.focus()` on the ARIA container explicitly during the window load event and provide a clear `:focus-visible` CSS outline to ensure screen readers announce the game immediately and keyboard users have visual feedback.

@@ -2164,11 +2164,10 @@ const config = {
 const game = new Phaser.Game(config);
 window.game = game;
 
-// Auto-focus the game container for screen readers and keyboard accessibility
 window.addEventListener('load', () => {
     const gameContainer = document.getElementById('game');
     if (gameContainer) {
-        // Ensure container is programmatically focusable without capturing tab sequence
+        // Ensure container is programmatically focusable for screen readers without capturing tab sequence
         if (!gameContainer.hasAttribute('tabindex')) {
             gameContainer.setAttribute('tabindex', '-1');
         }
