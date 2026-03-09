@@ -753,8 +753,7 @@ class MainMenu extends Phaser.Scene {
 
     if (!this.registry.has('foundEggs')) {
       this.registry.set('foundEggs', []);
-      const savedStampedSections = localStorage.getItem('stampedSections');
-      this.registry.set('stampedSections', savedStampedSections ? JSON.parse(savedStampedSections) : []);
+      this.registry.set('stampedSections', []);
     }
   }
 
@@ -938,7 +937,6 @@ class MapScene extends Phaser.Scene {
 
               stampedSections.push(section.name);
               this.registry.set('stampedSections', stampedSections);
-              localStorage.setItem('stampedSections', JSON.stringify(stampedSections));
 
               // Swap to image when video finishes to free memory
               stampVideo.on('complete', () => {
@@ -1927,6 +1925,48 @@ class EggZamRoom extends Phaser.Scene {
           strokeThickness: 3 * scale,
           wordWrap: { width: 480 * scale, useAdvancedWrap: true }
         }).setOrigin(0, 0);
+
+        if (foundEggs.length === TOTAL_EGGS) {
+          // PLAY AGAIN Button
+          const playBtnContainer = this.add.container(offsetX + 420 * scale, offsetY + 300 * scale).setDepth(100);
+
+          const playBtnWidth = 250 * scale;
+          const playBtnHeight = 60 * scale;
+
+          const playBtnBg = this.add.graphics();
+          playBtnBg.fillStyle(0xffff00, 1);
+          playBtnBg.lineStyle(4 * scale, 0x000000, 1);
+          playBtnBg.fillRoundedRect(0, 0, playBtnWidth, playBtnHeight, 15 * scale);
+          playBtnBg.strokeRoundedRect(0, 0, playBtnWidth, playBtnHeight, 15 * scale);
+
+          const playBtnText = this.add.text(playBtnWidth / 2, playBtnHeight / 2, 'PLAY AGAIN', {
+              fontSize: `${28 * scale}px`,
+              fill: '#000',
+              fontStyle: 'bold',
+              fontFamily: 'Comic Sans MS'
+          }).setOrigin(0.5, 0.5);
+
+          playBtnContainer.add([playBtnBg, playBtnText]);
+
+          playBtnContainer.setSize(playBtnWidth, playBtnHeight);
+          playBtnContainer.setInteractive(new Phaser.Geom.Rectangle(0, 0, playBtnWidth, playBtnHeight), Phaser.Geom.Rectangle.Contains);
+
+          playBtnContainer.on('pointerover', () => {
+              this.input.setDefaultCursor('pointer');
+              playBtnContainer.setScale(1.05);
+          });
+
+          playBtnContainer.on('pointerout', () => {
+              this.input.setDefaultCursor('default');
+              playBtnContainer.setScale(1);
+          });
+
+          playBtnContainer.on('pointerdown', () => {
+              this.input.setDefaultCursor('default');
+              window.location.reload();
+          });
+        }
+
         return;
       }
     }
