@@ -459,8 +459,7 @@ class MainMenu extends Phaser.Scene {
       // NEW: Initialize all game variables
       // console.log('MainMenu: Initializing game state');
       this.registry.set('foundEggs', []);
-      const savedStampedSections = localStorage.getItem('stampedSections');
-      this.registry.set('stampedSections', savedStampedSections ? JSON.parse(savedStampedSections) : []);
+      this.registry.set('stampedSections', []);
       this.registry.set('correctCategorizations', 0);
       this.registry.set('currentScore', 0);
 
@@ -989,7 +988,6 @@ class MapScene extends Phaser.Scene {
 
               stampedSections.push(section.name);
               this.registry.set('stampedSections', stampedSections);
-              localStorage.setItem('stampedSections', JSON.stringify(stampedSections));
 
               // Swap to image when video finishes to free memory
               stampVideo.on('complete', () => {
@@ -2033,6 +2031,36 @@ class EggZamRoom extends Phaser.Scene {
           strokeThickness: 3 * this.gameScale,
           wordWrap: { width: 480 * this.gameScale, useAdvancedWrap: true }
         }).setOrigin(0, 0).setDepth(10);
+
+        if (foundEggs.length === TOTAL_EGGS) {
+          // PLAY AGAIN Button
+          const playBtnContainer = this.add.container((0.36 * width) + (125 * this.gameScale), textY + (100 * this.gameScale)).setDepth(100);
+
+          const playBtnWidth = 250 * this.gameScale;
+          const playBtnHeight = 60 * this.gameScale;
+
+          const playBtnBg = this.add.graphics();
+          playBtnBg.fillStyle(0xffff00, 1);
+          playBtnBg.lineStyle(4 * this.gameScale, 0x000000, 1);
+          playBtnBg.fillRoundedRect(-playBtnWidth/2, -playBtnHeight/2, playBtnWidth, playBtnHeight, 15 * this.gameScale);
+          playBtnBg.strokeRoundedRect(-playBtnWidth/2, -playBtnHeight/2, playBtnWidth, playBtnHeight, 15 * this.gameScale);
+
+          const playBtnText = this.add.text(0, 0, 'PLAY AGAIN', {
+              fontSize: `${28 * this.gameScale}px`,
+              fill: '#000',
+              fontStyle: 'bold',
+              fontFamily: 'Comic Sans MS'
+          }).setOrigin(0.5, 0.5);
+
+          playBtnContainer.add([playBtnBg, playBtnText]);
+
+          playBtnContainer.setSize(playBtnWidth, playBtnHeight);
+          playBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-playBtnWidth/2, -playBtnHeight/2, playBtnWidth, playBtnHeight), Phaser.Geom.Rectangle.Contains);
+
+          playBtnContainer.on('pointerdown', () => {
+              window.location.reload();
+          });
+        }
         return;
       }
     }
