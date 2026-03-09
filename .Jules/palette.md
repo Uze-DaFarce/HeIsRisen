@@ -17,3 +17,7 @@
 ## 2026-03-02 - Keyboard Accessibility Parity on Mobile
 **Learning:** Dismissing overlays or modals via keyboard commands (like `ESC`) is frequently missed on "mobile" environments where touch is presumed to be the only input. However, on tablets or mobile web views attached to external keyboards, the absence of basic keyboard navigation feels broken. Parity with the desktop codebase on core keyboard interactions is essential.
 **Action:** Ensure standard keyboard dismiss handlers (`ESC`, `ENTER` for modals) are consistently applied across both desktop and mobile scenes.
+
+## 2026-03-09 - HTML5 Canvas Screen Reader Announcement
+**Learning:** HTML5 canvas games wrapped in an ARIA container are not automatically announced by screen readers unless the container receives focus. Similarly, keyboard users need to see what is focused.
+**Action:** Always call `.focus()` on the ARIA container explicitly during the window load event and provide a clear `:focus-visible` CSS outline to ensure screen readers announce the game immediately and keyboard users have visual feedback.

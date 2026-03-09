@@ -2440,3 +2440,10 @@ game.events.on('ready', () => {
   window.addEventListener('resize', resizeGame);
   window.addEventListener('orientationchange', resizeGame);
 });
+
+window.addEventListener('load', () => {
+  const gameContainer = document.getElementById('game-container');
+  if (gameContainer) {
+    gameContainer.focus();
+  }
+});

@@ -15,6 +15,10 @@ body {
   align-items: center;
 }
 
+#game:focus-visible {
+  outline: 4px solid #ffff00;
+}
+
 canvas {
   display: block; /* Remove extra vertical space */
 }
