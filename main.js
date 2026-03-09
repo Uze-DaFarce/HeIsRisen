@@ -1584,19 +1584,26 @@ class EggZamRoom extends Phaser.Scene {
       .setDisplaySize(1280 * bgScale, 720 * bgScale)
       .setDepth(0);
 
-    const examiner = this.add.image(0, 0, 'egg-zamminer').setOrigin(0, 0).setDepth(2);
-    // Original pos: 390, 250. Size? Default.
-    // Let's assume original design was 1280x720 fixed.
-    // We scale everything by 'scale' (min) to ensure UI fits on screen.
-    // But we need to center the "game area" in the viewport.
-
+    const isDesktop = this.sys.game.device.os.desktop;
     const uiScale = Math.min(scaleX, scaleY);
+    const assetScale = isDesktop ? uiScale : uiScale * 1.75;
+
     const offsetX = (width - 1280 * uiScale) / 2;
     const offsetY = (height - 720 * uiScale) / 2;
 
-    // Examiner
-    examiner.setPosition(offsetX + 390 * uiScale, offsetY + 250 * uiScale);
-    examiner.setScale(uiScale);
+    // We maintain offsetX/Y for map context, but machine positioning needs to be relative to screen center
+    const tanBoxCenterX = width / 2;
+    const examinerWidth = 400 * assetScale;
+    const examinerHeight = 500 * assetScale;
+    const examinerX = tanBoxCenterX - (examinerWidth / 2);
+    // Align with ground in original image relative to offset
+    const floorY = offsetY + (740 * uiScale);
+    const examinerY = floorY - examinerHeight;
+
+    const examiner = this.add.image(examinerX, examinerY, 'egg-zamminer')
+      .setOrigin(0, 0)
+      .setDepth(2)
+      .setDisplaySize(examinerWidth, examinerHeight);
 
     this.examiner = examiner; // Store for relative positioning
 
@@ -1647,14 +1654,22 @@ class EggZamRoom extends Phaser.Scene {
     // Create hover graphics for highlighting bottles
     this.hoverGraphics = this.add.graphics().setDepth(10);
 
-    // Zones need to be positioned relative to the SCALED examiner/room
-    // Original: 450, 300, 100x200
-    const leftBottleZone = this.add.zone(offsetX + 450 * uiScale, offsetY + 300 * uiScale, 100 * uiScale, 200 * uiScale).setOrigin(0, 0).setInteractive();
-    // Original: 750, 300, 100x200
-    const rightBottleZone = this.add.zone(offsetX + 750 * uiScale, offsetY + 300 * uiScale, 100 * uiScale, 200 * uiScale).setOrigin(0, 0).setInteractive();
+    // Hitboxes aligned to visual scale of machine
+    const zoneWidth = 200 * assetScale;
+    const zoneHeight = 400 * assetScale;
+    const zoneY = examinerY + 100 * assetScale;
+
+    const leftBottleZone = this.add.zone(examinerX, zoneY, zoneWidth, zoneHeight)
+      .setOrigin(0, 0)
+      .setInteractive();
+
+    const rightBottleZone = this.add.zone(examinerX + zoneWidth, zoneY, zoneWidth, zoneHeight)
+      .setOrigin(0, 0)
+      .setInteractive();
 
     const addZoneHover = (zone) => {
         zone.on('pointerover', () => {
+            this.input.setDefaultCursor('pointer');
             this.hoverGraphics.clear();
             this.hoverGraphics.lineStyle(4, 0xffff00, 1);
             this.hoverGraphics.strokeRect(zone.x, zone.y, zone.width, zone.height);
@@ -1663,12 +1678,16 @@ class EggZamRoom extends Phaser.Scene {
         });
 
         zone.on('pointerout', () => {
+            this.input.setDefaultCursor('default');
             this.hoverGraphics.clear();
         });
     };
 
     addZoneHover(leftBottleZone);
     addZoneHover(rightBottleZone);
+
+    addTooltip(this, leftBottleZone, 'Christian');
+    addTooltip(this, rightBottleZone, 'Worldly / Pagan');
 
     const showExplanation = (isCorrect, guessText) => {
         if (isCorrect) {
@@ -1753,7 +1772,7 @@ class EggZamRoom extends Phaser.Scene {
                     if (!isCorrect) {
                         this.currentEgg = null; // Un-set so it can be re-drawn
                     }
-                    this.displayRandomEggInfo(offsetX, offsetY, uiScale);
+                    this.displayRandomEggInfo();
                 }
             });
         });
@@ -1771,7 +1790,7 @@ class EggZamRoom extends Phaser.Scene {
       }
     });
 
-    this.displayRandomEggInfo(offsetX, offsetY, uiScale);
+    this.displayRandomEggInfo();
 
     // Store scale params for update/resize if needed (or just restart scene on resize)
     this.uiParams = { offsetX, offsetY, uiScale };
@@ -1781,7 +1800,7 @@ class EggZamRoom extends Phaser.Scene {
     });
   }
 
-  displayRandomEggInfo(offsetX, offsetY, scale) {
+  displayRandomEggInfo() {
     const foundEggs = this.registry.get('foundEggs');
 
     if (this.currentEgg === null || this.currentEgg.categorized) {
