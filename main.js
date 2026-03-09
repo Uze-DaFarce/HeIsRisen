@@ -2163,3 +2163,10 @@ const config = {
 // Initialize the game
 const game = new Phaser.Game(config);
 window.game = game;
+
+window.addEventListener('load', () => {
+    const gameContainer = document.getElementById('game');
+    if (gameContainer) {
+        gameContainer.focus();
+    }
+});
