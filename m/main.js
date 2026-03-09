@@ -2444,6 +2444,11 @@ game.events.on('ready', () => {
 window.addEventListener('load', () => {
   const gameContainer = document.getElementById('game-container');
   if (gameContainer) {
-    gameContainer.focus();
+        // Ensure container is programmatically focusable for screen readers without capturing tab sequence
+        if (!gameContainer.hasAttribute('tabindex')) {
+            gameContainer.setAttribute('tabindex', '-1');
+        }
+        // Focus the container but prevent focus ring from showing programmatically
+        gameContainer.focus({ preventScroll: true, focusVisible: false });
   }
 });
