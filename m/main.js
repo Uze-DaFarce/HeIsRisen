@@ -81,7 +81,16 @@ class UIScene extends Phaser.Scene {
     this.createGearIcon();
     this.createSettingsPanel();
 
-    // Add ESC and ENTER key support to close settings
+    // Add ESC and ENTER key support to toggle settings
+    const toggleSettings = () => {
+        if (this.settingsContainer && this.settingsContainer.visible) {
+            this.settingsContainer.setVisible(false);
+            if (this.gearIcon) this.gearIcon.setVisible(true);
+            this.input.setDefaultCursor('none');
+        } else {
+            this.openSettings();
+        }
+    };
     const closeSettings = () => {
         if (this.settingsContainer && this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
@@ -90,7 +99,7 @@ class UIScene extends Phaser.Scene {
         }
     };
     if (this.input.keyboard) {
-        this.input.keyboard.on('keydown-ESC', closeSettings);
+        this.input.keyboard.on('keydown-ESC', toggleSettings);
         this.input.keyboard.on('keydown-ENTER', closeSettings);
     }
 
@@ -489,7 +498,8 @@ class MainMenu extends Phaser.Scene {
       if (symbolsData.symbols.length !== TOTAL_EGGS) {
         console.error(`MainMenu: Expected ${TOTAL_EGGS} symbols, found ${symbolsData.symbols.length}`);
       }
-      if (!mapSections || mapSections.length !== 11) {
+      if (!mapSections) { console.error('Map sections missing'); return; }
+      if (mapSections.length !== 11) {
         console.warn(`MainMenu: Expected 11 sections, found ${mapSections.length || 0}`);
       }
       this.registry.set('symbols', symbolsData);
@@ -901,10 +911,13 @@ class MapScene extends Phaser.Scene {
     }
     this.sound.play('drive2', { volume: 0.5 });
 
-    // Add map image, fill the viewport
-    this.mapImage = this.add.image(0, 0, 'new-map')
-      .setOrigin(0, 0)
-      .setDisplaySize(this.game.config.width, this.game.config.height);
+    // Add map image, fill the viewport proportionally based on native size
+    this.mapImage = this.add.image(this.game.config.width/2, this.game.config.height/2, 'new-map')
+      .setOrigin(0.5, 0.5);
+    const nativeW = this.mapImage.width || 1376;
+    const nativeH = this.mapImage.height || 768;
+    const mapScale = Math.max(this.game.config.width / nativeW, this.game.config.height / nativeH);
+    this.mapImage.setScale(mapScale);
     // console.log(`Map display size: ${this.mapImage.displayWidth}x${this.mapImage.displayHeight}, Position: (${this.mapImage.x}, ${this.mapImage.y})`);
 
     // Create map thumbnails (videos/images)
@@ -913,23 +926,37 @@ class MapScene extends Phaser.Scene {
 
     // We will use the original zone dimensions to calculate the center
     mapSections.forEach(section => {
-      const centerX = section.coords.x + section.coords.width / 2;
-      const centerY = section.coords.y + section.coords.height / 2;
+      const centerX = section.coords.x;
+      const centerY = section.coords.y;
 
-      const thumbX = (centerX / 1280) * this.game.config.width;
-      const thumbY = (centerY / 720) * this.game.config.height;
+      const nativeW = this.mapImage ? (this.mapImage.width || 1376) : 1376;
+      const nativeH = this.mapImage ? (this.mapImage.height || 768) : 768;
+      const initMapScale = Math.max(this.game.config.width / nativeW, this.game.config.height / nativeH);
 
-      // Add the static thumbnail image
-      const thumb = this.add.image(thumbX, thumbY, `${section.name}-thumb`)
-        .setOrigin(0.5, 0.5)
-        .setInteractive();
+      const mapWidth = nativeW * initMapScale;
+      const mapHeight = nativeH * initMapScale;
+      const offsetX = (this.game.config.width - mapWidth) / 2;
+      const offsetY = (this.game.config.height - mapHeight) / 2;
 
-      // Use uniform scaling specified in map_sections to prevent distortion
-      const targetW = section.coords.width * scale;
-      const targetH = section.coords.height * scale;
+      const thumbX = offsetX + centerX * initMapScale;
+      const thumbY = offsetY + centerY * initMapScale;
 
-      thumb.setDisplaySize(targetW, targetH);
+      // Create container for border and drop shadow
+      const thumbContainer = this.add.container(thumbX, thumbY);
 
+      const shadow = this.add.rectangle(4, 4, section.coords.width, section.coords.height, 0x000000, 0.6).setOrigin(0.5, 0.5);
+      const border = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0xffffff, 1).setOrigin(0.5, 0.5).setStrokeStyle(4, 0x8b4513);
+
+      const thumbImage = this.add.image(0, 0, `${section.name}-thumb`).setOrigin(0.5, 0.5);
+      thumbImage.setDisplaySize(section.coords.width, section.coords.height);
+      thumbContainer.add([shadow, border, thumbImage]);
+      thumbContainer.setSize(section.coords.width, section.coords.height);
+      thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-section.coords.width/2, -section.coords.height/2, section.coords.width, section.coords.height), Phaser.Geom.Rectangle.Contains);
+
+      const thumbScale = (section.coords.width * initMapScale) / section.coords.width;
+      thumbContainer.setScale(thumbScale);
+
+      const thumb = thumbContainer;
       thumb.name = section.name;
       thumb.sectionData = section;
 
@@ -973,7 +1000,7 @@ class MapScene extends Phaser.Scene {
                   // To be safe, we can apply the scale based on the thumbnail's physical displayHeight.
                   // Since video height might be 0 initially, we use a fallback of 720 (standard height).
                   const intrinsicHeight = stampVideo.height || 720;
-                  const targetHeight = thumb.displayHeight * 1.25;
+                  const targetHeight = (thumb.height * thumb.scaleY) * 1.25;
                   const calculatedScale = targetHeight / intrinsicHeight;
                   stampVideo.setScale(calculatedScale);
               };
@@ -997,7 +1024,7 @@ class MapScene extends Phaser.Scene {
                   // Apply the identical scale multiplier that the thumbnail is using
                   // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
                   const intrinsicHeight = stampImg.height || 720;
-                  const targetHeight = thumb.displayHeight * 1.25;
+                  const targetHeight = (thumb.height * thumb.scaleY) * 1.25;
                   stampImg.setScale(targetHeight / intrinsicHeight);
                   stampImg.disableInteractive();
                   // Replace in resize array so window resizing still works
@@ -1019,7 +1046,7 @@ class MapScene extends Phaser.Scene {
 
                   // Scale the stamp so its height covers the thumbnail's height + 25%, maintaining its intrinsic aspect ratio
                   const intrinsicHeight = stampImg.height || 720;
-                  const targetHeight = thumb.displayHeight * 1.25;
+                  const targetHeight = (thumb.height * thumb.scaleY) * 1.25;
                   const calculatedScale = targetHeight / intrinsicHeight;
                   stampImg.setScale(calculatedScale);
               };
@@ -2278,23 +2305,35 @@ function resizeGame() {
     }
     if (scene.scene.key === 'MapScene') {
       if (scene.mapImage) {
-        scene.mapImage.setDisplaySize(width, height);
+        const nativeW = scene.mapImage.width || 1376;
+        const nativeH = scene.mapImage.height || 768;
+        const mapScale = Math.max(width / nativeW, height / nativeH);
+        scene.mapImage.setPosition(width/2, height/2);
+        scene.mapImage.setScale(mapScale);
       }
       if (scene.mapSections) {
         scene.mapSections.forEach(section => {
           if (section.zone) {
-            const centerX = section.coords.x + section.coords.width / 2;
-            const centerY = section.coords.y + section.coords.height / 2;
+            const centerX = section.coords.x;
+            const centerY = section.coords.y;
 
-            const thumbX = (centerX / 1280) * width;
-            const thumbY = (centerY / 720) * height;
+            const nativeW = scene.mapImage ? (scene.mapImage.width || 1376) : 1376;
+            const nativeH = scene.mapImage ? (scene.mapImage.height || 768) : 768;
+            const mapScale = Math.max(width / nativeW, height / nativeH);
+
+            const mapWidth = nativeW * mapScale;
+            const mapHeight = nativeH * mapScale;
+            const offsetX = (width - mapWidth) / 2;
+            const offsetY = (height - mapHeight) / 2;
+
+            const thumbX = offsetX + centerX * mapScale;
+            const thumbY = offsetY + centerY * mapScale;
 
             section.zone.setPosition(thumbX, thumbY);
 
-            const targetW = section.coords.width * scale;
-            const targetH = section.coords.height * scale;
-
-            section.zone.setDisplaySize(targetW, targetH);
+            const targetW = section.coords.width * mapScale;
+            const thumbScale = targetW / section.coords.width;
+            section.zone.setScale(thumbScale);
 
             section.zone.baseScaleX = section.zone.scaleX;
             section.zone.baseScaleY = section.zone.scaleY;
@@ -2307,7 +2346,7 @@ function resizeGame() {
                     item.video.setPosition(item.thumb.x, item.thumb.y);
                     // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
                   const intrinsicHeight = item.video.height || 720;
-                  const targetHeight = item.thumb.displayHeight * 1.25;
+                  const targetHeight = (item.thumb.height * item.thumb.scaleY) * 1.25;
                   item.video.setScale(targetHeight / intrinsicHeight);
                 }
             });
