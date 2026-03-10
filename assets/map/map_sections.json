@@ -2,8 +2,8 @@
   {
     "name": "mammoth-hot-springs",
     "coords": {
-      "x": 271,
-      "y": 230,
+      "x": 196,
+      "y": 56,
       "width": 199,
       "height": 110
     },
@@ -12,8 +12,8 @@
   {
     "name": "yellowstone-geology",
     "coords": {
-      "x": 539,
-      "y": 453,
+      "x": -38,
+      "y": 333,
       "width": 163,
       "height": 110
     },
@@ -22,8 +22,8 @@
   {
     "name": "norris-geyser-basin",
     "coords": {
-      "x": 212,
-      "y": 388,
+      "x": 271,
+      "y": 230,
       "width": 199,
       "height": 110
     },
@@ -42,8 +42,8 @@
   {
     "name": "yellowstone-wildlife",
     "coords": {
-      "x": 725,
-      "y": 609,
+      "x": 1097,
+      "y": 89,
       "width": 163,
       "height": 110
     },
@@ -52,8 +52,8 @@
   {
     "name": "grand-prismatic",
     "coords": {
-      "x": -38,
-      "y": 333,
+      "x": 212,
+      "y": 388,
       "width": 199,
       "height": 110
     },
@@ -62,8 +62,8 @@
   {
     "name": "yellowstone-hydrothermal",
     "coords": {
-      "x": 18,
-      "y": 418,
+      "x": -38,
+      "y": 443,
       "width": 199,
       "height": 110
     },
@@ -82,8 +82,8 @@
   {
     "name": "old-faithful",
     "coords": {
-      "x": 196,
-      "y": 56,
+      "x": 539,
+      "y": 453,
       "width": 163,
       "height": 110
     },
@@ -92,8 +92,8 @@
   {
     "name": "west-thumb-geyser-basin",
     "coords": {
-      "x": 1097,
-      "y": 89,
+      "x": 725,
+      "y": 609,
       "width": 199,
       "height": 110
     },

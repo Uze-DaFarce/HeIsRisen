@@ -2,8 +2,8 @@
   {
     "name": "mammoth-hot-springs",
     "coords": {
-      "x": 373,
-      "y": 21,
+      "x": 196,
+      "y": 56,
       "width": 199,
       "height": 110
     },
@@ -12,8 +12,8 @@
   {
     "name": "yellowstone-geology",
     "coords": {
-      "x": 537,
-      "y": 109,
+      "x": -38,
+      "y": 333,
       "width": 163,
       "height": 110
     },
@@ -22,8 +22,8 @@
   {
     "name": "norris-geyser-basin",
     "coords": {
-      "x": 392,
-      "y": 210,
+      "x": 271,
+      "y": 230,
       "width": 199,
       "height": 110
     },
@@ -32,8 +32,8 @@
   {
     "name": "grand-canyon-yellowstone",
     "coords": {
-      "x": 620,
-      "y": 227,
+      "x": 611,
+      "y": 356,
       "width": 163,
       "height": 110
     },
@@ -42,8 +42,8 @@
   {
     "name": "yellowstone-wildlife",
     "coords": {
-      "x": 730,
-      "y": 203,
+      "x": 1097,
+      "y": 89,
       "width": 163,
       "height": 110
     },
@@ -52,8 +52,8 @@
   {
     "name": "grand-prismatic",
     "coords": {
-      "x": 312,
-      "y": 348,
+      "x": 212,
+      "y": 388,
       "width": 199,
       "height": 110
     },
@@ -62,8 +62,8 @@
   {
     "name": "yellowstone-hydrothermal",
     "coords": {
-      "x": 409,
-      "y": 383,
+      "x": -38,
+      "y": 443,
       "width": 199,
       "height": 110
     },
@@ -72,8 +72,8 @@
   {
     "name": "yellowstone-history",
     "coords": {
-      "x": 684,
-      "y": 418,
+      "x": 881,
+      "y": 309,
       "width": 199,
       "height": 110
     },
@@ -82,8 +82,8 @@
   {
     "name": "old-faithful",
     "coords": {
-      "x": 357,
-      "y": 456,
+      "x": 539,
+      "y": 453,
       "width": 163,
       "height": 110
     },
@@ -92,8 +92,8 @@
   {
     "name": "west-thumb-geyser-basin",
     "coords": {
-      "x": 530,
-      "y": 481,
+      "x": 725,
+      "y": 609,
       "width": 199,
       "height": 110
     },
@@ -102,8 +102,8 @@
   {
     "name": "yellowstone-preservation",
     "coords": {
-      "x": 305,
-      "y": 588,
+      "x": 1116,
+      "y": 393,
       "width": 199,
       "height": 110
     },
