@@ -2314,8 +2314,8 @@ function resizeGame() {
       if (scene.mapSections) {
         scene.mapSections.forEach(section => {
           if (section.zone) {
-            const centerX = section.coords.x + section.coords.width / 2;
-            const centerY = section.coords.y + section.coords.height / 2;
+            const centerX = section.coords.x;
+            const centerY = section.coords.y;
 
             const nativeW = scene.mapImage ? (scene.mapImage.width || 1376) : 1376;
             const nativeH = scene.mapImage ? (scene.mapImage.height || 768) : 768;
