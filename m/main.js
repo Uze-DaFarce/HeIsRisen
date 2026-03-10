@@ -1955,7 +1955,7 @@ class EggZamRoom extends Phaser.Scene {
             if (link) window.open(link, '_blank');
         });
 
-        const continueText = this.add.text(0, bgHeight/2 - 40 * assetScale, "[ Tap anywhere to continue ]", {
+        const continueText = this.add.text(0, bgHeight/2 - 40 * assetScale, "[ Tap or press Space/Enter to continue ]", {
             fontSize: `${20 * assetScale}px`, fill: '#8b4513', fontStyle: 'bold', fontFamily: 'Comic Sans MS'
         }).setOrigin(0.5);
 
@@ -1964,7 +1964,12 @@ class EggZamRoom extends Phaser.Scene {
         this.explanationText.setScale(0);
         this.tweens.add({ targets: this.explanationText, scaleX: 1, scaleY: 1, duration: 300, ease: 'Back.out' });
 
-        bg.on('pointerdown', () => {
+        const dismiss = () => {
+            if (!this.explanationText) return;
+            if (this.input && this.input.keyboard) {
+                this.input.keyboard.off('keydown-SPACE', dismiss);
+                this.input.keyboard.off('keydown-ENTER', dismiss);
+            }
             this.tweens.add({
                 targets: this.explanationText, scaleX: 0, scaleY: 0, duration: 200, ease: 'Back.in',
                 onComplete: () => {
@@ -1976,7 +1981,13 @@ class EggZamRoom extends Phaser.Scene {
                     this.displayRandomEggInfo();
                 }
             });
-        });
+        };
+
+        bg.on('pointerdown', dismiss);
+        if (this.input && this.input.keyboard) {
+            this.input.keyboard.on('keydown-SPACE', dismiss);
+            this.input.keyboard.on('keydown-ENTER', dismiss);
+        }
     };
 
     this.leftBottleZone.on('pointerdown', () => {
@@ -2057,8 +2068,21 @@ class EggZamRoom extends Phaser.Scene {
           playBtnContainer.setSize(playBtnWidth, playBtnHeight);
           playBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-playBtnWidth/2, -playBtnHeight/2, playBtnWidth, playBtnHeight), Phaser.Geom.Rectangle.Contains);
 
-          playBtnContainer.on('pointerdown', () => {
+          const triggerPlayAgain = () => {
+              window.removeEventListener('keydown', handleKeydown);
               window.location.reload();
+          };
+
+          playBtnContainer.on('pointerdown', triggerPlayAgain);
+
+          const handleKeydown = (e) => {
+              if (e.code === 'Space' || e.code === 'Enter') {
+                  triggerPlayAgain();
+              }
+          };
+          window.addEventListener('keydown', handleKeydown);
+          this.events.once('shutdown', () => {
+              window.removeEventListener('keydown', handleKeydown);
           });
         }
         return;
