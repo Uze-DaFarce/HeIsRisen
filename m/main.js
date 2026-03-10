@@ -944,14 +944,34 @@ class MapScene extends Phaser.Scene {
       // Create container for border and drop shadow
       const thumbContainer = this.add.container(thumbX, thumbY);
 
-      const shadow = this.add.rectangle(4, 4, section.coords.width, section.coords.height, 0x000000, 0.6).setOrigin(0.5, 0.5);
-      const border = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0xffffff, 1).setOrigin(0.5, 0.5).setStrokeStyle(4, 0x8b4513);
+      const radius = 15;
+
+      const shadow = this.add.graphics();
+      shadow.fillStyle(0x000000, 0.6);
+      shadow.fillRoundedRect(-section.coords.width / 2 + 4, -section.coords.height / 2 + 4, section.coords.width, section.coords.height, radius);
+
+      const border = this.add.graphics();
+      border.lineStyle(4, 0x8b4513, 1);
+      border.fillStyle(0xffffff, 1);
+      border.fillRoundedRect(-section.coords.width / 2 - 5, -section.coords.height / 2 - 5, section.coords.width + 10, section.coords.height + 10, radius + 2);
+      border.strokeRoundedRect(-section.coords.width / 2 - 5, -section.coords.height / 2 - 5, section.coords.width + 10, section.coords.height + 10, radius + 2);
 
       const thumbImage = this.add.image(0, 0, `${section.name}-thumb`).setOrigin(0.5, 0.5);
       thumbImage.setDisplaySize(section.coords.width, section.coords.height);
-      thumbContainer.add([shadow, border, thumbImage]);
-      thumbContainer.setSize(section.coords.width, section.coords.height);
-      thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-section.coords.width/2, -section.coords.height/2, section.coords.width, section.coords.height), Phaser.Geom.Rectangle.Contains);
+
+      const maskGraphics = this.add.graphics();
+      maskGraphics.fillStyle(0xffffff);
+      maskGraphics.fillRoundedRect(-section.coords.width / 2, -section.coords.height / 2, section.coords.width, section.coords.height, radius);
+
+      const mask = maskGraphics.createGeometryMask();
+      thumbImage.setMask(mask);
+
+      // Add invisible hit area graphics for reliable touch detection on mobile
+      const hitArea = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0x000000, 0);
+
+      thumbContainer.add([shadow, border, thumbImage, maskGraphics, hitArea]);
+      thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
+      thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
 
       const thumbScale = (section.coords.width * initMapScale) / section.coords.width;
       thumbContainer.setScale(thumbScale);
