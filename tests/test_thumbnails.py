@@ -99,13 +99,22 @@ def test_thumbnails(url, output_prefix, is_mobile=False):
                  // zoneContainer is the thumbnail container.
                  // Children: [shadow, border, thumbImage, maskGraphics, hitArea]
 
-                 // If mask is visible, it's obscuring the image!
-                 const specificMask = false; // We removed maskGraphics from the container completely, so it's impossible for it to obscure it from within the container.
-                 if (specificMask && specificMask.visible) {
-                      passed = false;
-                      errorMsg = `Mask is visible for ${zoneContainer.name}`;
-                      maskVisibleCount++;
+                 // Verify that maskGraphics is not visibly obscuring the thumbnail
+                 // Mask logic usually means the mask object itself should be invisible since its only job is to clip
+
+                 // Verify the image isn't obscured by an unintended white box.
+                 // In Phaser, a geometry mask graphics object shouldn't be added to the container's display list as a visible object.
+                 // If there's an extra graphics object that is visible and not the border or shadow, it could be obscuring.
+                 // The container should only have 4 children: [shadow, border, thumbImage, hitArea]
+                 if (zoneContainer.list.length > 4) {
+                      const extraObj = zoneContainer.list[3]; // The one that used to be the mask
+                      if (extraObj && extraObj.type === 'Graphics' && extraObj.visible) {
+                          passed = false;
+                          errorMsg = `Extra graphics object (likely a broken mask) is visible and obscuring the image for ${zoneContainer.name}`;
+                          maskVisibleCount++;
+                      }
                  }
+
 
                  const thumbImage = zoneContainer.list.find(c => c.type === 'Image' && c.texture.key.includes('-thumb'));
                  // Fallback paths handle loading correctly over time so we verify it's added and part of the display list
