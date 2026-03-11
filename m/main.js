@@ -1964,31 +1964,19 @@ class EggZamRoom extends Phaser.Scene {
         this.explanationText.setScale(0);
         this.tweens.add({ targets: this.explanationText, scaleX: 1, scaleY: 1, duration: 300, ease: 'Back.out' });
 
-        const dismissExplanation = () => {
-            if (this.explanationText && this.explanationText.active) {
-                this.input.keyboard.off('keydown-ESC', dismissExplanation);
-                this.input.keyboard.off('keydown-ENTER', dismissExplanation);
-                this.input.keyboard.off('keydown-SPACE', dismissExplanation);
-                this.tweens.add({
-                    targets: this.explanationText, scaleX: 0, scaleY: 0, duration: 200, ease: 'Back.in',
-                    onComplete: () => {
-                        if (this.explanationText) {
-                            this.explanationText.destroy();
-                            this.explanationText = null;
-                        }
-                        if (!isCorrect) {
-                            this.currentEgg = null; // Un-set so it can be re-drawn
-                        }
-                        this.displayRandomEggInfo();
+        bg.on('pointerdown', () => {
+            this.tweens.add({
+                targets: this.explanationText, scaleX: 0, scaleY: 0, duration: 200, ease: 'Back.in',
+                onComplete: () => {
+                    this.explanationText.destroy();
+                    this.explanationText = null;
+                    if (!isCorrect) {
+                        this.currentEgg = null; // Un-set so it can be re-drawn
                     }
-                });
-            }
-        };
-
-        bg.on('pointerdown', dismissExplanation);
-        this.input.keyboard.on('keydown-ESC', dismissExplanation);
-        this.input.keyboard.on('keydown-ENTER', dismissExplanation);
-        this.input.keyboard.on('keydown-SPACE', dismissExplanation);
+                    this.displayRandomEggInfo();
+                }
+            });
+        });
     };
 
     this.leftBottleZone.on('pointerdown', () => {
