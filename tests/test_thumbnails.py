@@ -144,16 +144,16 @@ if __name__ == "__main__":
     os.makedirs("test-results", exist_ok=True)
 
     # Needs a local webserver running. I will start one using subprocess.
-    print("Starting local HTTP server on port 8080...")
-    server = subprocess.Popen([sys.executable, "-m", "http.server", "8080"])
+    print("Starting local HTTP server on port 8081...")
+    server = subprocess.Popen([sys.executable, "-m", "http.server", "8081"])
     time.sleep(2) # Give server time to start
 
     desktop_success = False
     mobile_success = False
 
     try:
-        desktop_success = test_thumbnails("http://127.0.0.1:8080/index.html", "desktop", is_mobile=False)
-        mobile_success = test_thumbnails("http://127.0.0.1:8080/m/index.html", "mobile", is_mobile=True)
+        desktop_success = test_thumbnails("http://127.0.0.1:8081/index.html", "desktop", is_mobile=False)
+        mobile_success = test_thumbnails("http://127.0.0.1:8081/m/index.html", "mobile", is_mobile=True)
     finally:
         server.terminate()
         server.wait()
