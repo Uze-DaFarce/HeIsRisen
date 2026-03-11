@@ -21,3 +21,7 @@
 ## 2026-03-08 - Auto-focus Game Canvas for Screen Readers
 **Learning:** HTML5 canvas games (like Phaser) wrapped in an `aria-label` container rely on that container gaining focus to be announced by screen readers. Since games don't inherently pull focus without interaction, users relying on keyboards/screen readers might have difficulty discovering the game if it is not explicitly focused on load. The existing `tabindex="0"` on the wrapper requires the user to manually `Tab` to it first.
 **Action:** Always add a `window.addEventListener('load', () => { container.focus() })` to auto-focus the game container on load, and ensure a `:focus-visible` CSS rule provides a visual outline for sighted keyboard users.
+
+## 2026-03-11 - Endgame Keyboard Accessibility Parity
+**Learning:** When adding end-of-game actions like "Play Again" buttons, relying solely on pointer events breaks the loop for keyboard users who might have navigated the final modals using Space/Enter. Critical flow actions must always have keyboard parity.
+**Action:** Always bind `Space` and `Enter` keys to primary final-screen CTAs (like Restart/Play Again) to ensure the game loop can be completed without a mouse.

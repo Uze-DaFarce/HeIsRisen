@@ -891,6 +891,7 @@ class MapScene extends Phaser.Scene {
       const maskGraphics = this.add.graphics();
       maskGraphics.fillStyle(0xffffff);
       maskGraphics.fillRoundedRect(-section.coords.width / 2, -section.coords.height / 2, section.coords.width, section.coords.height, radius);
+      maskGraphics.setVisible(false); // Do not show the mask itself
 
       const mask = maskGraphics.createGeometryMask();
       thumbImage.setMask(mask);
@@ -898,17 +899,23 @@ class MapScene extends Phaser.Scene {
       // Add invisible hit area graphics for reliable click detection
       const hitArea = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0x000000, 0);
 
-      thumbContainer.add([shadow, border, thumbImage, maskGraphics, hitArea]);
+      // IMPORTANT: maskGraphics should NOT be added to the container's children array when used as a mask
+      // because it is scaled dynamically by the container, and rendering it as a child breaks the mask visually
+      thumbContainer.add([shadow, border, thumbImage, hitArea]);
       thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
       thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
 
       const thumb = thumbContainer;
       thumb.name = section.name;
       thumb.sectionData = section;
+      thumb.maskGraphics = maskGraphics; // Store reference to update mask transforms
 
       // The baseScale will be set in resizeGame()/updateLayout once dimensions are known,
       // but let's initialize it safely here just in case.
       thumb.baseScale = 1;
+
+      // Update mask initially if position is already set
+      // (though for main.js it gets set in updateLayout immediately after)
 
       thumb.on('pointerover', () => {
           this.input.setDefaultCursor('pointer');
@@ -1089,6 +1096,12 @@ class MapScene extends Phaser.Scene {
               // Container uses scale, not setDisplaySize
               const thumbScale = targetW / d.width;
               thumb.setScale(thumbScale);
+
+              // Update mask transform to match the container
+              if (thumb.maskGraphics) {
+                  thumb.maskGraphics.setPosition(offsetX + centerX * scale, offsetY + centerY * scale);
+                  thumb.maskGraphics.setScale(thumbScale);
+              }
 
               // Update base scale for hover animations AFTER scaling
               thumb.baseScale = thumb.scaleX;
@@ -2008,10 +2021,14 @@ class EggZamRoom extends Phaser.Scene {
               playBtnContainer.setScale(1);
           });
 
-          playBtnContainer.on('pointerdown', () => {
+          const triggerReload = () => {
               this.input.setDefaultCursor('default');
               window.location.reload();
-          });
+          };
+
+          playBtnContainer.on('pointerdown', triggerReload);
+          this.input.keyboard.once('keydown-SPACE', triggerReload);
+          this.input.keyboard.once('keydown-ENTER', triggerReload);
         }
 
         return;
