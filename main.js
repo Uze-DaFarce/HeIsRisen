@@ -914,6 +914,9 @@ class MapScene extends Phaser.Scene {
       // but let's initialize it safely here just in case.
       thumb.baseScale = 1;
 
+      // Update mask initially if position is already set
+      // (though for main.js it gets set in updateLayout immediately after)
+
       thumb.on('pointerover', () => {
           this.input.setDefaultCursor('pointer');
           this.tweens.add({
@@ -1096,7 +1099,7 @@ class MapScene extends Phaser.Scene {
 
               // Update mask transform to match the container
               if (thumb.maskGraphics) {
-                  thumb.maskGraphics.setPosition(scaledX, scaledY);
+                  thumb.maskGraphics.setPosition(offsetX + centerX * scale, offsetY + centerY * scale);
                   thumb.maskGraphics.setScale(thumbScale);
               }
 

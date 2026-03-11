@@ -984,6 +984,10 @@ class MapScene extends Phaser.Scene {
       thumb.sectionData = section;
       thumb.maskGraphics = maskGraphics; // Store reference to update mask transforms
 
+      // Update mask initially
+      maskGraphics.setPosition(thumbX, thumbY);
+      maskGraphics.setScale(thumbScale);
+
       // Save original scale for click interactions
       thumb.baseScaleX = thumb.scaleX;
       thumb.baseScaleY = thumb.scaleY;
