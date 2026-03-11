@@ -441,8 +441,9 @@ class MainMenu extends Phaser.Scene {
     });
     this.load.on('loaderror', (file) => {
       // console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
-      if (file.key && file.key.endsWith('-fallback')) {
-          const sectionName = file.key.replace('-fallback', '');
+      if (file.key && (file.key.endsWith('-fallback') || file.key.endsWith('-thumb'))) {
+          const suffix = file.key.endsWith('-fallback') ? '-fallback' : '-thumb';
+          const sectionName = file.key.slice(0, -suffix.length);
           // If the failing URL was a .jpg, queue a .png
           if (file.url.endsWith('.jpg')) {
               this.load.image(file.key, `assets/map/sections/${sectionName}.png`);
@@ -962,6 +963,7 @@ class MapScene extends Phaser.Scene {
       const maskGraphics = this.add.graphics();
       maskGraphics.fillStyle(0xffffff);
       maskGraphics.fillRoundedRect(-section.coords.width / 2, -section.coords.height / 2, section.coords.width, section.coords.height, radius);
+      maskGraphics.setVisible(false);
 
       const mask = maskGraphics.createGeometryMask();
       thumbImage.setMask(mask);
@@ -969,7 +971,7 @@ class MapScene extends Phaser.Scene {
       // Add invisible hit area graphics for reliable touch detection on mobile
       const hitArea = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0x000000, 0);
 
-      thumbContainer.add([shadow, border, thumbImage, maskGraphics, hitArea]);
+      thumbContainer.add([shadow, border, thumbImage, hitArea]);
       thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
       thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
 
