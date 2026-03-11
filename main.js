@@ -111,17 +111,7 @@ class UIScene extends Phaser.Scene {
     this.createGearIcon();
     this.createSettingsPanel();
 
-    // Add ESC and ENTER key support to toggle settings
-    const toggleSettings = () => {
-        if (this.settingsContainer.visible) {
-            this.settingsContainer.setVisible(false);
-            this.gearIcon.setVisible(true);
-            this.gearIcon.setScale(1);
-            this.input.setDefaultCursor('none');
-        } else {
-            this.openSettings();
-        }
-    };
+    // Add ESC key support
     const closeSettings = () => {
         if (this.settingsContainer.visible) {
             this.settingsContainer.setVisible(false);
@@ -130,7 +120,7 @@ class UIScene extends Phaser.Scene {
             this.input.setDefaultCursor('none');
         }
     };
-    this.input.keyboard.on('keydown-ESC', toggleSettings);
+    this.input.keyboard.on('keydown-ESC', closeSettings);
     this.input.keyboard.on('keydown-ENTER', closeSettings);
 
     this.scale.on('resize', this.resize, this);
@@ -862,47 +852,14 @@ class MapScene extends Phaser.Scene {
 
     // We will use the original zone dimensions to calculate the center
     mapSections.forEach(section => {
-      const centerX = section.coords.x;
-      const centerY = section.coords.y;
-
-      // Create container for border and drop shadow
-      const thumbContainer = this.add.container(0, 0);
-
-      // Rounded Rectangle mask for the image
-      const radius = 15;
-
-      // Shadow
-      const shadow = this.add.graphics();
-      shadow.fillStyle(0x000000, 0.6);
-      shadow.fillRoundedRect(-section.coords.width / 2 + 4, -section.coords.height / 2 + 4, section.coords.width, section.coords.height, radius);
-
-      // Border (white background with brown stroke)
-      const border = this.add.graphics();
-      border.lineStyle(4, 0x8b4513, 1); // Brown border
-      border.fillStyle(0xffffff, 1);
-      border.fillRoundedRect(-section.coords.width / 2 - 5, -section.coords.height / 2 - 5, section.coords.width + 10, section.coords.height + 10, radius + 2);
-      border.strokeRoundedRect(-section.coords.width / 2 - 5, -section.coords.height / 2 - 5, section.coords.width + 10, section.coords.height + 10, radius + 2);
+      const centerX = section.coords.x + section.coords.width / 2;
+      const centerY = section.coords.y + section.coords.height / 2;
 
       // Add the static thumbnail image
-      const thumbImage = this.add.image(0, 0, `${section.name}-thumb`).setOrigin(0.5, 0.5);
-      thumbImage.setDisplaySize(section.coords.width, section.coords.height);
+      const thumb = this.add.image(0, 0, `${section.name}-thumb`)
+        .setOrigin(0.5, 0.5)
+        .setInteractive();
 
-      // Create mask for the image to give it rounded corners
-      const maskGraphics = this.add.graphics();
-      maskGraphics.fillStyle(0xffffff);
-      maskGraphics.fillRoundedRect(-section.coords.width / 2, -section.coords.height / 2, section.coords.width, section.coords.height, radius);
-
-      const mask = maskGraphics.createGeometryMask();
-      thumbImage.setMask(mask);
-
-      // Add invisible hit area graphics for reliable click detection
-      const hitArea = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0x000000, 0);
-
-      thumbContainer.add([shadow, border, thumbImage, maskGraphics, hitArea]);
-      thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
-      thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
-
-      const thumb = thumbContainer;
       thumb.name = section.name;
       thumb.sectionData = section;
 
@@ -965,7 +922,7 @@ class MapScene extends Phaser.Scene {
                   // To be safe, we can apply the scale based on the thumbnail's physical displayHeight.
                   // Since video height might be 0 initially, we use a fallback of 720 (standard height).
                   const intrinsicHeight = stampVideo.height || 720;
-                  const targetHeight = (thumb.height * thumb.scaleY) * 1.25;
+                  const targetHeight = thumb.displayHeight * 1.25;
                   const calculatedScale = targetHeight / intrinsicHeight;
                   stampVideo.setScale(calculatedScale);
               };
@@ -989,7 +946,7 @@ class MapScene extends Phaser.Scene {
                   // Apply the identical scale multiplier that the thumbnail is using
                   // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
                   const intrinsicHeight = stampImg.height || 720;
-                  const targetHeight = (thumb.height * thumb.scaleY) * 1.25;
+                  const targetHeight = thumb.displayHeight * 1.25;
                   stampImg.setScale(targetHeight / intrinsicHeight);
                   stampImg.disableInteractive();
                   // Replace in resize array so window resizing still works
@@ -1011,7 +968,7 @@ class MapScene extends Phaser.Scene {
 
                   // Scale the stamp so its height covers the thumbnail's height + 25%, maintaining its intrinsic aspect ratio
                   const intrinsicHeight = stampImg.height || 720;
-                  const targetHeight = (thumb.height * thumb.scaleY) * 1.25;
+                  const targetHeight = thumb.displayHeight * 1.25;
                   const calculatedScale = targetHeight / intrinsicHeight;
                   stampImg.setScale(calculatedScale);
               };
@@ -1055,20 +1012,18 @@ class MapScene extends Phaser.Scene {
           this.cameras.main.setViewport(0, 0, width, height);
       }
 
-      // Calculate scale to COVER based on native map size, not forced 1280x720
-      const nativeWidth = this.mapImage.width || 1376;
-      const nativeHeight = this.mapImage.height || 768;
-      const scaleX = width / nativeWidth;
-      const scaleY = height / nativeHeight;
+      // Calculate scale to COVER (Fill screen, center content)
+      const scaleX = width / 1280;
+      const scaleY = height / 720;
       const scale = Math.max(scaleX, scaleY);
 
       // Center map
       this.mapImage.setPosition(width/2, height/2);
       this.mapImage.setScale(scale);
 
-      // Calculate offset for map centering based on the native resolution mapping.
-      const mapWidth = nativeWidth * scale;
-      const mapHeight = nativeHeight * scale;
+      // Calculate offset for map centering
+      const mapWidth = 1280 * scale;
+      const mapHeight = 720 * scale;
       const offsetX = (width - mapWidth) / 2;
       const offsetY = (height - mapHeight) / 2;
 
@@ -1076,8 +1031,8 @@ class MapScene extends Phaser.Scene {
       if (this.mapZones) {
           this.mapZones.forEach(thumb => {
               const d = thumb.sectionData.coords;
-              const centerX = d.x;
-              const centerY = d.y;
+              const centerX = d.x + d.width / 2;
+              const centerY = d.y + d.height / 2;
 
               thumb.setPosition(offsetX + centerX * scale, offsetY + centerY * scale);
 
@@ -1086,9 +1041,7 @@ class MapScene extends Phaser.Scene {
               const targetW = d.width * scale;
               const targetH = d.height * scale;
 
-              // Container uses scale, not setDisplaySize
-              const thumbScale = targetW / d.width;
-              thumb.setScale(thumbScale);
+              thumb.setDisplaySize(targetW, targetH);
 
               // Update base scale for hover animations AFTER scaling
               thumb.baseScale = thumb.scaleX;
@@ -1101,7 +1054,7 @@ class MapScene extends Phaser.Scene {
                   item.video.setPosition(item.thumb.x, item.thumb.y);
                   // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
                   const intrinsicHeight = item.video.height || 720;
-                  const targetHeight = (item.thumb.height * item.thumb.scaleY) * 1.25;
+                  const targetHeight = item.thumb.displayHeight * 1.25;
                   item.video.setScale(targetHeight / intrinsicHeight);
               }
           });
@@ -1916,19 +1869,31 @@ class EggZamRoom extends Phaser.Scene {
         this.explanationText.setScale(0);
         this.tweens.add({ targets: this.explanationText, scaleX: 1, scaleY: 1, duration: 300, ease: 'Back.out' });
 
-        bg.on('pointerdown', () => {
-            this.tweens.add({
-                targets: this.explanationText, scaleX: 0, scaleY: 0, duration: 200, ease: 'Back.in',
-                onComplete: () => {
-                    this.explanationText.destroy();
-                    this.explanationText = null;
-                    if (!isCorrect) {
-                        this.currentEgg = null; // Un-set so it can be re-drawn
+        const dismissExplanation = () => {
+            if (this.explanationText && this.explanationText.active) {
+                this.input.keyboard.off('keydown-ESC', dismissExplanation);
+                this.input.keyboard.off('keydown-ENTER', dismissExplanation);
+                this.input.keyboard.off('keydown-SPACE', dismissExplanation);
+                this.tweens.add({
+                    targets: this.explanationText, scaleX: 0, scaleY: 0, duration: 200, ease: 'Back.in',
+                    onComplete: () => {
+                        if (this.explanationText) {
+                            this.explanationText.destroy();
+                            this.explanationText = null;
+                        }
+                        if (!isCorrect) {
+                            this.currentEgg = null; // Un-set so it can be re-drawn
+                        }
+                        this.displayRandomEggInfo(offsetX, offsetY, uiScale);
                     }
-                    this.displayRandomEggInfo(offsetX, offsetY, uiScale);
-                }
-            });
-        });
+                });
+            }
+        };
+
+        bg.on('pointerdown', dismissExplanation);
+        this.input.keyboard.on('keydown-ESC', dismissExplanation);
+        this.input.keyboard.on('keydown-ENTER', dismissExplanation);
+        this.input.keyboard.on('keydown-SPACE', dismissExplanation);
     };
 
     leftBottleZone.on('pointerdown', () => {
