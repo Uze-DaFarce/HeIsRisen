@@ -891,6 +891,7 @@ class MapScene extends Phaser.Scene {
       const maskGraphics = this.add.graphics();
       maskGraphics.fillStyle(0xffffff);
       maskGraphics.fillRoundedRect(-section.coords.width / 2, -section.coords.height / 2, section.coords.width, section.coords.height, radius);
+      maskGraphics.setVisible(false);
 
       const mask = maskGraphics.createGeometryMask();
       thumbImage.setMask(mask);
