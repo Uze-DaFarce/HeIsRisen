@@ -471,8 +471,9 @@ class MainMenu extends Phaser.Scene {
 
     this.load.on('loaderror', (file) => {
       // console.error(`MainMenu: Load error: Key='${file.key}', URL='${file.url}'`);
-      if (file.key && file.key.endsWith('-fallback')) {
-          const sectionName = file.key.replace('-fallback', '');
+      if (file.key && (file.key.endsWith('-fallback') || file.key.endsWith('-thumb'))) {
+          const suffix = file.key.endsWith('-fallback') ? '-fallback' : '-thumb';
+          const sectionName = file.key.slice(0, -suffix.length);
           // If the failing URL was a .jpg, queue a .png
           if (file.url.endsWith('.jpg')) {
               this.load.image(file.key, `assets/map/sections/${sectionName}.png`);

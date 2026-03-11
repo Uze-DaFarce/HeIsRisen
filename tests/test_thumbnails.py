@@ -16,9 +16,10 @@ def test_thumbnails(url, output_prefix, is_mobile=False):
         # For mobile, set user agent and touch capabilities
         kwargs = {}
         if is_mobile:
-            device = p.devices["Pixel 5"]
+            device = p.devices["Pixel 5 landscape"]
             kwargs.update(device)
-            kwargs["viewport"] = {"width": 390, "height": 844}
+            # Ensure landscape dimensions explicitly
+            kwargs["viewport"] = {"width": 844, "height": 390}
             kwargs["is_mobile"] = True
             kwargs["has_touch"] = True
         else:
@@ -62,6 +63,10 @@ def test_thumbnails(url, output_prefix, is_mobile=False):
         # Wait for map scene
         print(f"[{output_prefix}] Waiting for MapScene")
         time.sleep(5) # Give it time to transition and load map and thumbnails
+
+        # Wait until loading error fallbacks process
+        page.wait_for_function("() => window.game.scene.scenes.find(s => s.sys.settings.key === 'MapScene').load.isLoading() === false")
+        time.sleep(2)
 
         # Verify map scene active
         map_active = page.evaluate("""() => {
