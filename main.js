@@ -2008,10 +2008,14 @@ class EggZamRoom extends Phaser.Scene {
               playBtnContainer.setScale(1);
           });
 
-          playBtnContainer.on('pointerdown', () => {
+          const triggerReload = () => {
               this.input.setDefaultCursor('default');
               window.location.reload();
-          });
+          };
+
+          playBtnContainer.on('pointerdown', triggerReload);
+          this.input.keyboard.once('keydown-SPACE', triggerReload);
+          this.input.keyboard.once('keydown-ENTER', triggerReload);
         }
 
         return;

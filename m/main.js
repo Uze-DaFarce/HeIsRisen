@@ -2104,9 +2104,15 @@ class EggZamRoom extends Phaser.Scene {
           playBtnContainer.setSize(playBtnWidth, playBtnHeight);
           playBtnContainer.setInteractive(new Phaser.Geom.Rectangle(-playBtnWidth/2, -playBtnHeight/2, playBtnWidth, playBtnHeight), Phaser.Geom.Rectangle.Contains);
 
-          playBtnContainer.on('pointerdown', () => {
+          const triggerReload = () => {
               window.location.reload();
-          });
+          };
+
+          playBtnContainer.on('pointerdown', triggerReload);
+          if (this.input.keyboard) {
+              this.input.keyboard.once('keydown-SPACE', triggerReload);
+              this.input.keyboard.once('keydown-ENTER', triggerReload);
+          }
         }
         return;
       }
