@@ -903,6 +903,10 @@ class MapScene extends Phaser.Scene {
       // because it is scaled dynamically by the container, and rendering it as a child breaks the mask visually
       thumbContainer.add([shadow, border, thumbImage, hitArea]);
       thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
+
+      // The hitArea geometry must map exactly to local coordinates.
+      // Because container components like the shadow and border are centered using -width/2,
+      // we must pass the same negative origin bounding box so that the click zone perfectly centers on the visual.
       thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
 
       const thumb = thumbContainer;
@@ -963,7 +967,8 @@ class MapScene extends Phaser.Scene {
               stampVideo.disableInteractive();
               stampVideo.setBlendMode(Phaser.BlendModes.MULTIPLY);
               const updateStampSize = () => {
-                  stampVideo.setPosition(thumb.x, thumb.y);
+                  // Offset the video slightly up so it visually matches the stamp image
+                  stampVideo.setPosition(thumb.x, thumb.y - 20 * thumb.scaleY);
 
                   // Scale the stamp so its height covers the thumbnail's height + 25%, maintaining its intrinsic aspect ratio
                   // We must wait for the video metadata to load to get its intrinsic height,
@@ -1111,7 +1116,11 @@ class MapScene extends Phaser.Scene {
       if (this.stamps) {
           this.stamps.forEach(item => {
               if (item.video && item.video.active && item.thumb && item.thumb.active) {
-                  item.video.setPosition(item.thumb.x, item.thumb.y);
+                  // Only apply the 20px upward offset to the stampVideo (Phaser.Video), not the final stampImg
+                  const isVideo = item.video.type === 'Video';
+                  const offsetY = isVideo ? -20 * item.thumb.scaleY : 0;
+                  item.video.setPosition(item.thumb.x, item.thumb.y + offsetY);
+
                   // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
                   const intrinsicHeight = item.video.height || 720;
                   const targetHeight = (item.thumb.height * item.thumb.scaleY) * 1.25;
