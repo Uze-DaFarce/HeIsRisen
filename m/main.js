@@ -962,6 +962,7 @@ class MapScene extends Phaser.Scene {
       const maskGraphics = this.add.graphics();
       maskGraphics.fillStyle(0xffffff);
       maskGraphics.fillRoundedRect(-section.coords.width / 2, -section.coords.height / 2, section.coords.width, section.coords.height, radius);
+      maskGraphics.setVisible(false); // Do not show the mask itself
 
       const mask = maskGraphics.createGeometryMask();
       thumbImage.setMask(mask);
@@ -969,7 +970,9 @@ class MapScene extends Phaser.Scene {
       // Add invisible hit area graphics for reliable touch detection on mobile
       const hitArea = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0x000000, 0);
 
-      thumbContainer.add([shadow, border, thumbImage, maskGraphics, hitArea]);
+      // IMPORTANT: maskGraphics should NOT be added to the container's children array when used as a mask
+      // because it is scaled dynamically by the container, and rendering it as a child breaks the mask visually
+      thumbContainer.add([shadow, border, thumbImage, hitArea]);
       thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
       thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
 
@@ -979,6 +982,7 @@ class MapScene extends Phaser.Scene {
       const thumb = thumbContainer;
       thumb.name = section.name;
       thumb.sectionData = section;
+      thumb.maskGraphics = maskGraphics; // Store reference to update mask transforms
 
       // Save original scale for click interactions
       thumb.baseScaleX = thumb.scaleX;
@@ -2360,6 +2364,11 @@ function resizeGame() {
             const targetW = section.coords.width * mapScale;
             const thumbScale = targetW / section.coords.width;
             section.zone.setScale(thumbScale);
+
+            if (section.zone.maskGraphics) {
+                section.zone.maskGraphics.setPosition(thumbX, thumbY);
+                section.zone.maskGraphics.setScale(thumbScale);
+            }
 
             section.zone.baseScaleX = section.zone.scaleX;
             section.zone.baseScaleY = section.zone.scaleY;
