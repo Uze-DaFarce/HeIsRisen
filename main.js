@@ -897,17 +897,18 @@ class MapScene extends Phaser.Scene {
       thumbImage.setMask(mask);
 
       // Add invisible hit area graphics for reliable click detection
-      const hitArea = this.add.rectangle(0, 0, section.coords.width + 10, section.coords.height + 10, 0x000000, 0);
+      // Use an expanded hit area to make clicking slightly more forgiving
+      const hitArea = this.add.rectangle(0, 0, section.coords.width + 40, section.coords.height + 40, 0x000000, 0);
 
       // IMPORTANT: maskGraphics should NOT be added to the container's children array when used as a mask
       // because it is scaled dynamically by the container, and rendering it as a child breaks the mask visually
       thumbContainer.add([shadow, border, thumbImage, hitArea]);
-      thumbContainer.setSize(section.coords.width + 10, section.coords.height + 10);
+      thumbContainer.setSize(section.coords.width + 40, section.coords.height + 40);
 
-      // The hitArea geometry must map exactly to local coordinates.
-      // Because container components like the shadow and border are centered using -width/2,
-      // we must pass the same negative origin bounding box so that the click zone perfectly centers on the visual.
-      thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 10) / 2, -(section.coords.height + 10) / 2, section.coords.width + 10, section.coords.height + 10), Phaser.Geom.Rectangle.Contains);
+      // By omitting geometry arguments and relying on the `hitArea` rectangle we added above,
+      // Phaser will natively compute the bounds from the container's display list components
+      // correctly mapping the center of the click zone to the container origin (0,0) across all scales.
+      thumbContainer.setInteractive();
 
       const thumb = thumbContainer;
       thumb.name = section.name;
