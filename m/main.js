@@ -976,9 +976,10 @@ class MapScene extends Phaser.Scene {
       thumbContainer.add([shadow, border, thumbImage, hitArea]);
       thumbContainer.setSize(section.coords.width + 80, section.coords.height + 80);
 
-      // Expand the interactive bounds significantly (by 80px) to ensure fingers easily trigger the level
-      // without needing to perfectly hit the center of the thumbnail image.
-      thumbContainer.setInteractive(new Phaser.Geom.Rectangle(-(section.coords.width + 80) / 2, -(section.coords.height + 80) / 2, section.coords.width + 80, section.coords.height + 80), Phaser.Geom.Rectangle.Contains);
+      // By omitting geometry arguments and relying on the `hitArea` rectangle we added above,
+      // Phaser will natively compute the bounds from the container's display list components
+      // correctly mapping the center of the click zone to the container origin (0,0) across all scales.
+      thumbContainer.setInteractive();
 
       const thumbScale = (section.coords.width * initMapScale) / section.coords.width;
       thumbContainer.setScale(thumbScale);
