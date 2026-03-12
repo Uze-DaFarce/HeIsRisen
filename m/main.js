@@ -1024,7 +1024,7 @@ class MapScene extends Phaser.Scene {
               stampVideo.setBlendMode(Phaser.BlendModes.MULTIPLY);
               const updateStampSize = () => {
                   // Offset the video slightly up so it visually matches the stamp image
-                  stampVideo.setPosition(thumb.x, thumb.y - 20 * thumb.scaleY);
+                  stampVideo.setPosition(thumb.x, thumb.y - 40 * thumb.scaleY);
 
                   // Scale the stamp so its height covers the thumbnail's height + 25%, maintaining its intrinsic aspect ratio
                   // We must wait for the video metadata to load to get its intrinsic height,
@@ -2387,9 +2387,9 @@ function resizeGame() {
         if (scene.stamps) {
             scene.stamps.forEach(item => {
                 if (item.video && item.video.active && item.thumb && item.thumb.active) {
-                    // Only apply the 20px upward offset to the stampVideo (Phaser.Video), not the final stampImg
+                    // Only apply the 40px upward offset to the stampVideo (Phaser.Video), not the final stampImg
                     const isVideo = item.video.type === 'Video';
-                    const offsetY = isVideo ? -20 * item.thumb.scaleY : 0;
+                    const offsetY = isVideo ? -40 * item.thumb.scaleY : 0;
                     item.video.setPosition(item.thumb.x, item.thumb.y + offsetY);
 
                     // Cover thumbnail height + 25%, maintaining intrinsic stamp ratio
